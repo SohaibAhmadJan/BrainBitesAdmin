@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Plus, Trash2, Edit3, Save, Smartphone, Heart, ChevronLeft, BookOpen } from 'lucide-react';
 import { BiteItem, BiteCategories, BiteCategory } from '../types';
+import { cn } from '../utils/cn';
 
 interface FactEditorProps {
   facts: BiteItem[];
@@ -21,124 +24,108 @@ const FactEditor: React.FC<FactEditorProps> = ({
   const selectedFact = facts.find((f) => f.id === selectedFactId) || facts[0];
 
   return (
-    <div className="flex h-[calc(100vh-180px)] gap-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="flex h-[calc(100vh-200px)] gap-8 animate-in slide-in-from-bottom-4 duration-500">
       {/* List Panel */}
-      <div className="w-80 flex flex-col bg-slate-800/40 border border-slate-700 rounded-3xl overflow-hidden">
-        <div className="p-4 border-bottom border-slate-700 flex justify-between items-center bg-slate-800/20">
-          <h3 className="font-bold text-slate-300">Facts List</h3>
-          <button
+      <div className="w-96 flex flex-col glass rounded-[2.5rem] overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-brand-sage/10 flex justify-between items-center bg-brand-primary/5">
+          <h3 className="font-black text-xs uppercase tracking-[0.2em] text-sub">Sequence Repository</h3>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onAddFact}
-            className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+            className="p-2 bg-brand-primary text-brand-white rounded-xl shadow-lg shadow-brand-primary/20"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+            <Plus size={18} strokeWidth={3} />
+          </motion.button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
           {facts.map((fact) => (
             <button
               key={fact.id}
               onClick={() => onSelectFact(fact.id)}
-              className={`w-full text-left p-3 rounded-xl transition-all ${
+              className={cn(
+                "w-full text-left p-4 rounded-2xl transition-all border group",
                 selectedFactId === fact.id
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'hover:bg-slate-700/50 text-slate-400 border border-transparent'
-              }`}
+                  ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary shadow-inner"
+                  : "hover:bg-brand-primary/5 border-transparent text-sub"
+              )}
             >
-              <p className="font-medium truncate text-sm">{fact.fact || 'Untitled Fact'}</p>
-              <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60 font-bold">{fact.category.replace('_', ' ')}</p>
+              <p className="font-bold truncate text-sm">{fact.fact || 'Untitled Sequence'}</p>
+              <p className="text-[9px] uppercase tracking-widest mt-1.5 opacity-40 font-black">{fact.category}</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* Editor Panel */}
-      <div className="flex-1 overflow-y-auto pr-4 space-y-6 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto pr-4 space-y-8 scrollbar-hide pb-20">
         {selectedFact ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="bg-slate-800/40 border border-slate-700 p-6 rounded-3xl space-y-4">
-                <h3 className="text-lg font-bold text-white border-b border-slate-700 pb-3">Core Content</h3>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+            <div className="space-y-8">
+              <div className="glass p-8 rounded-[2.5rem] space-y-6 shadow-xl relative overflow-hidden">
+                <h3 className="text-lg font-black tracking-tight border-b border-brand-sage/10 pb-4">Core Definition</h3>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Short Insight</label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Sequence Insight</label>
+                  <textarea
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner leading-relaxed"
+                    rows={4}
                     value={selectedFact.fact}
                     onChange={(e) => onUpdateFact({ fact: e.target.value })}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Full Explanation</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Analytical Breakdown</label>
                   <textarea
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                    rows={4}
-                    value={selectedFact.fullFact}
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner leading-relaxed"
+                    rows={6}
+                    value={selectedFact.fullFact || ''}
                     onChange={(e) => onUpdateFact({ fullFact: e.target.value })}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Category</label>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Domain</label>
                     <select
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
+                      className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-3 text-xs font-bold focus:outline-none focus:border-brand-primary appearance-none"
                       value={selectedFact.category}
                       onChange={(e) => onUpdateFact({ category: e.target.value as BiteCategory })}
                     >
                       {BiteCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Read Time (Min)</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Read Time</label>
                     <input
                       type="number"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-3 text-xs font-bold focus:outline-none focus:border-brand-primary shadow-inner"
                       value={selectedFact.readTimeMinutes}
                       onChange={(e) => onUpdateFact({ readTimeMinutes: parseInt(e.target.value) || 1 })}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Image URL</label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                    placeholder="https://images.unsplash.com/..."
-                    value={selectedFact.imageUrl || ''}
-                    onChange={(e) => onUpdateFact({ imageUrl: e.target.value || null })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Keywords (comma separated)</label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                    placeholder="mind, growth, psychology"
-                    value={selectedFact.keywords || ''}
-                    onChange={(e) => onUpdateFact({ keywords: e.target.value || null })}
-                  />
-                </div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 blur-2xl rounded-full" />
               </div>
 
-              <div className="bg-slate-800/40 border border-slate-700 p-6 rounded-3xl space-y-4">
-                <h3 className="text-lg font-bold text-white border-b border-slate-700 pb-3">Quiz Details</h3>
-                <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Question</label>
+              <div className="glass p-8 rounded-[2.5rem] space-y-6 shadow-xl relative overflow-hidden">
+                <h3 className="text-lg font-black tracking-tight border-b border-brand-sage/10 pb-4">Challenge Logic</h3>
+                <div className="space-y-3">
+                   <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Question Node</label>
                    <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
                     value={selectedFact.quizQuestion || ''}
                     onChange={(e) => onUpdateFact({ quizQuestion: e.target.value || null })}
-                    placeholder="Enter quiz question..."
+                    placeholder="Input question..."
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                    {Array.from({ length: 4 }).map((_, i) => (
                      <input
                        key={i}
-                       className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                       className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary shadow-inner"
                        placeholder={`Option ${i+1}`}
                        value={selectedFact.quizOptions?.[i] || ''}
                        onChange={(e) => {
@@ -149,72 +136,68 @@ const FactEditor: React.FC<FactEditorProps> = ({
                      />
                    ))}
                 </div>
-                <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Correct Answer Index (0-3)</label>
-                   <input
-                    type="number"
-                    min="0"
-                    max="3"
-                    className="w-24 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                    value={selectedFact.correctAnswerIndex ?? ''}
-                    onChange={(e) => onUpdateFact({ correctAnswerIndex: e.target.value === '' ? null : parseInt(e.target.value) })}
-                  />
-                </div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 blur-2xl rounded-full" />
               </div>
             </div>
 
             {/* Live Preview Card */}
-            <div className="space-y-6">
-               <div className="sticky top-0">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Mobile Preview</h3>
-                  <div className="w-[300px] h-[550px] mx-auto bg-black rounded-[3rem] p-3 border-4 border-slate-800 shadow-2xl relative overflow-hidden">
-                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20"></div>
-                     <div className="w-full h-full bg-slate-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
+            <div className="space-y-8">
+               <div className="sticky top-6">
+                  <h3 className="text-[10px] font-black text-sub uppercase tracking-[0.3em] mb-6 text-center">Identity Hub Simulation</h3>
+                  <div className="w-[320px] h-[600px] mx-auto bg-black rounded-[3.5rem] p-4 border-8 border-brand-surface shadow-2xl relative overflow-hidden ring-1 ring-brand-sage/20">
+                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-3xl z-20"></div>
+                     <div className="w-full h-full bg-brand-bg rounded-[2.8rem] overflow-hidden flex flex-col relative">
                         {/* Mock Image */}
-                        <div className="h-40 bg-emerald-500/20 flex items-center justify-center border-b border-emerald-500/10">
+                        <div className="h-48 bg-brand-surface relative flex items-center justify-center overflow-hidden">
                            {selectedFact.imageUrl ? (
-                             <img src={selectedFact.imageUrl} className="w-full h-full object-cover" alt="" />
+                             <img src={selectedFact.imageUrl} className="w-full h-full object-cover opacity-80" alt="" />
                            ) : (
-                             <span className="text-emerald-500/40 font-bold tracking-tighter">BITE IMAGE</span>
+                             <BookOpen size={48} className="text-brand-primary/20" />
                            )}
-                        </div>
-                        <div className="p-6 space-y-4">
-                           <div className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded inline-block">
-                             {selectedFact.category.replace('_', ' ')}
-                           </div>
-                           <h4 className="text-white text-xl font-bold leading-tight">{selectedFact.fact || 'Bite Fact Title'}</h4>
-                           <p className="text-slate-400 text-xs leading-relaxed line-clamp-4">{selectedFact.fullFact || 'Full explanation will appear here on the device...'}</p>
-
-                           <div className="pt-4 border-t border-slate-800">
-                             <div className="text-[10px] text-slate-500 uppercase font-bold mb-2">Why it matters</div>
-                             <p className="text-emerald-400/80 text-[11px] italic leading-snug">{selectedFact.whyItMatters || 'Practical application insight...'}</p>
+                           <div className="absolute top-10 left-6 right-6 flex justify-between">
+                              <div className="w-8 h-8 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white"><ChevronLeft size={16} /></div>
+                              <div className="w-8 h-8 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white"><Heart size={16} /></div>
                            </div>
                         </div>
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
-                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                           <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
-                           <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+                        <div className="p-7 space-y-5">
+                           <div className="bg-brand-primary/10 text-brand-primary text-[9px] font-black px-3 py-1 rounded-full border border-brand-primary/20 inline-block uppercase tracking-widest">
+                             {selectedFact.category}
+                           </div>
+                           <h4 className="text-brand-white text-xl font-black leading-tight tracking-tight italic">"{selectedFact.fact || 'Bite Fact Title'}"</h4>
+                           <p className="text-brand-white/40 text-xs leading-relaxed line-clamp-5">{selectedFact.fullFact || 'Payload sequence description...'}</p>
+                        </div>
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]"></div>
+                           <div className="w-1.5 h-1.5 rounded-full bg-brand-sage/40"></div>
+                           <div className="w-1.5 h-1.5 rounded-full bg-brand-sage/40"></div>
                         </div>
                      </div>
                   </div>
 
-                  <div className="mt-8 flex justify-end gap-3">
-                    <button
+                  <div className="mt-12 flex justify-center gap-4 max-w-[320px] mx-auto">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => onDeleteFact(selectedFact.id)}
-                      className="px-6 py-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
+                      className="flex-1 py-3.5 rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest shadow-xl"
                     >
-                      Delete Fact
-                    </button>
-                    <button className="px-8 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-                      Save Changes
-                    </button>
+                      Delete node
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex-[2] py-3.5 rounded-2xl bg-brand-primary text-brand-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand-primary/20"
+                    >
+                      Commit Changes
+                    </motion.button>
                   </div>
                </div>
             </div>
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center text-slate-500 font-medium">
-            Select a fact from the left to start editing.
+          <div className="h-full flex flex-col items-center justify-center text-sub opacity-20 gap-4">
+            <BookOpen size={64} />
+            <p className="font-black uppercase tracking-[0.4em]">Select sequence node</p>
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@ import { fetchBites, fetchCollections, fetchNotifications, fetchAuditLogs } from
 import { cn } from '../../utils/cn';
 import { AuditLog, BiteCategories } from '../../types';
 import { formatTimeAgo } from '../../utils/dateUtils';
+import { useTheme } from '../../context/ThemeContext';
 
 const Counter = ({ value }: { value: number | string }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -60,6 +61,7 @@ const Counter = ({ value }: { value: number | string }) => {
 };
 
 const DashboardPage = () => {
+  const { theme } = useTheme();
   const [counts, setCounts] = useState({ facts: 0, collections: 0, notifications: 0 });
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [engagementData, setEngagementData] = useState<any[]>([]);
@@ -126,16 +128,16 @@ const DashboardPage = () => {
            <motion.h1
              initial={{ opacity: 0, x: -20 }}
              animate={{ opacity: 1, x: 0 }}
-             className="text-4xl font-black text-brand-white tracking-tight"
+             className="text-4xl font-black tracking-tight"
            >
              Welcome Back, <span className="text-brand-primary">Administrator</span>
            </motion.h1>
-           <p className="text-brand-secondary/40 font-bold mt-1 uppercase tracking-[0.2em] text-xs">Intelligence Center • Real-time Operations</p>
+           <p className="text-sub font-bold mt-1 uppercase tracking-[0.2em] text-xs">Intelligence Center • Real-time Operations</p>
         </div>
         <div className="flex gap-4">
            <div className="glass px-6 py-3 rounded-2xl flex items-center gap-3">
               <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(45,106,79,1)]" />
-              <span className="text-xs font-black text-brand-white/80 uppercase tracking-widest">Network Secure</span>
+              <span className="text-xs font-black uppercase tracking-widest opacity-80">Network Secure</span>
            </div>
         </div>
       </div>
@@ -149,7 +151,7 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
             whileHover={{ y: -10, scale: 1.02 }}
-            className="glass p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:border-brand-primary/40 transition-all group relative overflow-hidden"
+            className="glass p-6 rounded-[2.5rem] shadow-xl hover:border-brand-primary/40 transition-all group relative overflow-hidden"
           >
             <div className="flex justify-between items-start relative z-10">
               <div className={cn("p-4 rounded-2xl shadow-inner", stat.bg)}>
@@ -164,15 +166,15 @@ const DashboardPage = () => {
               </div>
             </div>
             <div className="mt-6 relative z-10">
-              <p className="text-brand-secondary/40 text-[10px] font-black uppercase tracking-[0.2em]">{stat.label}</p>
-              <h3 className="text-4xl font-black text-brand-white mt-1.5 tracking-tighter">
+              <p className="text-sub text-[10px] font-black uppercase tracking-[0.2em]">{stat.label}</p>
+              <h3 className="text-4xl font-black mt-1.5 tracking-tighter">
                 {loading ? '...' : <Counter value={stat.value} />}
               </h3>
             </div>
             {/* Ambient Background Glow */}
             <div className={cn(
               "absolute -bottom-10 -right-10 w-32 h-32 blur-[60px] opacity-0 group-hover:opacity-20 transition-opacity rounded-full",
-              stat.bg.replace('bg-', '')
+              stat.color.replace('text-', 'bg-')
             )}></div>
           </motion.div>
         ))}
@@ -188,14 +190,14 @@ const DashboardPage = () => {
         >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
             <div>
-              <h3 className="text-2xl font-black text-brand-white tracking-tight flex items-center gap-3">
+              <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
                  <ActivityIcon size={24} className="text-brand-primary" /> System Throughput
               </h3>
-              <p className="text-brand-secondary/40 text-xs font-bold uppercase tracking-widest mt-1">Cross-platform Engagement Dynamics</p>
+              <p className="text-sub text-xs font-bold uppercase tracking-widest mt-1">Cross-platform Engagement Dynamics</p>
             </div>
-            <div className="flex bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/20">
+            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/10">
                <button className="px-5 py-2 text-[10px] font-black text-brand-white bg-brand-primary rounded-xl shadow-lg shadow-brand-primary/20 uppercase tracking-widest transition-all">Real-time</button>
-               <button className="px-5 py-2 text-[10px] font-black text-brand-white/40 hover:text-brand-white uppercase tracking-widest transition-all">Snapshot</button>
+               <button className="px-5 py-2 text-[10px] font-black opacity-40 hover:opacity-100 uppercase tracking-widest transition-all">Snapshot</button>
             </div>
           </div>
 
@@ -212,11 +214,18 @@ const DashboardPage = () => {
                     <stop offset="95%" stopColor="#95D5B2" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="#274C3A" opacity={0.3} />
+                <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.3} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} dy={15} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1A2B22', borderColor: '#2D6A4F', borderRadius: '20px', fontSize: '12px', border: '1px solid rgba(45,106,79,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+                  contentStyle={{
+                    backgroundColor: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
+                    borderColor: '#2D6A4F',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    border: '1px solid rgba(45,106,79,0.3)',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                  }}
                   itemStyle={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '10px' }}
                 />
                 <Area type="monotone" dataKey="views" stroke="#2D6A4F" strokeWidth={4} fillOpacity={1} fill="url(#colorViews)" animationDuration={2000} />
@@ -238,10 +247,10 @@ const DashboardPage = () => {
                <HistoryIcon size={20} className="text-brand-primary" />
              </div>
              <div>
-                <h3 className="text-xl font-black text-brand-white tracking-tight">Audit Stream</h3>
+                <h3 className="text-xl font-black tracking-tight">Audit Stream</h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
                    <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-pulse" />
-                   <p className="text-[9px] font-black text-brand-secondary/40 uppercase tracking-[0.2em]">Monitoring Active</p>
+                   <p className="text-[9px] font-black text-sub uppercase tracking-[0.2em]">Monitoring Active</p>
                 </div>
              </div>
           </div>
@@ -249,8 +258,8 @@ const DashboardPage = () => {
           <div className="flex-1 space-y-8 overflow-y-auto pr-4 scrollbar-hide">
             <AnimatePresence>
               {logs.length === 0 && !loading ? (
-                <div className="h-full flex flex-col items-center justify-center text-brand-white/10 gap-4 italic py-10">
-                  <Clock size={40} className="opacity-10 rotate-12" />
+                <div className="h-full flex flex-col items-center justify-center opacity-10 gap-4 italic py-10">
+                  <Clock size={40} className="rotate-12" />
                   <p className="text-sm font-bold tracking-tighter">Event sequence empty</p>
                 </div>
               ) : logs.map((log, idx) => {
@@ -263,16 +272,16 @@ const DashboardPage = () => {
                     transition={{ delay: 0.7 + (idx * 0.05) }}
                     className="flex gap-5 group"
                   >
-                    <div className="shrink-0 w-12 h-12 bg-brand-bg rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(45,106,79,0.3)] transition-all border border-brand-sage/20 duration-500 shadow-inner">
+                    <div className="shrink-0 w-12 h-12 bg-brand-bg/5 dark:bg-brand-bg/50 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg transition-all border border-brand-sage/10 duration-500">
                       <Icon size={18} className={color} />
                     </div>
                     <div className="flex-1 min-w-0 border-b border-brand-sage/10 pb-6">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-black text-brand-white/90 truncate pr-4 uppercase tracking-wider">{log.action.replace(/_/g, ' ')}</h4>
-                        <span className="text-[10px] text-brand-secondary/30 font-black whitespace-nowrap bg-brand-bg px-2 py-0.5 rounded-lg border border-brand-sage/20">{formatTimeAgo(log.timestamp)}</span>
+                        <h4 className="text-xs font-black truncate pr-4 uppercase tracking-wider">{log.action.replace(/_/g, ' ')}</h4>
+                        <span className="text-[10px] text-sub font-black whitespace-nowrap bg-brand-bg/5 dark:bg-brand-bg/50 px-2 py-0.5 rounded-lg border border-brand-sage/10">{formatTimeAgo(log.timestamp)}</span>
                       </div>
-                      <p className="text-[11px] text-brand-secondary/40 mt-1.5 font-medium leading-relaxed italic line-clamp-1">"{log.details}"</p>
-                      <p className="text-[10px] text-brand-white/20 mt-1 uppercase font-black tracking-tighter">Agent: <span className="text-brand-primary/60">{log.adminEmail}</span></p>
+                      <p className="text-[11px] text-sub mt-1.5 font-medium leading-relaxed italic line-clamp-1">"{log.details}"</p>
+                      <p className="text-[10px] opacity-40 mt-1 uppercase font-black tracking-tighter">Agent: <span className="text-brand-primary/60">{log.adminEmail}</span></p>
                     </div>
                   </motion.div>
                 );
@@ -284,7 +293,7 @@ const DashboardPage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate('/audit-logs')}
-            className="mt-10 w-full py-5 bg-brand-bg/50 hover:bg-brand-primary text-brand-secondary/40 hover:text-brand-white text-[10px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] transition-all border border-brand-sage/20 hover:border-brand-primary shadow-xl"
+            className="mt-10 w-full py-5 bg-brand-bg/5 dark:bg-brand-bg/50 hover:bg-brand-primary text-sub hover:text-brand-white text-[10px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] transition-all border border-brand-sage/10 hover:border-brand-primary shadow-xl"
           >
             Sequence Manifest
           </motion.button>

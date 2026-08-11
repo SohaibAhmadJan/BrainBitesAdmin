@@ -1,3 +1,8 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Download, Upload, Info, FileJson } from 'lucide-react';
+import { cn } from '../utils/cn';
+
 interface ImportExportProps {
   onImport: (files: FileList | null) => void;
   onExport: () => void;
@@ -6,19 +11,20 @@ interface ImportExportProps {
 
 const ImportExport: React.FC<ImportExportProps> = ({ onImport, onExport, error }) => {
   return (
-    <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
-      <div className="bg-slate-800/40 border border-slate-700 p-8 rounded-3xl space-y-6">
-        <h2 className="text-2xl font-bold text-white">Bulk Data Operations</h2>
+    <div className="max-w-4xl space-y-10 animate-in fade-in duration-500">
+      <div className="glass p-10 rounded-[3rem] space-y-8 shadow-2xl relative overflow-hidden">
+        <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
+           <FileJson size={24} className="text-brand-primary" />
+           Batch Processing Sequence
+        </h2>
 
-        <div className="p-6 bg-slate-900/50 border border-dashed border-slate-700 rounded-2xl text-center space-y-4 group hover:border-emerald-500/50 transition-colors">
-          <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
+        <div className="p-10 bg-brand-bg/5 dark:bg-brand-bg/40 border-2 border-dashed border-brand-sage/20 rounded-[2.5rem] text-center space-y-6 group hover:border-brand-primary/50 transition-all duration-500 shadow-inner">
+          <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center mx-auto text-brand-primary shadow-lg group-hover:scale-110 transition-transform">
+            <Upload size={32} strokeWidth={2.5} />
           </div>
           <div>
-            <p className="text-white font-medium">Import JSON Database</p>
-            <p className="text-xs text-slate-500 mt-1">Select a `facts.json` file to batch-upload to Firestore.</p>
+            <p className="font-bold text-lg">Ingest Master Schema</p>
+            <p className="text-xs text-sub mt-2 italic font-medium">Map local JSON nodes to Cloud Firestore clusters.</p>
           </div>
           <input
             type="file"
@@ -30,37 +36,47 @@ const ImportExport: React.FC<ImportExportProps> = ({ onImport, onExport, error }
           />
           <label
             htmlFor="json-upload"
-            className="inline-block px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl cursor-pointer transition-all active:scale-95"
+            className="inline-block px-10 py-3.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white text-xs font-black rounded-2xl cursor-pointer transition-all active:scale-95 uppercase tracking-[0.2em] shadow-xl shadow-brand-primary/20"
           >
-            Choose File
+            Select Sequence File
           </label>
-          {error && <p className="text-red-400 text-xs font-medium">{error}</p>}
+          {error && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-red-500 text-xs font-black uppercase tracking-widest bg-red-500/10 py-2 rounded-xl mt-4"
+            >
+              {error}
+            </motion.p>
+          )}
         </div>
 
-        <div className="pt-6 border-t border-slate-700 flex justify-between items-center">
+        <div className="pt-8 border-t border-brand-sage/10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
-            <h4 className="text-white font-medium">Backup Content</h4>
-            <p className="text-xs text-slate-500 mt-0.5">Download current Firestore state as a JSON file.</p>
+            <h4 className="font-bold text-lg">Extract Master Snapshot</h4>
+            <p className="text-xs text-sub opacity-60 mt-1 font-medium italic">Download current system state for redundancy.</p>
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={onExport}
-            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl transition-all"
+            className="px-8 py-3.5 bg-brand-bg/5 dark:bg-brand-bg border border-brand-sage/20 text-sub hover:text-brand-primary hover:border-brand-primary rounded-2xl transition-all text-xs font-black uppercase tracking-widest shadow-xl"
           >
-            Export to JSON
-          </button>
+            <Download size={18} className="inline mr-2" /> Extract to JSON
+          </motion.button>
         </div>
+
+        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
       </div>
 
-      <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex gap-4">
-        <div className="text-blue-400 pt-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
+      <div className="p-8 bg-brand-primary/5 border border-brand-primary/10 rounded-[2rem] flex gap-6 shadow-sm">
+        <div className="text-brand-primary pt-1">
+           <Info size={20} />
         </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-bold text-blue-400">JSON Structure Note</h4>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Ensure your JSON contains an array of objects matching the `BiteItem` specification. Missing fields will be populated with default values upon import.
+        <div className="space-y-2">
+          <h4 className="text-sm font-black uppercase tracking-widest opacity-80">Schema Mapping Protocol</h4>
+          <p className="text-xs text-sub leading-relaxed font-medium">
+            Ensure your source definitions align with the `BiteItem` cluster specification. Nodes with missing identity hashes will be automatically normalized using system-wide defaults during the ingestion sequence.
           </p>
         </div>
       </div>

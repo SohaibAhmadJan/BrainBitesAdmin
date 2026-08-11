@@ -7,9 +7,11 @@ import TopBar from './TopBar';
 import GlobalSearch from '../components/GlobalSearch';
 import { cn } from '../utils/cn';
 import { fetchBites, fetchCollections, fetchNotifications } from '../services/firestoreService';
+import { useTheme } from '../context/ThemeContext';
 
 const AdminLayout = () => {
   const location = useLocation();
+  const { theme } = useTheme();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [stats, setStats] = React.useState([
@@ -44,8 +46,21 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg flex text-brand-white antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden">
-      <Toaster position="top-right" toastOptions={{ style: { background: '#1A2B22', color: '#E6F4EA', borderRadius: '1rem', border: '1px solid #274C3A' } }} />
+    <div className={cn(
+      "min-h-screen flex antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden transition-colors duration-300",
+      theme === 'dark' ? "bg-brand-bg text-brand-white" : "bg-[#F7FBF9] text-[#1A2B22]"
+    )}>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
+            color: theme === 'dark' ? '#E6F4EA' : '#1A2B22',
+            borderRadius: '1rem',
+            border: theme === 'dark' ? '1px solid #274C3A' : '1px solid #E6F4EA'
+          }
+        }}
+      />
 
       {/* Animated Mesh Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -56,7 +71,10 @@ const AdminLayout = () => {
             y: [0, 30, 0]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-primary/10 blur-[120px] rounded-full"
+          className={cn(
+            "absolute top-[-10%] right-[-10%] w-[50%] h-[50%] blur-[120px] rounded-full transition-colors duration-500",
+            theme === 'dark' ? "bg-brand-primary/10" : "bg-brand-primary/5"
+          )}
         />
         <motion.div
           animate={{
@@ -65,7 +83,10 @@ const AdminLayout = () => {
             y: [0, 60, 0]
           }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand-secondary/5 blur-[120px] rounded-full"
+          className={cn(
+            "absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] blur-[120px] rounded-full transition-colors duration-500",
+            theme === 'dark' ? "bg-brand-secondary/5" : "bg-brand-secondary/10"
+          )}
         />
       </div>
 

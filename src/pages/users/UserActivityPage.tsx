@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity,
   Search,
@@ -10,13 +11,18 @@ import {
   Smartphone,
   ChevronLeft,
   ChevronRight,
-  Zap
+  Zap,
+  Radio,
+  Fingerprint
 } from 'lucide-react';
 import { UserActivity } from '../../types';
 import { fetchRecentActivity } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
+import { formatTimeAgo } from '../../utils/dateUtils';
+import { useTheme } from '../../context/ThemeContext';
 
 const UserActivityPage = () => {
+  const { theme } = useTheme();
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,82 +43,138 @@ const UserActivityPage = () => {
     }
   };
 
+  const filteredActivities = activities.filter(act =>
+    act.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    act.targetName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    act.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl backdrop-blur-md flex flex-col md:flex-row justify-between items-center gap-6">
-        <div>
-          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-             <Activity className="text-blue-500" size={32} />
-             Live Activity Radar
+    <div className="space-y-10 animate-in fade-in duration-700">
+
+      {/* High-End Header */}
+      <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-4xl font-black tracking-tighter flex items-center gap-4">
+             <div className="p-3 bg-brand-primary/10 rounded-2xl">
+                <Activity className="text-brand-primary" size={32} />
+             </div>
+             Activity Radar
           </h2>
-          <p className="text-slate-500 text-sm mt-1 font-medium italic uppercase tracking-widest text-[10px]">Real-Time Behavioral Stream</p>
+          <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Real-time Behavioral Stream • Identity Sequence Monitoring</p>
         </div>
 
-        <div className="flex items-center gap-4">
-           <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
-              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Live Pulse</span>
+        <div className="flex items-center gap-6 relative z-10">
+           <div className="flex items-center gap-3 px-6 py-3 bg-brand-primary/10 border border-brand-primary/20 rounded-2xl shadow-inner">
+              <div className="w-2 h-2 bg-brand-primary rounded-full animate-ping" />
+              <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em]">Live Feed Active</span>
            </div>
         </div>
+
+        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl">
-        <div className="p-6 bg-slate-800/20 border-b border-slate-800 flex justify-between items-center">
-           <div className="relative w-full md:w-96 group">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-400 transition-colors" size={16} />
+      <div className="glass rounded-[3rem] overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.3)] relative">
+        <div className="p-8 bg-brand-primary/5 border-b border-brand-sage/10 flex flex-col md:flex-row justify-between items-center gap-6">
+           <div className="relative w-full md:w-[30rem] group z-10">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/30 group-focus-within:text-brand-primary transition-colors" size={20} />
              <input
                type="text"
-               placeholder="Search activity stream..."
-               className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500/50 transition-all shadow-inner"
+               placeholder="Query identity sequence..."
+               className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-[1.5rem] pl-12 pr-6 py-4 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
              />
            </div>
-           <div className="flex gap-2">
-              <button className="p-2 text-slate-500 hover:text-white transition-colors"><Filter size={18} /></button>
-              <button onClick={loadActivity} className="p-2 text-slate-500 hover:text-white transition-colors"><Clock size={18} /></button>
+           <div className="flex gap-3 z-10">
+              <motion.button whileHover={{ scale: 1.05 }} className="p-3 glass rounded-xl text-sub hover:text-brand-primary border-brand-sage/10"><Filter size={20} /></motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, rotate: 180 }}
+                onClick={loadActivity}
+                className="p-3 glass rounded-xl text-sub hover:text-brand-primary border-brand-sage/10 transition-all duration-700"
+              >
+                <Clock size={20} />
+              </motion.button>
            </div>
         </div>
 
-        <div className="divide-y divide-slate-800/50">
-          {activities.map((act) => (
-            <div key={act.id} className="p-6 hover:bg-slate-800/20 transition-all group flex gap-6">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-inner border",
-                act.type === 'READ_FACT' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                act.type === 'LIKE_FACT' ? "bg-pink-500/10 text-pink-500 border-pink-500/20" :
-                act.type === 'COMPLETE_QUIZ' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
-                "bg-blue-500/10 text-blue-500 border-blue-500/20"
-              )}>
-                {act.type === 'READ_FACT' && <Eye size={20} />}
-                {act.type === 'LIKE_FACT' && <Heart size={20} />}
-                {act.type === 'COMPLETE_QUIZ' && <CheckCircle2 size={20} />}
-                {act.type === 'APP_OPEN' && <Smartphone size={20} />}
-              </div>
-
-              <div className="flex-1 space-y-1">
-                 <div className="flex justify-between items-start">
-                    <p className="text-sm font-bold text-slate-200">
-                       User <span className="text-white font-black">#{act.userId}</span> {
-                         act.type === 'READ_FACT' ? 'viewed' :
-                         act.type === 'LIKE_FACT' ? 'favorited' :
-                         act.type === 'COMPLETE_QUIZ' ? 'completed' : 'opened'
-                       } {act.targetName && <span className="text-blue-400">"{act.targetName}"</span>}
-                    </p>
-                    <span className="text-[10px] font-bold text-slate-600 uppercase">{new Date(act.timestamp).toLocaleTimeString()}</span>
-                 </div>
-                 <div className="flex items-center gap-4 text-[10px] font-black text-slate-600 uppercase tracking-tighter">
-                    <span className="flex items-center gap-1"><Zap size={10} /> Latency: 45ms</span>
-                    <span>Event Trace: {act.id}</span>
-                 </div>
-              </div>
+        <div className="divide-y divide-brand-sage/5">
+          {loading ? (
+            <div className="p-40 text-center flex flex-col items-center justify-center gap-6 animate-pulse opacity-20">
+               <Fingerprint size={64} className="text-brand-primary" />
+               <p className="font-black uppercase tracking-[0.5em] text-sm">Decoding Event Buffer...</p>
             </div>
-          ))}
+          ) : filteredActivities.length === 0 ? (
+            <div className="p-40 text-center text-sub opacity-20 uppercase font-black tracking-[0.3em]">No activity matches in current sequence</div>
+          ) : (
+            <AnimatePresence>
+              {filteredActivities.map((act, idx) => (
+                <motion.div
+                  key={act.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.02 }}
+                  className="p-8 hover:bg-brand-white/5 transition-all group flex gap-8 relative overflow-hidden"
+                >
+                  <div className={cn(
+                    "shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-inner group-hover:scale-110",
+                    act.type === 'READ_FACT' ? "bg-brand-primary/10 text-brand-primary" :
+                    act.type === 'LIKE_FACT' ? "bg-pink-500/10 text-pink-500" :
+                    act.type === 'COMPLETE_QUIZ' ? "bg-brand-gold/10 text-brand-gold" :
+                    "bg-brand-secondary/10 text-brand-secondary"
+                  )}>
+                    {act.type === 'READ_FACT' && <Eye size={22} />}
+                    {act.type === 'LIKE_FACT' && <Heart size={22} />}
+                    {act.type === 'COMPLETE_QUIZ' && <CheckCircle2 size={22} />}
+                    {act.type === 'APP_OPEN' && <Smartphone size={22} />}
+                  </div>
+
+                  <div className="flex-1 space-y-2 relative z-10">
+                     <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <p className="text-base font-bold tracking-tight">
+                             Agent <span className="text-brand-primary font-black">#{act.userId.slice(0, 8)}...</span> {
+                               act.type === 'READ_FACT' ? 'executed reading of' :
+                               act.type === 'LIKE_FACT' ? 'anchored appreciation for' :
+                               act.type === 'COMPLETE_QUIZ' ? 'verified challenge logic for' : 'initiated sequence access'
+                             }
+                          </p>
+                          {act.targetName && (
+                            <p className="text-sm font-black text-brand-primary italic opacity-80">"{act.targetName}"</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-black text-sub opacity-40 bg-brand-bg/5 dark:bg-brand-bg px-2 py-0.5 rounded-md border border-brand-sage/10 tabular-nums">
+                          {new Date(act.timestamp).toLocaleTimeString()} • {formatTimeAgo(act.timestamp)}
+                        </span>
+                     </div>
+                     <div className="flex items-center gap-6 text-[9px] font-black text-sub uppercase tracking-[0.2em] opacity-30 group-hover:opacity-60 transition-opacity">
+                        <span className="flex items-center gap-2"><Zap size={10} className="text-brand-primary animate-pulse" /> Signal Latency: 42ms</span>
+                        <span>Sequence Trace: {act.id.slice(0, 16)}</span>
+                     </div>
+                  </div>
+
+                  <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-brand-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
         </div>
 
-        <div className="p-6 bg-slate-800/10 border-t border-slate-800 flex justify-center gap-2">
-           <button className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-600 hover:text-white transition-all font-bold text-[10px] uppercase px-4">Previous Events</button>
-           <button className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-600 hover:text-white transition-all font-bold text-[10px] uppercase px-4">Next Page</button>
+        <div className="p-10 border-t border-brand-sage/5 flex justify-center gap-4 bg-brand-primary/5">
+           <motion.button
+             whileHover={{ scale: 1.05 }}
+             whileTap={{ scale: 0.95 }}
+             className="px-10 py-3 rounded-2xl glass border-brand-sage/10 text-[10px] font-black uppercase tracking-widest text-sub hover:text-brand-primary transition-all"
+           >
+             Older Sequences
+           </motion.button>
+           <motion.button
+             whileHover={{ scale: 1.05 }}
+             whileTap={{ scale: 0.95 }}
+             className="px-10 py-3 rounded-2xl glass border-brand-sage/10 text-[10px] font-black uppercase tracking-widest text-sub hover:text-brand-primary transition-all"
+           >
+             Newer Sequences
+           </motion.button>
         </div>
       </div>
     </div>

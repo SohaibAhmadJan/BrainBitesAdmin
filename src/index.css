@@ -2,12 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --text-main: #1A2B22;
+    --text-sub: rgba(26, 43, 34, 0.6);
+    --surface-glass: rgba(255, 255, 255, 0.8);
+    --border-glass: rgba(45, 106, 79, 0.1);
+  }
+
+  .dark {
+    --text-main: #E6F4EA;
+    --text-sub: rgba(149, 213, 178, 0.6);
+    --surface-glass: rgba(26, 43, 34, 0.6);
+    --border-glass: rgba(39, 76, 58, 0.2);
+  }
+}
+
 @layer utilities {
   .glass {
-    @apply bg-brand-surface/60 backdrop-blur-xl border border-brand-sage/20;
+    background-color: var(--surface-glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
   }
   .glass-dark {
-    @apply bg-brand-bg/40 backdrop-blur-2xl border border-brand-sage/10;
+    @apply dark:bg-brand-bg/40 bg-white/20 backdrop-blur-2xl border border-brand-sage/10;
   }
   .text-glow {
     text-shadow: 0 0 15px rgba(149, 213, 178, 0.3);
@@ -19,14 +37,27 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: dark;
-  color: #E6F4EA; /* brand.white */
-  background-color: #0F1F17; /* brand.bg */
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --brand-primary: #2D6A4F;
+  --brand-secondary: #95D5B2;
+}
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark {
+  color-scheme: dark;
+  background-color: #0F1F17; /* brand.bg */
+}
+
+html.light {
+  color-scheme: light;
+  background-color: #F7FBF9; /* soft mint white */
 }
 
 body {
@@ -35,6 +66,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
+  background-color: inherit;
+  color: var(--text-main);
 }
 
 #root {
@@ -47,16 +80,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F1F17;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #274C3A;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #2D6A4F;
+  @apply bg-brand-sage/40 rounded-full hover:bg-brand-primary transition-colors;
 }
 
 @keyframes float {

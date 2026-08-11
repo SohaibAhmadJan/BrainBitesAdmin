@@ -18,8 +18,10 @@ import { QuoteItem, BiteCategory, BiteCategories } from '../../types';
 import { fetchQuotes, createOrUpdateQuote, deleteQuote, createAuditLog } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
+import { useTheme } from '../../context/ThemeContext';
 
 const QuotesPage = () => {
+  const { theme } = useTheme();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -144,22 +146,22 @@ const QuotesPage = () => {
       {/* High-End Header */}
       <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-4xl font-black text-brand-white tracking-tighter flex items-center gap-4">
+          <h2 className="text-4xl font-black tracking-tighter flex items-center gap-4">
              <div className="p-3 bg-brand-primary/10 rounded-2xl">
                 <Sparkles className="text-brand-primary" size={32} />
              </div>
              Insight Repository
           </h2>
-          <p className="text-brand-secondary/40 text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Curated Psychological Wisdom & Theoretical Snippets</p>
+          <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Curated Psychological Wisdom & Theoretical Snippets</p>
         </div>
 
         <div className="flex items-center gap-6 w-full xl:w-auto relative z-10">
           <div className="relative flex-1 xl:w-80 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/30 group-focus-within:text-brand-primary transition-colors" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/40 group-focus-within:text-brand-primary transition-colors" size={20} />
             <input
               type="text"
-              placeholder="Search wisdom or authors..."
-              className="w-full bg-brand-bg/40 border border-brand-sage/20 rounded-2xl pl-12 pr-6 py-4 text-sm text-brand-white focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+              placeholder="Search wisdom..."
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/10 rounded-2xl pl-12 pr-6 py-4 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -184,8 +186,8 @@ const QuotesPage = () => {
          <button
            onClick={() => setCategoryFilter('All')}
            className={cn(
-             "px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
-             categoryFilter === 'All' ? "bg-brand-primary text-brand-white border-brand-primary shadow-lg shadow-brand-primary/20" : "glass text-brand-secondary/40 border-transparent hover:text-brand-white"
+             "px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
+             categoryFilter === 'All' ? "bg-brand-primary text-brand-white border-brand-primary" : "glass text-sub border-transparent hover:text-brand-primary"
            )}
          >
            All Disciplines
@@ -195,8 +197,8 @@ const QuotesPage = () => {
              key={cat}
              onClick={() => setCategoryFilter(cat)}
              className={cn(
-               "px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap",
-               categoryFilter === cat ? "bg-brand-primary text-brand-white border-brand-primary shadow-lg shadow-brand-primary/20" : "glass text-brand-secondary/40 border-transparent hover:text-brand-white"
+               "px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap",
+               categoryFilter === cat ? "bg-brand-primary text-brand-white border-brand-primary" : "glass text-sub border-transparent hover:text-brand-primary"
              )}
            >
              {cat}
@@ -211,9 +213,9 @@ const QuotesPage = () => {
             <div key={i} className="h-72 glass rounded-[3rem] animate-pulse" />
           ))
         ) : filteredQuotes.length === 0 ? (
-          <div className="col-span-full py-40 glass rounded-[3rem] border border-dashed border-brand-sage/20 text-center space-y-4">
-             <MessageSquare size={64} className="mx-auto text-brand-secondary/10" />
-             <p className="text-xl font-black text-brand-secondary/20 uppercase tracking-widest">Repository section empty</p>
+          <div className="col-span-full py-40 glass rounded-[3rem] border border-dashed border-brand-sage/20 text-center space-y-4 opacity-40">
+             <MessageSquare size={64} className="mx-auto" />
+             <p className="text-xl font-black uppercase tracking-widest">Repository section empty</p>
           </div>
         ) : (
           <AnimatePresence>
@@ -225,13 +227,13 @@ const QuotesPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
                 whileHover={{ scale: 1.02 }}
-                className="glass p-10 rounded-[3rem] shadow-2xl group hover:border-brand-primary/20 transition-all flex flex-col relative overflow-hidden"
+                className="glass p-10 rounded-[3rem] shadow-xl group border-transparent hover:border-brand-primary/20 transition-all flex flex-col relative overflow-hidden h-full"
               >
-                <Quote className="absolute -top-6 -right-6 w-32 h-32 text-brand-primary/5 rotate-12 group-hover:rotate-0 transition-transform duration-700" />
+                <Quote className="absolute -top-6 -right-6 w-32 h-32 text-brand-primary opacity-[0.03] rotate-12 group-hover:rotate-0 transition-transform duration-700" />
 
                 <div className="flex-1 space-y-6 relative z-10">
                    <div className="flex justify-between items-center">
-                      <span className="px-3 py-1 rounded-full bg-brand-bg/50 text-[8px] font-black text-brand-secondary/60 uppercase tracking-[0.2em] border border-brand-sage/20">
+                      <span className="px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-[8px] font-black text-brand-primary uppercase tracking-[0.2em]">
                         {quote.category}
                       </span>
                       <motion.button
@@ -239,14 +241,14 @@ const QuotesPage = () => {
                         onClick={() => toggleActive(quote)}
                         className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center transition-all border",
-                          quote.isActive ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary" : "bg-brand-bg/50 border-brand-sage/20 text-brand-secondary/30"
+                          quote.isActive ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary" : "bg-brand-bg/5 dark:bg-brand-bg/50 border-brand-sage/20 text-sub opacity-40"
                         )}
                       >
                         {quote.isActive ? <Eye size={14} /> : <EyeOff size={14} />}
                       </motion.button>
                    </div>
 
-                   <p className="text-xl font-medium text-brand-white leading-relaxed italic line-clamp-5 text-glow">
+                   <p className="text-xl font-medium leading-relaxed italic line-clamp-5 text-glow">
                      "{quote.text}"
                    </p>
 
@@ -256,8 +258,8 @@ const QuotesPage = () => {
                    </div>
                 </div>
 
-                <div className="mt-10 pt-8 border-t border-brand-sage/10 flex justify-between items-center relative z-10">
-                   <p className="text-[9px] font-black text-brand-secondary/30 uppercase tracking-widest">
+                <div className="mt-10 pt-8 border-t border-brand-sage/5 flex justify-between items-center relative z-10">
+                   <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest">
                      Deposited: {new Date(quote.createdAt).toLocaleDateString()}
                    </p>
 
@@ -265,14 +267,14 @@ const QuotesPage = () => {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         onClick={() => handleOpenModal(quote)}
-                        className="p-3 glass hover:bg-brand-primary/10 text-brand-secondary/60 hover:text-brand-primary rounded-2xl transition-all"
+                        className="p-3 bg-brand-bg/5 dark:bg-brand-bg hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-2xl transition-all border border-brand-sage/5"
                       >
                         <Edit3 size={18} />
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         onClick={() => handleDelete(quote.id, quote.author)}
-                        className="p-3 glass hover:bg-red-500/10 text-brand-secondary/60 hover:text-red-400 rounded-2xl transition-all"
+                        className="p-3 bg-brand-bg/5 dark:bg-brand-bg hover:bg-red-500/10 text-sub hover:text-red-400 rounded-2xl transition-all border border-brand-sage/5"
                       >
                         <Trash2 size={18} />
                       </motion.button>
@@ -292,41 +294,41 @@ const QuotesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-brand-bg/90 backdrop-blur-md"
+              className="absolute inset-0 bg-brand-bg/80 backdrop-blur-md"
               onClick={() => setIsModalOpen(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
               animate={{ opacity: 1, scale: 1, rotateX: 0 }}
               exit={{ opacity: 0, scale: 0.9, rotateX: 20 }}
-              className="relative w-full max-w-xl bg-brand-surface border border-brand-sage/20 rounded-[3rem] shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden"
+              className="relative w-full max-w-xl glass rounded-[3rem] shadow-2xl overflow-hidden"
             >
                <div className="p-10 border-b border-brand-sage/10 flex justify-between items-center bg-brand-primary/5">
                   <div>
-                    <h3 className="text-2xl font-black text-brand-white tracking-tighter">{editingQuote ? 'Refine Wisdom' : 'Anchor New Insight'}</h3>
-                    <p className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.3em] mt-1">System Deposition Sequence</p>
+                    <h3 className="text-2xl font-black tracking-tighter">{editingQuote ? 'Refine Wisdom' : 'Anchor New Insight'}</h3>
+                    <p className="text-[10px] text-sub font-black uppercase tracking-[0.3em] mt-1">System Deposition Sequence</p>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="p-3 glass hover:text-brand-white transition-colors rounded-2xl">
+                  <button onClick={() => setIsModalOpen(false)} className="p-3 bg-brand-bg/5 dark:bg-brand-bg hover:text-brand-primary transition-colors rounded-2xl border border-brand-sage/10">
                     <X size={24} />
                   </button>
                </div>
 
                <form onSubmit={handleSubmit} className="p-10 space-y-8">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2">Wisdom Content</label>
+                    <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Wisdom Content</label>
                     <textarea
-                      className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] p-6 text-brand-white text-base focus:outline-none focus:border-brand-primary transition-all leading-relaxed shadow-inner"
+                      className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] p-6 text-base focus:outline-none focus:border-brand-primary/50 transition-all leading-relaxed shadow-inner"
                       rows={5}
-                      placeholder="Input the psychological snippet here..."
+                      placeholder="Input snippet..."
                       value={formData.text}
                       onChange={e => setFormData({...formData, text: e.target.value})}
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2">Attribution Authority</label>
+                    <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Attribution Authority</label>
                     <input
-                      className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-brand-white text-sm focus:outline-none focus:border-brand-primary transition-all shadow-inner"
+                      className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
                       placeholder="e.g. Victor Frankl"
                       value={formData.author}
                       onChange={e => setFormData({...formData, author: e.target.value})}
@@ -335,9 +337,9 @@ const QuotesPage = () => {
 
                   <div className="grid grid-cols-2 gap-6">
                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2">Domain Target</label>
+                        <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Domain Target</label>
                         <select
-                          className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-4 text-brand-white text-xs font-bold focus:outline-none focus:border-brand-primary appearance-none uppercase tracking-widest"
+                          className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-4 text-xs font-bold focus:outline-none focus:border-brand-primary/50 appearance-none uppercase tracking-widest"
                           value={formData.category}
                           onChange={e => setFormData({...formData, category: e.target.value as BiteCategory})}
                         >
@@ -345,7 +347,7 @@ const QuotesPage = () => {
                         </select>
                      </div>
                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2">Publish Status</label>
+                        <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Publish Status</label>
                         <button
                           type="button"
                           onClick={() => setFormData({...formData, isActive: !formData.isActive})}
@@ -353,7 +355,7 @@ const QuotesPage = () => {
                             "w-full py-4 rounded-2xl border transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg",
                             formData.isActive
                               ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
-                              : "bg-brand-bg/50 border-brand-sage/20 text-brand-secondary/30"
+                              : "bg-brand-bg/5 dark:bg-brand-bg/50 border-brand-sage/20 text-sub"
                           )}
                         >
                           <div className={cn("w-1.5 h-1.5 rounded-full", formData.isActive ? "bg-brand-primary animate-pulse" : "bg-brand-secondary/20")} />
@@ -367,7 +369,7 @@ const QuotesPage = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="submit"
-                      className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-3xl transition-all shadow-[0_20px_50px_rgba(45,106,79,0.3)] text-xs uppercase tracking-[0.3em]"
+                      className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-3xl transition-all shadow-xl text-xs uppercase tracking-[0.3em]"
                      >
                        {editingQuote ? 'Synchronize Updates' : 'Commit to Cloud'}
                      </motion.button>

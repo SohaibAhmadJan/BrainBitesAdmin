@@ -4,6 +4,7 @@ module.exports = {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -18,6 +19,13 @@ module.exports = {
           sage: '#274C3A',         // DeepSage
           accent: '#E9C46A'
         }
+      },
+      textColor: {
+        main: 'var(--text-main)',
+        sub: 'var(--text-sub)',
+      },
+      backgroundColor: {
+        'surface-glass': 'var(--surface-glass)',
       }
     },
   },

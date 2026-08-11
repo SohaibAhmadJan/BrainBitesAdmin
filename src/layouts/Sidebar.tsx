@@ -28,6 +28,7 @@ import {
   Library
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useTheme } from '../context/ThemeContext';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -36,6 +37,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
+  const { theme } = useTheme();
   const sections = [
     {
       title: "Main",
@@ -94,8 +96,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
   return (
     <aside
       className={cn(
-        "glass border-r border-brand-sage/20 flex flex-col h-screen fixed left-0 top-0 transition-all duration-500 ease-out z-30 shadow-[10px_0_40px_rgba(0,0,0,0.4)] backdrop-blur-3xl",
-        isCollapsed ? "w-20" : "w-64"
+        "glass border-r flex flex-col h-screen fixed left-0 top-0 transition-all duration-500 ease-out z-30 backdrop-blur-3xl shadow-2xl",
+        isCollapsed ? "w-20" : "w-64",
+        theme === 'dark' ? "border-brand-sage/20 shadow-[10px_0_40px_rgba(0,0,0,0.4)]" : "bg-white/80 border-brand-primary/10 shadow-[10px_0_40px_rgba(45,106,79,0.05)]"
       )}
     >
       <div className="p-6 flex items-center justify-between">
@@ -114,7 +117,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-xl bg-brand-bg/50 text-brand-secondary hover:text-brand-primary hover:scale-110 active:scale-90 transition-all duration-300 mx-auto border border-brand-sage/20 backdrop-blur-md"
+          className={cn(
+            "p-2 rounded-xl transition-all duration-300 mx-auto border backdrop-blur-md hover:scale-110 active:scale-90",
+            theme === 'dark' ? "bg-brand-bg/50 text-brand-secondary border-brand-sage/20" : "bg-brand-primary/5 text-brand-primary border-brand-primary/10"
+          )}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -124,7 +130,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
         {sections.map((section, idx) => (
           <div key={idx} className="space-y-3">
             {!isCollapsed && (
-              <h3 className="px-4 text-[9px] font-black text-brand-secondary/30 uppercase tracking-[0.4em]">{section.title}</h3>
+              <h3 className={cn(
+                "px-4 text-[9px] font-black uppercase tracking-[0.4em]",
+                theme === 'dark' ? "text-brand-secondary/30" : "text-brand-primary/40"
+              )}>{section.title}</h3>
             )}
             <div className="space-y-1">
               {section.items.map((item) => (
@@ -135,7 +144,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
                     "flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
                     isActive
                       ? "bg-brand-primary shadow-[0_10px_25px_rgba(45,106,79,0.3)] text-brand-white"
-                      : "text-brand-white/40 hover:bg-brand-white/5 hover:text-brand-white"
+                      : theme === 'dark'
+                        ? "text-brand-white/40 hover:bg-brand-white/5 hover:text-brand-white"
+                        : "text-brand-surface/40 hover:bg-brand-primary/5 hover:text-brand-primary"
                   )}
                   title={isCollapsed ? item.name : ""}
                 >
@@ -146,7 +157,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
                   {!isCollapsed && <span className="text-sm font-semibold tracking-tight">{item.name}</span>}
 
                   {isCollapsed && (
-                    <div className="absolute left-full ml-3 px-3 py-1.5 glass rounded-xl text-brand-white text-xs font-bold opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap z-50 shadow-2xl">
+                    <div className={cn(
+                      "absolute left-full ml-3 px-3 py-1.5 rounded-xl text-xs font-bold opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap z-50 shadow-2xl",
+                      theme === 'dark' ? "glass text-brand-white" : "bg-white text-brand-primary border border-brand-primary/10 shadow-lg"
+                    )}>
                       {item.name}
                     </div>
                   )}
@@ -159,7 +173,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
 
       {/* Mini Stats Footer */}
       {!isCollapsed && (
-        <div className="p-6 border-t border-brand-sage/10 bg-brand-bg/20">
+        <div className={cn(
+          "p-6 border-t bg-brand-bg/20",
+          theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5"
+        )}>
            <div className="grid grid-cols-3 gap-2">
               {stats.slice(0, 3).map((s, i) => (
                 <div key={i} className="text-center">

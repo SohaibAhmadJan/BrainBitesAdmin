@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { AppNotification, NotificationType } from '../types';
+import { cn } from '../utils/cn';
 
 interface NotificationEngineProps {
   notifications: AppNotification[];
@@ -21,76 +23,91 @@ const NotificationEngine: React.FC<NotificationEngineProps> = ({ notifications, 
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-right-4 duration-500">
-      <div className="bg-slate-800/40 border border-slate-700 p-8 rounded-3xl space-y-6 h-fit">
-        <h2 className="text-2xl font-bold text-white flex items-center">
-          <span className="w-2 h-2 bg-blue-500 rounded-full mr-3 animate-pulse"></span>
-          Compose Message
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in duration-500">
+      <div className="glass p-10 rounded-[3rem] space-y-8 h-fit shadow-2xl relative overflow-hidden">
+        <h2 className="text-3xl font-black tracking-tight flex items-center gap-4 relative z-10">
+          <div className="w-2.5 h-2.5 bg-brand-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(45,106,79,1)]"></div>
+          Broadcast Composer
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Headline</label>
+        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Headline</label>
             <input
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="E.g. New Psychology Fact Added!"
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-base focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
+              placeholder="Input dispatch title..."
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Body Message</label>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Body Payload</label>
             <textarea
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-              rows={4}
-              placeholder="What do you want to tell your users?"
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] px-6 py-4 text-base focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner leading-relaxed"
+              rows={5}
+              placeholder="What is the message context?"
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Intent Type</label>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Broadcast Class</label>
             <select
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-primary/50 transition-all appearance-none"
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as NotificationType })}
             >
-              <option value="NEW_FACT">New Fact Alert</option>
+              <option value="NEW_FACT">New Insight Alert</option>
               <option value="ACHIEVEMENT">Achievement Milestone</option>
-              <option value="SYSTEM">System Broadcast</option>
-              <option value="GENERAL">General Update</option>
+              <option value="SYSTEM">System Protocol</option>
+              <option value="GENERAL">General Handshake</option>
             </select>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
+            className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-3xl transition-all shadow-xl shadow-brand-primary/20 uppercase tracking-[0.3em] text-xs"
           >
-            Push to All Devices
-          </button>
+            Dispatch to Global Edge
+          </motion.button>
         </form>
+
+        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
       </div>
 
-      <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-180px)] pr-2 scrollbar-hide">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest px-2">Recent Broadcasts</h3>
-        {notifications.map((n) => (
-          <div key={n.id} className="bg-slate-800/20 border border-slate-700/50 p-5 rounded-2xl space-y-2 group hover:border-slate-600 transition-colors">
-            <div className="flex justify-between items-start">
-              <h4 className="font-bold text-slate-300">{n.title}</h4>
-              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                n.type === 'NEW_FACT' ? 'bg-emerald-500/10 text-emerald-500' :
-                n.type === 'ACHIEVEMENT' ? 'bg-yellow-500/10 text-yellow-500' :
-                'bg-blue-500/10 text-blue-500'
-              }`}>
-                {n.type}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
-            <p className="text-[10px] text-slate-600 font-mono mt-3">Sent: {new Date(n.createdAt).toLocaleString()}</p>
-          </div>
-        ))}
+      <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-200px)] pr-4 scrollbar-hide">
+        <h3 className="text-[10px] font-black text-sub uppercase tracking-[0.4em] px-4 opacity-40">Previous Dispatches</h3>
+        <AnimatePresence>
+          {notifications.map((n, idx) => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="glass p-8 rounded-[2.5rem] space-y-4 group hover:border-brand-primary/20 transition-all shadow-xl relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <h4 className="font-black text-lg group-hover:text-brand-primary transition-colors italic leading-tight">"{n.title}"</h4>
+                <span className={cn(
+                  "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border shadow-inner",
+                  n.type === 'NEW_FACT' ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' :
+                  n.type === 'ACHIEVEMENT' ? 'bg-brand-gold/10 border-brand-gold/20 text-brand-gold' :
+                  'bg-brand-bg/5 dark:bg-brand-bg/50 text-sub border-brand-sage/10'
+                )}>
+                  {n.type}
+                </span>
+              </div>
+              <p className="text-sm text-sub opacity-70 leading-relaxed italic">"{n.message}"</p>
+              <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest mt-4">Sequence Logged: {new Date(n.createdAt).toLocaleString()}</p>
+
+              <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-brand-primary/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

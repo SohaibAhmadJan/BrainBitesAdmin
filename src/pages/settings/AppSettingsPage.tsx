@@ -10,11 +10,15 @@ import {
   Info,
   Flag,
   Smartphone,
-  Server
+  Server,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 import { AppSettings } from '../../types';
 import { fetchAppSettings, updateAppSettings, createAuditLog } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
+import { useTheme } from '../../context/ThemeContext';
 import toast from 'react-hot-toast';
 
 const AppSettingsPage = () => {
@@ -32,6 +36,7 @@ const AppSettingsPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadSettings();
@@ -61,7 +66,12 @@ const AppSettingsPage = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-slate-500 animate-pulse">Synchronizing system state...</div>;
+  if (loading) return (
+    <div className="p-8 flex flex-col items-center justify-center space-y-4">
+      <RefreshCcw className="animate-spin text-brand-primary" size={32} />
+      <p className="text-brand-secondary/40 font-bold uppercase tracking-widest text-[10px]">Synchronizing system state...</p>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl space-y-8 animate-in fade-in duration-700">
@@ -81,19 +91,52 @@ const AppSettingsPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* Left: Core Config */}
+        {/* Left: Core Config & Theme */}
         <div className="space-y-8">
-          <div className="bg-brand-surface border border-brand-sage p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black text-brand-white flex items-center gap-3">
+          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+            <h2 className="text-2xl font-black flex items-center gap-3">
+               <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Monitor size={24} /></div>
+               Appearance & Branding
+            </h2>
+
+            <div className="space-y-4">
+               <div className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage/20 rounded-3xl group hover:border-brand-primary/30 transition-all">
+                  <div className="flex gap-4 items-center">
+                    <div className="p-3 bg-brand-surface rounded-2xl text-brand-primary shadow-lg">
+                       {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
+                    </div>
+                    <div>
+                       <p className="text-sm font-black tracking-tight">Interface Theme</p>
+                       <p className="text-[10px] text-brand-secondary/40 font-medium uppercase tracking-widest">Toggle between light and dark mode</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleTheme}
+                    className={cn(
+                      "w-14 h-8 rounded-full relative transition-all duration-500",
+                      theme === 'light' ? "bg-brand-primary shadow-[0_0_15px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
+                    )}
+                  >
+                    <div className={cn(
+                      "absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-500 shadow-md",
+                      theme === 'light' ? "left-7" : "left-1"
+                    )} />
+                  </button>
+               </div>
+            </div>
+          </div>
+
+          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+            <h2 className="text-2xl font-black flex items-center gap-3">
                <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Server size={24} /></div>
                Engine Configuration
             </h2>
 
             <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-brand-bg rounded-2xl border border-brand-sage">
+              <div className="flex items-center justify-between p-4 bg-brand-bg/50 rounded-2xl border border-brand-sage/20">
                 <div className="space-y-1">
-                   <p className="text-sm font-bold text-brand-white uppercase tracking-tight">Maintenance Mode</p>
-                   <p className="text-[10px] text-brand-secondary/60 uppercase font-black">Emergency System Access</p>
+                   <p className="text-sm font-bold uppercase tracking-tight">Maintenance Mode</p>
+                   <p className="text-[10px] text-brand-secondary/40 uppercase font-black tracking-widest">Emergency System Access</p>
                 </div>
                 <button
                   onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
@@ -103,16 +146,16 @@ const AppSettingsPage = () => {
                   )}
                 >
                   <div className={cn(
-                    "absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300",
-                    settings.maintenanceMode ? "left-7 shadow-lg" : "left-1"
+                    "absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 shadow-md",
+                    settings.maintenanceMode ? "left-7" : "left-1"
                   )} />
                 </button>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-brand-secondary/60 uppercase tracking-widest ml-1">Lockdown Message</label>
+                <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Lockdown Message</label>
                 <textarea
-                  className="w-full bg-brand-bg border border-brand-sage rounded-2xl p-4 text-brand-white text-sm focus:outline-none focus:border-red-500/50"
+                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-4 text-sm focus:outline-none focus:border-red-500/50 transition-all shadow-inner"
                   rows={3}
                   value={settings.maintenanceMessage}
                   onChange={e => setSettings({...settings, maintenanceMessage: e.target.value})}
@@ -121,17 +164,17 @@ const AppSettingsPage = () => {
 
               <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-brand-secondary/60 uppercase tracking-widest ml-1">Latest Version</label>
+                   <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Latest Version</label>
                    <input
-                    className="w-full bg-brand-bg border border-brand-sage rounded-xl px-4 py-2 text-brand-white text-sm focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-brand-primary shadow-inner"
                     value={settings.latestVersion}
                     onChange={e => setSettings({...settings, latestVersion: e.target.value})}
                    />
                  </div>
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-brand-secondary/60 uppercase tracking-widest ml-1">Support Endpoint</label>
+                   <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Support Endpoint</label>
                    <input
-                    className="w-full bg-brand-bg border border-brand-sage rounded-xl px-4 py-2 text-brand-white text-sm focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-brand-primary shadow-inner"
                     value={settings.supportEmail}
                     onChange={e => setSettings({...settings, supportEmail: e.target.value})}
                    />
@@ -143,8 +186,8 @@ const AppSettingsPage = () => {
 
         {/* Right: Feature Flags */}
         <div className="space-y-8">
-           <div className="bg-brand-surface border border-brand-sage p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-              <h2 className="text-2xl font-black text-brand-white flex items-center gap-3">
+           <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+              <h2 className="text-2xl font-black flex items-center gap-3">
                  <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Flag size={24} /></div>
                  Feature Manifest
               </h2>
@@ -155,14 +198,14 @@ const AppSettingsPage = () => {
                    { id: 'achievementsEnabled', label: 'Reward Milestones', desc: 'Active achievement tracking & notifications', icon: Info },
                    { id: 'dailyFactEnabled', label: 'Smart Daily Insights', desc: 'Automated "Fact of the Day" delivery', icon: Info },
                  ].map((flag) => (
-                   <div key={flag.id} className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage rounded-3xl group hover:border-brand-primary/30 transition-all">
+                   <div key={flag.id} className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage/20 rounded-3xl group hover:border-brand-primary/30 transition-all">
                       <div className="flex gap-4 items-center">
-                         <div className="p-2 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors">
+                         <div className="p-2 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10">
                            <flag.icon size={16} />
                          </div>
                          <div>
-                            <p className="text-sm font-black text-brand-white/90 tracking-tight">{flag.label}</p>
-                            <p className="text-[10px] text-brand-secondary/40 font-medium">{flag.desc}</p>
+                            <p className="text-sm font-black tracking-tight">{flag.label}</p>
+                            <p className="text-[10px] text-brand-secondary/40 font-medium uppercase tracking-tighter">{flag.desc}</p>
                          </div>
                       </div>
                       <button
@@ -172,12 +215,12 @@ const AppSettingsPage = () => {
                         })}
                         className={cn(
                           "w-12 h-6 rounded-full relative transition-all duration-300",
-                          (settings.featureFlags as any)[flag.id] ? "bg-brand-primary" : "bg-brand-sage"
+                          (settings.featureFlags as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300",
-                          (settings.featureFlags as any)[flag.id] ? "left-7 shadow-lg" : "left-1"
+                          "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
+                          (settings.featureFlags as any)[flag.id] ? "left-7" : "left-1"
                         )} />
                       </button>
                    </div>
@@ -186,7 +229,7 @@ const AppSettingsPage = () => {
 
               <div className="p-6 bg-brand-gold/5 border border-brand-gold/10 rounded-3xl flex gap-4">
                  <AlertTriangle className="text-brand-gold shrink-0" size={20} />
-                 <p className="text-[10px] text-brand-secondary/60 font-medium leading-relaxed">
+                 <p className="text-[10px] text-brand-secondary/40 font-bold leading-relaxed uppercase tracking-tight">
                    Changes to Feature Manifest are propagated to mobile clients via real-time listeners. Disabling a core feature may affect user progress tracking.
                  </p>
               </div>
@@ -195,7 +238,7 @@ const AppSettingsPage = () => {
            <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-[2rem] transition-all shadow-2xl shadow-brand-primary/20 active:scale-[0.98] uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-[2rem] transition-all shadow-2xl shadow-brand-primary/30 active:scale-[0.98] uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 disabled:opacity-50"
            >
              {saving ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
              Commit Changes to Engine
