@@ -1,4 +1,4 @@
-# BrainBites Admin Panel - Forest Serenity v1.0.5
+# BrainBites Admin Panel - Forest Serenity v1.0.6
 
 The high-fidelity management system for the BrainBites Android application. Built with React, Vite, Tailwind CSS, and Framer Motion.
 

@@ -16,14 +16,21 @@ export const useCategories = () => {
         const migrated = await fetchCategories();
         setCategories(migrated);
       } else {
-        // Auto-heal missing vectorIcons
-        const needsHealing = data.filter(cat => !cat.vectorIcon);
+        // Deep Auto-heal: Fix missing vectorIcons OR generic emojis
+        const needsHealing = data.filter(cat => {
+          const preset = CategoryPresets.find(p => p.name === cat.name || p.id === cat.id);
+          const isMissingVector = !cat.vectorIcon;
+          const isGenericEmoji = cat.icon === '🧠' && preset && preset.icon !== '🧠';
+          return isMissingVector || isGenericEmoji;
+        });
+
         if (needsHealing.length > 0) {
           await Promise.all(needsHealing.map(cat => {
             const preset = CategoryPresets.find(p => p.name === cat.name || p.id === cat.id);
             return createOrUpdateCategory({
               ...cat,
-              vectorIcon: preset?.vectorIcon || 'LayoutGrid'
+              icon: preset?.icon || cat.icon,
+              vectorIcon: preset?.vectorIcon || cat.vectorIcon || 'LayoutGrid'
             });
           }));
           const healed = await fetchCategories();
