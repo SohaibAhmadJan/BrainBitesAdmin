@@ -146,14 +146,14 @@ const DashboardPage = () => {
   };
 
   const stats = [
-    { label: 'Facts', value: counts.facts, icon: BookOpen, color: 'text-brand-primary', trend: '+12.5%', isUp: true },
-    { label: 'Categories', value: counts.categories, icon: LayoutGrid, color: 'text-brand-secondary', trend: 'STABLE', isUp: true },
-    { label: 'Quiz', value: counts.quizzes, icon: Puzzle, color: 'text-brand-primary', trend: '+5.1%', isUp: true },
-    { label: 'Quotes', value: counts.quotes, icon: ScrollText, color: 'text-brand-gold', trend: '+2.4%', isUp: true },
-    { label: 'Users', value: counts.users, icon: UserRound, color: 'text-brand-secondary', trend: '+18%', isUp: true },
-    { label: 'Achievements', value: counts.achievements, icon: Trophy, color: 'text-brand-gold', trend: 'NEW', isUp: true },
-    { label: 'Collections', value: counts.collections, icon: FolderHeart, color: 'text-brand-primary', trend: 'STABLE', isUp: true },
-    { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', trend: '+4.2%', isUp: true },
+    { label: 'Facts', value: counts.facts, icon: BookOpen, color: 'text-brand-primary', trend: '+12.5%', isUp: true, path: '/facts' },
+    { label: 'Categories', value: counts.categories, icon: LayoutGrid, color: 'text-brand-secondary', trend: 'STABLE', isUp: true, path: '/categories' },
+    { label: 'Quiz', value: counts.quizzes, icon: Puzzle, color: 'text-brand-primary', trend: '+5.1%', isUp: true, path: '/quizzes' },
+    { label: 'Quotes', value: counts.quotes, icon: ScrollText, color: 'text-brand-gold', trend: '+2.4%', isUp: true, path: '/quotes' },
+    { label: 'Users', value: counts.users, icon: UserRound, color: 'text-brand-secondary', trend: '+18%', isUp: true, path: '/users' },
+    { label: 'Achievements', value: counts.achievements, icon: Trophy, color: 'text-brand-gold', trend: 'NEW', isUp: true, path: '/achievements' },
+    { label: 'Collections', value: counts.collections, icon: FolderHeart, color: 'text-brand-primary', trend: 'STABLE', isUp: true, path: '/collections' },
+    { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', trend: '+4.2%', isUp: true, path: '/notifications' },
   ];
 
   return (
@@ -192,6 +192,7 @@ const DashboardPage = () => {
           <PremiumCard
             key={i}
             className="p-10"
+            onClick={() => navigate(stat.path)}
             glowColor={`${theme === 'dark' ? 'rgba(45, 106, 79, 0.2)' : 'rgba(149, 213, 178, 0.4)'}`}
           >
             <div className="flex justify-between items-start mb-8">

@@ -53,15 +53,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
         { name: "Collections", icon: Library, path: "/collections" },
         { name: "Quizzes", icon: Lightbulb, path: "/quizzes" },
         { name: "Achievements", icon: Trophy, path: "/achievements" },
-        { name: "Media", icon: ImageIcon, path: "/media" },
       ]
     },
     {
       title: "Users",
       items: [
         { name: "Users", icon: Users, path: "/users" },
-        { name: "Activity", icon: Activity, path: "/user-activity" },
-        { name: "Favorites", icon: Heart, path: "/favorites" },
         { name: "Reports", icon: AlertCircle, path: "/reports" },
       ]
     },
