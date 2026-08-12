@@ -13,22 +13,29 @@ import {
   onSnapshot,
   limit,
   DocumentData,
+  QuerySnapshot,
+  FirestoreError
 } from 'firebase/firestore';
 import { db } from './firebaseService';
-import { BiteItem, CollectionSet, AppNotification, UserProfile, UserActivity, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem } from '../types';
+import { BiteItem, CollectionSet, AppNotification, UserProfile, UserActivity, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category } from '../types';
 
-const factsRef = collection(db, 'facts');
-const collectionsRef = collection(db, 'collections');
-const notificationsRef = collection(db, 'notifications');
-const usersRef = collection(db, 'users');
-const activityRef = collection(db, 'user_activity');
-const settingsRef = collection(db, 'app_settings');
-const logsRef = collection(db, 'audit_logs');
-const achievementsRef = collection(db, 'achievements');
-const adminsRef = collection(db, 'admins');
-const quotesRef = collection(db, 'quotes');
+// Helper to handle potentially null Firebase services
+const getColl = (path: string) => db ? collection(db, path) : null as any;
+
+const factsRef = getColl('facts');
+const collectionsRef = getColl('collections');
+const notificationsRef = getColl('notifications');
+const usersRef = getColl('users');
+const activityRef = getColl('user_activity');
+const settingsRef = getColl('app_settings');
+const logsRef = getColl('audit_logs');
+const achievementsRef = getColl('achievements');
+const adminsRef = getColl('admins');
+const quotesRef = getColl('quotes');
+const categoriesRef = getColl('categories');
 
 export const fetchBites = async (): Promise<BiteItem[]> => {
+  if (!factsRef) return [];
   try {
     const snapshot = await getDocs(factsRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as BiteItem), id: doc.id }));
@@ -39,6 +46,7 @@ export const fetchBites = async (): Promise<BiteItem[]> => {
 };
 
 export const fetchCollections = async (): Promise<CollectionSet[]> => {
+  if (!collectionsRef) return [];
   try {
     const snapshot = await getDocs(collectionsRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as CollectionSet), id: doc.id }));
@@ -49,6 +57,7 @@ export const fetchCollections = async (): Promise<CollectionSet[]> => {
 };
 
 export const fetchNotifications = async (): Promise<AppNotification[]> => {
+  if (!notificationsRef) return [];
   try {
     const snapshot = await getDocs(notificationsRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AppNotification), id: doc.id }));
@@ -59,6 +68,7 @@ export const fetchNotifications = async (): Promise<AppNotification[]> => {
 };
 
 export const fetchUsers = async (): Promise<UserProfile[]> => {
+  if (!usersRef) return [];
   try {
     const snapshot = await getDocs(usersRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as UserProfile), id: doc.id }));
@@ -68,6 +78,7 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
 };
 
 export const fetchRecentActivity = async (): Promise<UserActivity[]> => {
+  if (!activityRef) return [];
   try {
     const snapshot = await getDocs(query(activityRef, limit(20)));
     return snapshot.docs.map((doc) => ({ ...(doc.data() as UserActivity), id: doc.id }));
@@ -77,6 +88,7 @@ export const fetchRecentActivity = async (): Promise<UserActivity[]> => {
 };
 
 export const fetchAppSettings = async (): Promise<AppSettings | null> => {
+  if (!settingsRef) return null;
   try {
     const docSnap = await getDoc(doc(settingsRef, 'global_config'));
     return docSnap.exists() ? (docSnap.data() as AppSettings) : null;
@@ -86,6 +98,7 @@ export const fetchAppSettings = async (): Promise<AppSettings | null> => {
 };
 
 export const updateAppSettings = async (settings: AppSettings) => {
+  if (!settingsRef) throw new Error('Firestore not initialized');
   try {
     await setDoc(doc(settingsRef, 'global_config'), settings, { merge: true });
   } catch (err) {
@@ -94,6 +107,7 @@ export const updateAppSettings = async (settings: AppSettings) => {
 };
 
 export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
+  if (!logsRef) return [];
   try {
     const snapshot = await getDocs(query(logsRef, limit(50)));
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AuditLog), id: doc.id }));
@@ -104,6 +118,7 @@ export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
 };
 
 export const fetchAchievements = async (): Promise<Achievement[]> => {
+  if (!achievementsRef) return [];
   try {
     const snapshot = await getDocs(achievementsRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as Achievement), id: doc.id }));
@@ -114,6 +129,7 @@ export const fetchAchievements = async (): Promise<Achievement[]> => {
 };
 
 export const createOrUpdateAchievement = async (achievement: Achievement) => {
+  if (!achievementsRef) throw new Error('Firestore not initialized');
   try {
     const achDoc = doc(achievementsRef, achievement.id);
     await setDoc(achDoc, achievement, { merge: true });
@@ -124,6 +140,7 @@ export const createOrUpdateAchievement = async (achievement: Achievement) => {
 };
 
 export const deleteAchievement = async (id: string) => {
+  if (!achievementsRef) throw new Error('Firestore not initialized');
   try {
     await deleteDoc(doc(achievementsRef, id));
   } catch (err) {
@@ -133,6 +150,7 @@ export const deleteAchievement = async (id: string) => {
 };
 
 export const fetchAdmins = async (): Promise<AdminUser[]> => {
+  if (!adminsRef) return [];
   try {
     const snapshot = await getDocs(adminsRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AdminUser), id: doc.id }));
@@ -143,6 +161,7 @@ export const fetchAdmins = async (): Promise<AdminUser[]> => {
 };
 
 export const createOrUpdateAdmin = async (admin: AdminUser) => {
+  if (!adminsRef) throw new Error('Firestore not initialized');
   try {
     const adminDoc = doc(adminsRef, admin.id);
     await setDoc(adminDoc, admin, { merge: true });
@@ -153,6 +172,7 @@ export const createOrUpdateAdmin = async (admin: AdminUser) => {
 };
 
 export const deleteAdmin = async (id: string) => {
+  if (!adminsRef) throw new Error('Firestore not initialized');
   try {
     await deleteDoc(doc(adminsRef, id));
   } catch (err) {
@@ -162,6 +182,7 @@ export const deleteAdmin = async (id: string) => {
 };
 
 export const fetchQuotes = async (): Promise<QuoteItem[]> => {
+  if (!quotesRef) return [];
   try {
     const snapshot = await getDocs(quotesRef);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as QuoteItem), id: doc.id }));
@@ -172,6 +193,7 @@ export const fetchQuotes = async (): Promise<QuoteItem[]> => {
 };
 
 export const createOrUpdateQuote = async (quote: QuoteItem) => {
+  if (!quotesRef) throw new Error('Firestore not initialized');
   try {
     const quoteDoc = doc(quotesRef, quote.id);
     await setDoc(quoteDoc, quote, { merge: true });
@@ -182,6 +204,7 @@ export const createOrUpdateQuote = async (quote: QuoteItem) => {
 };
 
 export const deleteQuote = async (id: string) => {
+  if (!quotesRef) throw new Error('Firestore not initialized');
   try {
     await deleteDoc(doc(quotesRef, id));
   } catch (err) {
@@ -190,7 +213,40 @@ export const deleteQuote = async (id: string) => {
   }
 };
 
+export const fetchCategories = async (): Promise<Category[]> => {
+  if (!categoriesRef) return [];
+  try {
+    const snapshot = await getDocs(categoriesRef);
+    return snapshot.docs.map((doc) => ({ ...(doc.data() as Category), id: doc.id }));
+  } catch (err) {
+    console.error('fetchCategories failed', err);
+    return [];
+  }
+};
+
+export const createOrUpdateCategory = async (category: Category) => {
+  if (!categoriesRef) throw new Error('Firestore not initialized');
+  try {
+    const catDoc = doc(categoriesRef, category.id);
+    await setDoc(catDoc, category, { merge: true });
+  } catch (err) {
+    console.error('createOrUpdateCategory failed', err);
+    throw new Error(err instanceof Error ? err.message : String(err));
+  }
+};
+
+export const deleteCategory = async (id: string) => {
+  if (!categoriesRef) throw new Error('Firestore not initialized');
+  try {
+    await deleteDoc(doc(categoriesRef, id));
+  } catch (err) {
+    console.error('deleteCategory failed', err);
+    throw new Error(err instanceof Error ? err.message : String(err));
+  }
+};
+
 export const createAuditLog = async (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
+  if (!logsRef) return;
   try {
     const newLog = {
       ...log,
@@ -203,6 +259,7 @@ export const createAuditLog = async (log: Omit<AuditLog, 'id' | 'timestamp'>) =>
 };
 
 export const createOrUpdateBite = async (bite: BiteItem) => {
+  if (!factsRef) throw new Error('Firestore not initialized');
   try {
     const biteDoc = doc(factsRef, bite.id);
     await setDoc(biteDoc, bite, { merge: true });
@@ -213,6 +270,7 @@ export const createOrUpdateBite = async (bite: BiteItem) => {
 };
 
 export const deleteBite = async (biteId: string) => {
+  if (!factsRef) throw new Error('Firestore not initialized');
   try {
     await deleteDoc(doc(factsRef, biteId));
   } catch (err) {
@@ -222,6 +280,7 @@ export const deleteBite = async (biteId: string) => {
 };
 
 export const createOrUpdateCollection = async (collectionItem: CollectionSet) => {
+  if (!collectionsRef) throw new Error('Firestore not initialized');
   try {
     const collectionDoc = doc(collectionsRef, collectionItem.id);
     await setDoc(collectionDoc, collectionItem, { merge: true });
@@ -232,6 +291,7 @@ export const createOrUpdateCollection = async (collectionItem: CollectionSet) =>
 };
 
 export const deleteCollection = async (collectionId: string) => {
+  if (!collectionsRef) throw new Error('Firestore not initialized');
   try {
     await deleteDoc(doc(collectionsRef, collectionId));
   } catch (err) {
@@ -241,6 +301,7 @@ export const deleteCollection = async (collectionId: string) => {
 };
 
 export const createNotification = async (notification: AppNotification) => {
+  if (!notificationsRef) throw new Error('Firestore not initialized');
   try {
     const notificationDoc = doc(notificationsRef, notification.id);
     await setDoc(notificationDoc, notification, { merge: true });
@@ -251,6 +312,7 @@ export const createNotification = async (notification: AppNotification) => {
 };
 
 export const bulkImportBites = async (bites: BiteItem[]) => {
+  if (!factsRef || !db) throw new Error('Firestore not initialized');
   try {
     const batch = writeBatch(db);
     bites.forEach((bite) => {
@@ -264,47 +326,53 @@ export const bulkImportBites = async (bites: BiteItem[]) => {
   }
 };
 
-export const subscribeToBites = (callback: (items: BiteItem[]) => void) =>
-  onSnapshot(
+export const subscribeToBites = (callback: (items: BiteItem[]) => void) => {
+  if (!factsRef) return () => {};
+  return onSnapshot(
     factsRef,
-    (snapshot) => {
+    (snapshot: QuerySnapshot<DocumentData>) => {
       try {
         callback(snapshot.docs.map((doc) => ({ ...(doc.data() as BiteItem), id: doc.id })));
       } catch (err) {
         console.error('subscribeToBites callback failed', err);
       }
     },
-    (error) => {
+    (error: FirestoreError) => {
       console.error('subscribeToBites listener error', error);
     }
   );
+};
 
-export const subscribeToCollections = (callback: (items: CollectionSet[]) => void) =>
-  onSnapshot(
+export const subscribeToCollections = (callback: (items: CollectionSet[]) => void) => {
+  if (!collectionsRef) return () => {};
+  return onSnapshot(
     collectionsRef,
-    (snapshot) => {
+    (snapshot: QuerySnapshot<DocumentData>) => {
       try {
         callback(snapshot.docs.map((doc) => ({ ...(doc.data() as CollectionSet), id: doc.id })));
       } catch (err) {
         console.error('subscribeToCollections callback failed', err);
       }
     },
-    (error) => {
+    (error: FirestoreError) => {
       console.error('subscribeToCollections listener error', error);
     }
   );
+};
 
-export const subscribeToNotifications = (callback: (items: AppNotification[]) => void) =>
-  onSnapshot(
+export const subscribeToNotifications = (callback: (items: AppNotification[]) => void) => {
+  if (!notificationsRef) return () => {};
+  return onSnapshot(
     notificationsRef,
-    (snapshot) => {
+    (snapshot: QuerySnapshot<DocumentData>) => {
       try {
         callback(snapshot.docs.map((doc) => ({ ...(doc.data() as AppNotification), id: doc.id })));
       } catch (err) {
         console.error('subscribeToNotifications callback failed', err);
       }
     },
-    (error) => {
+    (error: FirestoreError) => {
       console.error('subscribeToNotifications listener error', error);
     }
   );
+};

@@ -33,6 +33,16 @@ function Auth({ children }: AuthProps) {
     }
   }, []);
 
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await signInAdmin(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Identity validation failed. Please retry.');
+    }
+  };
+
   // If there's a configuration error, we let App.tsx handle the error UI
   if (!isFirebaseConfigured || firebaseInitError) {
     return <>{children}</>;
@@ -116,16 +126,6 @@ function Auth({ children }: AuthProps) {
       </div>
     );
   }
-
-  const signIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await signInAdmin(email, password);
-    } catch (err: any) {
-      setError(err.message || 'Identity validation failed. Please retry.');
-    }
-  };
 
   return <>{children}</>;
 }

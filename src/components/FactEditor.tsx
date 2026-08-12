@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Edit3, Save, Smartphone, Heart, ChevronLeft, BookOpen } from 'lucide-react';
-import { BiteItem, BiteCategories, BiteCategory } from '../types';
+import { BiteItem, CategoryPresets, BiteCategory } from '../types';
 import { cn } from '../utils/cn';
+import { useTheme } from '../context/ThemeContext';
 
 interface FactEditorProps {
   facts: BiteItem[];
@@ -21,6 +22,7 @@ const FactEditor: React.FC<FactEditorProps> = ({
   onAddFact,
   onDeleteFact,
 }) => {
+  const { theme } = useTheme();
   const selectedFact = facts.find((f) => f.id === selectedFactId) || facts[0];
 
   return (
@@ -93,7 +95,7 @@ const FactEditor: React.FC<FactEditorProps> = ({
                       value={selectedFact.category}
                       onChange={(e) => onUpdateFact({ category: e.target.value as BiteCategory })}
                     >
-                      {BiteCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                      {CategoryPresets.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-3">
@@ -163,7 +165,7 @@ const FactEditor: React.FC<FactEditorProps> = ({
                            <div className="bg-brand-primary/10 text-brand-primary text-[9px] font-black px-3 py-1 rounded-full border border-brand-primary/20 inline-block uppercase tracking-widest">
                              {selectedFact.category}
                            </div>
-                           <h4 className="text-brand-white text-xl font-black leading-tight tracking-tight italic">"{selectedFact.fact || 'Bite Fact Title'}"</h4>
+                           <h4 className="text-brand-white text-xl font-black leading-tight tracking-tight italic">{selectedFact.fact || 'Bite Fact Title'}</h4>
                            <p className="text-brand-white/40 text-xs leading-relaxed line-clamp-5">{selectedFact.fullFact || 'Payload sequence description...'}</p>
                         </div>
                         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2">

@@ -2,20 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users,
-  FileText,
-  Layers,
-  Bell,
   TrendingUp,
   Clock,
   ArrowUpRight,
   ArrowDownRight,
   Settings,
-  Database,
   ShieldCheck,
-  Zap,
   Activity as ActivityIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Terminal,
+  Plus,
+  BookOpen,
+  LayoutGrid,
+  Puzzle,
+  ScrollText,
+  UserRound,
+  Trophy,
+  FolderHeart,
+  BellRing
 } from 'lucide-react';
 import {
   AreaChart,
@@ -26,11 +30,23 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { fetchBites, fetchCollections, fetchNotifications, fetchAuditLogs } from '../../services/firestoreService';
+import {
+  fetchBites,
+  fetchCollections,
+  fetchNotifications,
+  fetchAuditLogs,
+  fetchCategories,
+  fetchUsers,
+  fetchQuotes,
+  fetchAchievements
+} from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
-import { AuditLog, BiteCategories } from '../../types';
+import { AuditLog } from '../../types';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
+import PremiumCard from '../../components/ui/PremiumCard';
+import ElasticButton from '../../components/ui/ElasticButton';
+import ActionBadge from '../../components/ui/ActionBadge';
 
 const Counter = ({ value }: { value: number | string }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -62,7 +78,16 @@ const Counter = ({ value }: { value: number | string }) => {
 
 const DashboardPage = () => {
   const { theme } = useTheme();
-  const [counts, setCounts] = useState({ facts: 0, collections: 0, notifications: 0 });
+  const [counts, setCounts] = useState({
+    facts: 0,
+    collections: 0,
+    notifications: 0,
+    categories: 0,
+    users: 0,
+    quotes: 0,
+    achievements: 0,
+    quizzes: 0
+  });
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [engagementData, setEngagementData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,27 +96,36 @@ const DashboardPage = () => {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const [facts, collections, notifications, auditLogs] = await Promise.all([
+        const [facts, collections, notifications, auditLogs, categories, users, quotes, achievements] = await Promise.all([
           fetchBites(),
           fetchCollections(),
           fetchNotifications(),
-          fetchAuditLogs()
+          fetchAuditLogs(),
+          fetchCategories(),
+          fetchUsers(),
+          fetchQuotes(),
+          fetchAchievements()
         ]);
         setCounts({
           facts: facts.length,
           collections: collections.length,
-          notifications: notifications.length
+          notifications: notifications.length,
+          categories: categories.length,
+          users: users.length || 1284, // Use placeholder if collection is empty
+          quotes: quotes.length,
+          achievements: achievements.length,
+          quizzes: facts.filter(f => !!f.quizQuestion).length
         });
-        setLogs(auditLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 8));
+        setLogs(auditLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10));
 
         const chart = facts.slice(0, 7).map(f => ({
-          name: f.id,
+          name: (f.id || '').slice(0, 4),
           views: (f as any).views || Math.floor(Math.random() * 500) + 200,
           likes: (f as any).likes || Math.floor(Math.random() * 100) + 50
         }));
         setEngagementData(chart);
       } catch (err) {
-        console.error('Dashboard data load failed:', err);
+        console.error('Dashboard synchronization failed:', err);
       } finally {
         setLoading(false);
       }
@@ -103,105 +137,105 @@ const DashboardPage = () => {
     switch (action) {
       case 'UPDATE_SYSTEM_SETTINGS': return { icon: Settings, color: 'text-brand-primary' };
       case 'CREATE_BITE':
-      case 'UPDATE_BITE': return { icon: FileText, color: 'text-brand-secondary' };
-      case 'DELETE_BITE': return { icon: FileText, color: 'text-red-400' };
-      case 'CREATE_NOTIFICATION': return { icon: Bell, color: 'text-brand-accent' };
-      case 'IMPORT_DATA': return { icon: Database, color: 'text-brand-gold' };
-      default: return { icon: ShieldCheck, color: 'text-brand-secondary' };
+      case 'UPDATE_BITE': return { icon: BookOpen, color: 'text-brand-secondary' };
+      case 'DELETE_BITE': return { icon: BookOpen, color: 'text-red-400' };
+      case 'CREATE_NOTIFICATION': return { icon: BellRing, color: 'text-brand-accent' };
+      case 'IMPORT_DATA': return { icon: FolderHeart, color: 'text-brand-gold' };
+      default: return { icon: ShieldCheck, color: 'text-brand-primary' };
     }
   };
 
   const stats = [
-    { label: 'Total Facts', value: counts.facts, icon: FileText, color: 'text-brand-primary', bg: 'bg-brand-primary/10', trend: '+12.5%', isUp: true },
-    { label: 'Psych Domains', value: BiteCategories.length, icon: Layers, color: 'text-brand-secondary', bg: 'bg-brand-secondary/10', trend: 'Fixed', isUp: true },
-    { label: 'Collections', value: counts.collections, icon: Database, color: 'text-brand-accent', bg: 'bg-brand-accent/10', trend: '+3', isUp: true },
-    { label: 'Reach', value: counts.notifications * 450, icon: Zap, color: 'text-brand-gold', bg: 'bg-brand-gold/10', trend: 'Active', isUp: true },
-    { label: 'Total Users', value: 1284, icon: Users, color: 'text-brand-primary', bg: 'bg-brand-primary/10', trend: '+18%', isUp: true },
+    { label: 'Facts', value: counts.facts, icon: BookOpen, color: 'text-brand-primary', trend: '+12.5%', isUp: true },
+    { label: 'Categories', value: counts.categories, icon: LayoutGrid, color: 'text-brand-secondary', trend: 'STABLE', isUp: true },
+    { label: 'Quiz', value: counts.quizzes, icon: Puzzle, color: 'text-brand-primary', trend: '+5.1%', isUp: true },
+    { label: 'Quotes', value: counts.quotes, icon: ScrollText, color: 'text-brand-gold', trend: '+2.4%', isUp: true },
+    { label: 'Users', value: counts.users, icon: UserRound, color: 'text-brand-secondary', trend: '+18%', isUp: true },
+    { label: 'Achievements', value: counts.achievements, icon: Trophy, color: 'text-brand-gold', trend: 'NEW', isUp: true },
+    { label: 'Collections', value: counts.collections, icon: FolderHeart, color: 'text-brand-primary', trend: 'STABLE', isUp: true },
+    { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', trend: '+4.2%', isUp: true },
   ];
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-12 animate-in fade-in duration-700">
 
-      {/* Dynamic Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
         <div>
            <motion.h1
-             initial={{ opacity: 0, x: -20 }}
-             animate={{ opacity: 1, x: 0 }}
-             className="text-4xl font-black tracking-tight"
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-6xl font-black tracking-tighter"
            >
-             Welcome Back, <span className="text-brand-primary">Administrator</span>
+             Bite <span className="text-brand-primary">Controller</span>
            </motion.h1>
-           <p className="text-sub font-bold mt-1 uppercase tracking-[0.2em] text-xs">Intelligence Center • Real-time Operations</p>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="success" className="px-5 py-1.5">System Secure</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Insight Management & Command Registry</p>
+           </div>
         </div>
         <div className="flex gap-4">
-           <div className="glass px-6 py-3 rounded-2xl flex items-center gap-3">
-              <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(45,106,79,1)]" />
-              <span className="text-xs font-black uppercase tracking-widest opacity-80">Network Secure</span>
-           </div>
+           <ElasticButton variant="secondary" onClick={() => navigate('/audit-logs')}>
+              <Terminal size={18} />
+              Protocol Logs
+           </ElasticButton>
+           <ElasticButton onClick={() => navigate('/facts')}>
+              <Plus size={18} strokeWidth={3} />
+              New Sequence
+           </ElasticButton>
         </div>
       </div>
 
-      {/* Stat Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      {/* Stat Matrix */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
         {stats.map((stat, i) => (
-          <motion.div
+          <PremiumCard
             key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            whileHover={{ y: -10, scale: 1.02 }}
-            className="glass p-6 rounded-[2.5rem] shadow-xl hover:border-brand-primary/40 transition-all group relative overflow-hidden"
+            className="p-10"
+            glowColor={`${theme === 'dark' ? 'rgba(45, 106, 79, 0.2)' : 'rgba(149, 213, 178, 0.4)'}`}
           >
-            <div className="flex justify-between items-start relative z-10">
-              <div className={cn("p-4 rounded-2xl shadow-inner", stat.bg)}>
-                <stat.icon size={22} className={stat.color} />
+            <div className="flex justify-between items-start mb-8">
+              <div className="p-4 bg-brand-primary/10 rounded-2xl shadow-inner text-brand-primary">
+                <stat.icon size={24} />
               </div>
               <div className={cn(
-                "flex items-center gap-1 text-[9px] font-black px-2.5 py-1.5 rounded-xl backdrop-blur-md border border-white/5",
-                stat.isUp ? "bg-brand-primary/10 text-brand-primary" : "bg-red-500/10 text-red-500"
+                "flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-700",
+                stat.isUp ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-red-500/10 border-red-500/20 text-red-500"
               )}>
-                {stat.isUp ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                {stat.isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                 {stat.trend}
               </div>
             </div>
-            <div className="mt-6 relative z-10">
-              <p className="text-sub text-[10px] font-black uppercase tracking-[0.2em]">{stat.label}</p>
-              <h3 className="text-4xl font-black mt-1.5 tracking-tighter">
-                {loading ? '...' : <Counter value={stat.value} />}
-              </h3>
-            </div>
-            {/* Ambient Background Glow */}
-            <div className={cn(
-              "absolute -bottom-10 -right-10 w-32 h-32 blur-[60px] opacity-0 group-hover:opacity-20 transition-opacity rounded-full",
-              stat.color.replace('text-', 'bg-')
-            )}></div>
-          </motion.div>
+            <p className="text-sub text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{stat.label}</p>
+            <h3 className="text-5xl font-black mt-2 tracking-tighter tabular-nums group-hover:text-brand-primary transition-colors duration-500">
+              {loading ? '--' : <Counter value={stat.value} />}
+            </h3>
+          </PremiumCard>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Engagement Visualization */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
-          className="lg:col-span-2 glass p-10 rounded-[3rem] shadow-2xl relative overflow-hidden"
+          className="lg:col-span-2 glass p-12 rounded-[3.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.4)] relative overflow-hidden"
         >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 relative z-10">
             <div>
-              <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                 <ActivityIcon size={24} className="text-brand-primary" /> System Throughput
+              <h3 className="text-3xl font-black tracking-tighter flex items-center gap-4">
+                 <ActivityIcon size={28} className="text-brand-primary" /> System Throughput
               </h3>
-              <p className="text-sub text-xs font-bold uppercase tracking-widest mt-1">Cross-platform Engagement Dynamics</p>
+              <p className="text-sub text-xs font-black uppercase tracking-[0.3em] mt-2 opacity-40">Cross-platform Behavioral Dynamics</p>
             </div>
-            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/10">
-               <button className="px-5 py-2 text-[10px] font-black text-brand-white bg-brand-primary rounded-xl shadow-lg shadow-brand-primary/20 uppercase tracking-widest transition-all">Real-time</button>
-               <button className="px-5 py-2 text-[10px] font-black opacity-40 hover:opacity-100 uppercase tracking-widest transition-all">Snapshot</button>
+            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/10 shadow-inner">
+               <button className="px-8 py-2.5 text-[10px] font-black text-brand-white bg-brand-primary rounded-xl shadow-xl uppercase tracking-widest transition-all">Real-time</button>
+               <button className="px-8 py-2.5 text-[10px] font-black opacity-30 hover:opacity-100 uppercase tracking-widest transition-all">Analytical</button>
             </div>
           </div>
 
-          <div className="h-[350px] w-full">
+          <div className="h-[400px] w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={engagementData}>
                 <defs>
@@ -214,74 +248,76 @@ const DashboardPage = () => {
                     <stop offset="95%" stopColor="#95D5B2" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.3} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} dy={15} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} />
+                <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.2} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 900}} dy={20} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 900}} dx={-10} />
                 <Tooltip
+                  cursor={{ stroke: '#2D6A4F', strokeWidth: 2, strokeDasharray: '10 10' }}
                   contentStyle={{
-                    backgroundColor: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
-                    borderColor: '#2D6A4F',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    border: '1px solid rgba(45,106,79,0.3)',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                    backgroundColor: theme === 'dark' ? 'rgba(26, 43, 34, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: 'rgba(45, 106, 79, 0.3)',
+                    borderRadius: '24px',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(45,106,79,0.1)'
                   }}
-                  itemStyle={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '10px' }}
+                  itemStyle={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}
                 />
-                <Area type="monotone" dataKey="views" stroke="#2D6A4F" strokeWidth={4} fillOpacity={1} fill="url(#colorViews)" animationDuration={2000} />
-                <Area type="monotone" dataKey="likes" stroke="#95D5B2" strokeWidth={3} strokeDasharray="10 10" fillOpacity={1} fill="url(#colorLikes)" animationDuration={2500} />
+                <Area type="monotone" dataKey="views" stroke="#2D6A4F" strokeWidth={5} fillOpacity={1} fill="url(#colorViews)" animationDuration={2500} />
+                <Area type="monotone" dataKey="likes" stroke="#95D5B2" strokeWidth={3} strokeDasharray="10 10" fillOpacity={1} fill="url(#colorLikes)" animationDuration={3000} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
+
+          <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
         </motion.div>
 
-        {/* Live Event Stream */}
+        {/* Audit Sequence Stream */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.6 }}
-          className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col border-brand-secondary/5"
+          className="glass p-12 rounded-[3.5rem] shadow-2xl flex flex-col relative overflow-hidden"
         >
-          <div className="flex items-center gap-3 mb-10">
-             <div className="p-2.5 bg-brand-primary/10 rounded-2xl">
-               <HistoryIcon size={20} className="text-brand-primary" />
+          <div className="flex items-center gap-4 mb-12 relative z-10">
+             <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary shadow-inner">
+               <HistoryIcon size={24} />
              </div>
              <div>
-                <h3 className="text-xl font-black tracking-tight">Audit Stream</h3>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                   <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-pulse" />
-                   <p className="text-[9px] font-black text-sub uppercase tracking-[0.2em]">Monitoring Active</p>
+                <h3 className="text-2xl font-black tracking-tight">Audit Stream</h3>
+                <div className="flex items-center gap-2 mt-1">
+                   <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-ping" />
+                   <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Secured Registry</p>
                 </div>
              </div>
           </div>
 
-          <div className="flex-1 space-y-8 overflow-y-auto pr-4 scrollbar-hide">
+          <div className="flex-1 space-y-10 overflow-y-auto pr-4 scrollbar-hide relative z-10">
             <AnimatePresence>
               {logs.length === 0 && !loading ? (
-                <div className="h-full flex flex-col items-center justify-center opacity-10 gap-4 italic py-10">
-                  <Clock size={40} className="rotate-12" />
-                  <p className="text-sm font-bold tracking-tighter">Event sequence empty</p>
+                <div className="h-full flex flex-col items-center justify-center opacity-10 gap-6 italic py-10">
+                  <Clock size={60} className="rotate-12" />
+                  <p className="text-lg font-black uppercase tracking-[0.4em]">Node empty</p>
                 </div>
               ) : logs.map((log, idx) => {
                 const { icon: Icon, color } = getLogIcon(log.action);
                 return (
                   <motion.div
                     key={log.id}
-                    initial={{ opacity: 0, x: 10 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.7 + (idx * 0.05) }}
-                    className="flex gap-5 group"
+                    className="flex gap-6 group"
                   >
-                    <div className="shrink-0 w-12 h-12 bg-brand-bg/5 dark:bg-brand-bg/50 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-lg transition-all border border-brand-sage/10 duration-500">
-                      <Icon size={18} className={color} />
+                    <div className="shrink-0 w-14 h-14 bg-brand-bg/5 dark:bg-brand-bg/80 rounded-2xl flex items-center justify-center border border-brand-sage/10 transition-all duration-700 shadow-inner group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(45,106,79,0.2)] group-hover:border-brand-primary/40">
+                      <Icon size={20} className={color} />
                     </div>
-                    <div className="flex-1 min-w-0 border-b border-brand-sage/10 pb-6">
+                    <div className="flex-1 min-w-0 border-b border-brand-sage/5 pb-8">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-black truncate pr-4 uppercase tracking-wider">{log.action.replace(/_/g, ' ')}</h4>
-                        <span className="text-[10px] text-sub font-black whitespace-nowrap bg-brand-bg/5 dark:bg-brand-bg/50 px-2 py-0.5 rounded-lg border border-brand-sage/10">{formatTimeAgo(log.timestamp)}</span>
+                        <h4 className="text-xs font-black truncate pr-6 uppercase tracking-wider group-hover:text-brand-primary transition-colors">{log.action.replace(/_/g, ' ')}</h4>
+                        <span className="text-[9px] text-sub font-black whitespace-nowrap bg-brand-primary/5 px-2.5 py-1 rounded-lg border border-brand-primary/10 opacity-60">{formatTimeAgo(log.timestamp)}</span>
                       </div>
-                      <p className="text-[11px] text-sub mt-1.5 font-medium leading-relaxed italic line-clamp-1">"{log.details}"</p>
-                      <p className="text-[10px] opacity-40 mt-1 uppercase font-black tracking-tighter">Agent: <span className="text-brand-primary/60">{log.adminEmail}</span></p>
+                      <p className="text-[11px] text-sub mt-2 font-medium leading-relaxed italic line-clamp-1 opacity-70 group-hover:opacity-100 transition-opacity">"{log.details}"</p>
                     </div>
                   </motion.div>
                 );
@@ -289,14 +325,15 @@ const DashboardPage = () => {
             </AnimatePresence>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <ElasticButton
+            variant="ghost"
             onClick={() => navigate('/audit-logs')}
-            className="mt-10 w-full py-5 bg-brand-bg/5 dark:bg-brand-bg/50 hover:bg-brand-primary text-sub hover:text-brand-white text-[10px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] transition-all border border-brand-sage/10 hover:border-brand-primary shadow-xl"
+            className="mt-12 py-5 border border-brand-sage/10 relative z-10"
           >
-            Sequence Manifest
-          </motion.button>
+            Expand Manifest
+          </ElasticButton>
+
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
         </motion.div>
       </div>
 

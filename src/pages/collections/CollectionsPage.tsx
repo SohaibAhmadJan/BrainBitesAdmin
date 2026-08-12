@@ -147,7 +147,7 @@ const CollectionsPage = () => {
                          <h3 className="text-2xl font-black text-brand-white truncate tracking-tight">{col.title}</h3>
                          <span className="text-[9px] font-mono text-brand-secondary/20 uppercase tracking-widest mt-2">{col.id}</span>
                       </div>
-                      <p className="text-brand-secondary/40 text-sm mt-3 font-medium leading-relaxed italic line-clamp-2">"{col.description}"</p>
+                      <p className="text-brand-secondary/40 text-sm mt-3 font-medium leading-relaxed italic line-clamp-2">{col.description}</p>
                    </div>
                 </div>
 

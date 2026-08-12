@@ -209,7 +209,7 @@ const NotificationsPage = () => {
                        <h4 className="text-sm font-black text-brand-white group-hover:text-brand-primary transition-colors">{form.title || 'Dispatch Headline'}</h4>
                        <span className="text-[10px] font-black text-brand-secondary/30 uppercase">Active</span>
                     </div>
-                    <p className="text-xs text-brand-secondary/60 leading-relaxed line-clamp-2 italic">"{form.message || 'Payload content description will appear within the mobile system tray notification stack...'}"</p>
+                    <p className="text-xs text-brand-secondary/60 leading-relaxed line-clamp-2 italic">{form.message || 'Payload content description will appear within the mobile system tray notification stack...'}</p>
 
                     <AnimatePresence>
                       {form.imageUrl && (
@@ -276,7 +276,7 @@ const NotificationsPage = () => {
                        </div>
                        <span className="text-[10px] font-black text-brand-secondary/30 tabular-nums">{new Date(n.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-[11px] text-brand-secondary/50 leading-relaxed line-clamp-2 italic">"{n.message}"</p>
+                    <p className="text-[11px] text-brand-secondary/50 leading-relaxed line-clamp-2 italic">{n.message}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-brand-sage/10 relative z-10">
                        <div className="flex gap-3">
                           {n.imageUrl && <div className="p-1.5 glass rounded-lg"><ImageIcon size={12} className="text-brand-primary" /></div>}

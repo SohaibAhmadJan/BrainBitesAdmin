@@ -1,147 +1,283 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
-  Search,
+  Plus,
   FileText,
-  MessageSquare,
   HelpCircle,
   ArrowRight,
+  Trash2,
+  Edit3,
+  X,
   PieChart,
-  BarChart3,
-  TrendingUp
+  Palette,
 } from 'lucide-react';
-import { BiteCategory, BiteCategories, BiteItem, QuoteItem } from '../../types';
-import { fetchBites, fetchQuotes } from '../../services/firestoreService';
-import { cn } from '../../utils/cn';
+import { useCategories } from '../../hooks/useCategories';
 import { useTheme } from '../../context/ThemeContext';
+import { Category, CategoryPresets } from '../../types';
+import { cn } from '../../utils/cn';
+import PremiumCard from '../../components/ui/PremiumCard';
+import ElasticButton from '../../components/ui/ElasticButton';
+import ActionBadge from '../../components/ui/ActionBadge';
 
 const CategoriesPage = () => {
   const { theme } = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Record<string, { facts: number, quotes: number, quizzes: number }>>({});
+  const { categories, loading, saveCategory, removeCategory } = useCategories();
 
-  useEffect(() => {
-    loadCategoryStats();
-  }, []);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    color: '#2D6A4F',
+    icon: '🧠'
+  });
 
-  const loadCategoryStats = async () => {
-    setLoading(true);
-    try {
-      const [facts, quotes] = await Promise.all([
-        fetchBites(),
-        fetchQuotes()
-      ]);
-
-      const newStats: any = {};
-      BiteCategories.forEach(cat => {
-        const catFacts = facts.filter(f => f.category === cat);
-        newStats[cat] = {
-          facts: catFacts.length,
-          quotes: quotes.filter(q => q.category === cat).length,
-          quizzes: catFacts.filter(f => f.quizQuestion).length
-        };
+  const handleOpenModal = (cat: Category | null = null) => {
+    if (cat) {
+      setEditingCategory(cat);
+      setFormData({
+        name: cat.name,
+        description: cat.description,
+        color: cat.color,
+        icon: cat.icon
       });
-      setStats(newStats);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    } else {
+      setEditingCategory(null);
+      setFormData({
+        name: '',
+        description: '',
+        color: '#2D6A4F',
+        icon: '🧠'
+      });
     }
+    setIsModalOpen(true);
   };
 
-  const getCategoryColor = (category: BiteCategory) => {
-    switch (category) {
-      case 'Human Behavior': return 'from-brand-primary/20 to-brand-primary/5 border-brand-primary/20 text-brand-primary';
-      case 'Mental Health': return 'from-brand-secondary/20 to-brand-secondary/5 border-brand-secondary/20 text-brand-secondary';
-      case 'Brain Science': return 'from-brand-gold/20 to-brand-gold/5 border-brand-gold/20 text-brand-gold';
-      case 'Love & Attraction': return 'from-pink-500/20 to-pink-500/5 border-pink-500/20 text-pink-500';
-      case 'Personality Traits': return 'from-orange-500/20 to-orange-500/5 border-orange-500/20 text-orange-500';
-      case 'Body Language': return 'from-teal-500/20 to-teal-500/5 border-teal-500/20 text-teal-500';
-      case 'Subconscious Mind': return 'from-indigo-500/20 to-indigo-500/5 border-indigo-500/20 text-indigo-500';
-      case 'Social Psychology': return 'from-brand-primary/20 to-brand-primary/5 border-brand-primary/20 text-brand-primary';
-      case 'Habits & Motivation': return 'from-rose-500/20 to-rose-500/5 border-rose-500/20 text-rose-500';
-      case 'Memory & Learning': return 'from-violet-500/20 to-violet-500/5 border-violet-500/20 text-violet-500';
-      default: return 'from-brand-white/10 to-brand-white/5 border-brand-white/10 text-main';
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await saveCategory({
+      ...editingCategory,
+      ...formData
+    });
+    if (success) setIsModalOpen(false);
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
-      <div className="glass p-8 rounded-[2.5rem] shadow-xl flex justify-between items-end relative overflow-hidden">
+    <div className="space-y-12 animate-in fade-in duration-700">
+
+      {/* Premium Header */}
+      <div className="glass p-10 rounded-[3.5rem] shadow-2xl flex flex-col xl:flex-row justify-between items-end gap-10 relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
-             <Layers className="text-brand-primary" size={32} />
-             Domain Dashboard
-          </h2>
-          <p className="text-sub text-sm mt-1 font-medium italic">Fixed psychological categories & content distribution</p>
+          <motion.h2
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-5xl font-black tracking-tighter flex items-center gap-5"
+          >
+             <div className="p-4 bg-brand-primary/10 rounded-[1.5rem] shadow-lg">
+                <Layers className="text-brand-primary" size={40} />
+             </div>
+             Taxonomy Hub
+          </motion.h2>
+          <p className="text-sub text-sm font-black uppercase tracking-[0.5em] mt-4 ml-2">Psychological Architecture Control</p>
         </div>
-        <div className="flex gap-4 relative z-10">
-           <div className="text-right">
-              <p className="text-[10px] font-black text-sub uppercase tracking-widest">Total Domains</p>
-              <p className="text-xl font-black">{BiteCategories.length}</p>
+
+        <div className="flex items-center gap-8 relative z-10">
+           <div className="text-right hidden md:block">
+              <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Active Sectors</p>
+              <p className="text-2xl font-black text-brand-primary">{categories.length}</p>
            </div>
-           <div className="w-px h-10 bg-brand-sage/20 self-center mx-2"></div>
-           <div className="text-right">
-              <p className="text-[10px] font-black text-sub uppercase tracking-widest">Master Coverage</p>
-              <p className="text-xl font-black text-brand-primary">100%</p>
-           </div>
+           <div className="w-[1px] h-12 bg-brand-sage/20 self-center mx-2 hidden md:block" />
+           <ElasticButton
+            onClick={() => handleOpenModal()}
+            className="px-10 py-5"
+           >
+             <Plus size={22} strokeWidth={3} />
+             Add Sector
+           </ElasticButton>
         </div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* Grid Flow */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-64 glass rounded-[2.5rem] animate-pulse"></div>
+            <div key={i} className="h-80 glass rounded-[3rem] animate-pulse" />
           ))
-        ) : BiteCategories.map((cat) => (
-          <div key={cat} className={cn(
-            "bg-gradient-to-br border p-8 rounded-[2.5rem] shadow-2xl transition-all group hover:scale-[1.02]",
-            getCategoryColor(cat)
-          )}>
-            <div className="flex justify-between items-start mb-8">
-               <div className={cn(
-                 "p-3 rounded-2xl backdrop-blur-md border border-white/5 shadow-inner",
-                 theme === 'dark' ? "bg-brand-bg/40" : "bg-white/40"
-               )}>
-                  <PieChart size={24} />
-               </div>
-               <span className="text-[10px] font-black uppercase tracking-widest bg-white/10 px-2 py-1 rounded-lg">System Core</span>
-            </div>
+        ) : (
+          <AnimatePresence>
+            {categories.map((cat, idx) => (
+              <PremiumCard
+                key={cat.id}
+                glowColor={`${cat.color}22`}
+                className="p-10"
+              >
+                <div className="flex justify-between items-start mb-10">
+                   <div
+                    className={cn(
+                      "w-20 h-20 rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl transition-all duration-700 group-hover:scale-110",
+                      theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10"
+                    )}
+                    style={{ textShadow: `0 0 20px ${cat.color}66` }}
+                   >
+                      {cat.icon}
+                   </div>
+                   <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                      <motion.button
+                        whileHover={{ scale: 1.1, rotate: 10 }}
+                        onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }}
+                        className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-2xl transition-all border border-brand-sage/10"
+                      >
+                        <Edit3 size={18} />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1, rotate: -10 }}
+                        onClick={(e) => { e.stopPropagation(); removeCategory(cat.id, cat.name); }}
+                        className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-2xl transition-all border border-brand-sage/10"
+                      >
+                        <Trash2 size={18} />
+                      </motion.button>
+                   </div>
+                </div>
 
-            <h3 className="text-2xl font-black mb-6 tracking-tight">{cat}</h3>
+                <h3 className="text-3xl font-black mb-4 tracking-tighter group-hover:text-brand-primary transition-colors">{cat.name}</h3>
+                <p className="text-sub text-sm font-medium leading-relaxed italic line-clamp-2 opacity-60 mb-10">"{cat.description}"</p>
 
-            <div className="grid grid-cols-3 gap-4">
-               <div className="space-y-1">
-                  <p className="text-[9px] font-black opacity-50 uppercase flex items-center gap-1"><FileText size={10} /> Facts</p>
-                  <p className="text-lg font-black">{stats[cat]?.facts || 0}</p>
-               </div>
-               <div className="space-y-1">
-                  <p className="text-[9px] font-black opacity-50 uppercase flex items-center gap-1"><MessageSquare size={10} /> Quotes</p>
-                  <p className="text-lg font-black">{stats[cat]?.quotes || 0}</p>
-               </div>
-               <div className="space-y-1">
-                  <p className="text-[9px] font-black opacity-50 uppercase flex items-center gap-1"><HelpCircle size={10} /> Quizzes</p>
-                  <p className="text-lg font-black">{stats[cat]?.quizzes || 0}</p>
-               </div>
-            </div>
+                <div className="grid grid-cols-2 gap-8 relative z-10">
+                   <div className="space-y-2">
+                      <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><FileText size={12} className="text-brand-primary" /> Facts</p>
+                      <p className="text-2xl font-black tracking-tighter">--</p>
+                   </div>
+                   <div className="space-y-2">
+                      <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><HelpCircle size={12} className="text-brand-gold" /> Quiz</p>
+                      <p className="text-2xl font-black tracking-tighter">--</p>
+                   </div>
+                </div>
 
-            <div className="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
-               <div className="flex -space-x-2">
-                  {[1,2,3].map(i => (
-                    <div key={i} className={cn(
-                      "w-6 h-6 rounded-full border-2",
-                      theme === 'dark' ? "bg-brand-bg border-brand-surface" : "bg-brand-primary/5 border-white"
-                    )} />
-                  ))}
-               </div>
-               <button className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">
-                  Manage Domain <ArrowRight size={14} />
-               </button>
-            </div>
-          </div>
-        ))}
+                <div className="mt-10 pt-8 border-t border-brand-sage/10 flex justify-between items-center relative z-10">
+                   <ActionBadge variant="info">System Node</ActionBadge>
+                   <motion.button
+                    whileHover={{ x: 5 }}
+                    className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] group-hover:opacity-100 transition-opacity"
+                   >
+                      Sequence <ArrowRight size={16} />
+                   </motion.button>
+                </div>
+              </PremiumCard>
+            ))}
+          </AnimatePresence>
+        )}
       </div>
+
+      {/* Modal Overhaul */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-brand-bg/95 backdrop-blur-xl"
+              onClick={() => setIsModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="relative w-full max-w-xl glass rounded-[3.5rem] shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden"
+            >
+               <div className="p-12 border-b border-brand-sage/10 flex justify-between items-center bg-brand-primary/5">
+                  <div>
+                    <h3 className="text-3xl font-black tracking-tighter">{editingCategory ? 'Refine Sector' : 'Anchor Node'}</h3>
+                    <p className="text-[10px] text-brand-primary font-black uppercase tracking-[0.4em] mt-2 italic">System Taxonomy Sequence</p>
+                  </div>
+                  <button onClick={() => setIsModalOpen(false)} className="p-4 bg-brand-bg/10 hover:bg-brand-bg/20 text-sub hover:text-brand-primary transition-all rounded-[1.5rem] border border-brand-sage/10">
+                    <X size={28} />
+                  </button>
+               </div>
+
+               <form onSubmit={handleSubmit} className="p-12 space-y-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">App Presets (Quick Sync)</label>
+                    <div className="flex flex-wrap gap-3 p-6 glass rounded-[2rem] border-brand-sage/10">
+                      {CategoryPresets.map(preset => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setFormData({
+                            name: preset.id,
+                            description: `Psychological insights regarding ${preset.name}.`,
+                            color: preset.color,
+                            icon: preset.icon
+                          })}
+                          className="px-4 py-2 bg-brand-bg/20 hover:bg-brand-primary/20 border border-brand-sage/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-8">
+                     <div className="col-span-1 space-y-3">
+                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Symbol</label>
+                        <input
+                          className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-3 py-5 text-4xl text-center focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+                          placeholder="🧠"
+                          value={formData.icon}
+                          onChange={e => setFormData({...formData, icon: e.target.value})}
+                        />
+                     </div>
+                     <div className="col-span-3 space-y-3">
+                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Node Identity</label>
+                        <input
+                          className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-8 py-5 text-lg focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-bold"
+                          placeholder="e.g. Cognitive Dynamics"
+                          value={formData.name}
+                          onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                     </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Functional Scope</label>
+                    <textarea
+                      className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-[2.5rem] p-8 text-sm focus:outline-none focus:border-brand-primary/50 transition-all leading-relaxed shadow-inner font-medium italic"
+                      rows={3}
+                      placeholder="Define the scope of this psychological sector..."
+                      value={formData.description}
+                      onChange={e => setFormData({...formData, description: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2 flex items-center gap-2">
+                       <Palette size={14} className="text-brand-primary" /> Spectral Target
+                    </label>
+                    <div className="flex gap-6 items-center bg-brand-bg/20 p-5 rounded-[1.8rem] border border-brand-sage/10">
+                       <input
+                        type="color"
+                        className="w-20 h-14 bg-transparent border-none cursor-pointer rounded-xl"
+                        value={formData.color}
+                        onChange={e => setFormData({...formData, color: e.target.value})}
+                       />
+                       <p className="text-sm font-mono font-black text-brand-primary uppercase tracking-[0.2em]">{formData.color}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-8">
+                     <ElasticButton
+                      type="submit"
+                      className="w-full py-6 rounded-[2rem]"
+                     >
+                       {editingCategory ? 'Execute Sync' : 'Initialize Node'}
+                     </ElasticButton>
+                  </div>
+               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

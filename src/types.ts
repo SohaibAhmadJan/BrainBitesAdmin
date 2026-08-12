@@ -1,28 +1,26 @@
-export type BiteCategory =
-  | 'Human Behavior'
-  | 'Mental Health'
-  | 'Brain Science'
-  | 'Love & Attraction'
-  | 'Personality Traits'
-  | 'Body Language'
-  | 'Subconscious Mind'
-  | 'Social Psychology'
-  | 'Habits & Motivation'
-  | 'Memory & Learning'
-  | 'All';
+export type BiteCategory = string;
 
-export const BiteCategories: BiteCategory[] = [
-  'Human Behavior',
-  'Mental Health',
-  'Brain Science',
-  'Love & Attraction',
-  'Personality Traits',
-  'Body Language',
-  'Subconscious Mind',
-  'Social Psychology',
-  'Habits & Motivation',
-  'Memory & Learning',
+export const CategoryPresets = [
+  { id: 'HUMAN_BEHAVIOR', name: 'Human Behavior', color: '#A8DADC', icon: '👥' },
+  { id: 'MENTAL_HEALTH', name: 'Mental Health', color: '#457B9D', icon: '🧠' },
+  { id: 'BRAIN_SCIENCE', name: 'Brain Science', color: '#E9C46A', icon: '🔬' },
+  { id: 'LOVE_ATTRACTION', name: 'Love & Attraction', color: '#E76F51', icon: '❤️' },
+  { id: 'PERSONALITY', name: 'Personality', color: '#F4A261', icon: '🎭' },
+  { id: 'BODY_LANGUAGE', name: 'Body Language', color: '#2A9D8F', icon: '🚶' },
+  { id: 'SUBCONSCIOUS', name: 'Subconscious', color: '#264653', icon: '🌊' },
+  { id: 'SOCIAL_PSYCHOLOGY', name: 'Social Psychology', color: '#8AB17D', icon: '🌐' },
+  { id: 'HABITS_MOTIVATION', name: 'Habits & Motivation', color: '#B5838D', icon: '🔥' },
+  { id: 'MEMORY_LEARNING', name: 'Memory & Learning', color: '#6D6875', icon: '📚' },
 ];
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+  createdAt: string;
+}
 
 export interface BiteItem {
   id: string;
@@ -147,5 +145,3 @@ export interface QuoteItem {
   isActive: boolean;
   createdAt: string;
 }
-
-

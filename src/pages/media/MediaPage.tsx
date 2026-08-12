@@ -42,6 +42,7 @@ const MediaPage = () => {
   }, []);
 
   const loadMedia = async () => {
+    if (!storage) return;
     setLoading(true);
     try {
       const storageRef = ref(storage, 'media');
@@ -65,7 +66,7 @@ const MediaPage = () => {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !storage) return;
 
     setSaving(true);
     try {
@@ -81,7 +82,7 @@ const MediaPage = () => {
   };
 
   const handleDelete = async (fullPath: string) => {
-    if (!window.confirm('Erase this asset from cloud storage?')) return;
+    if (!window.confirm('Erase this asset from cloud storage?') || !storage) return;
     try {
       await deleteObject(ref(storage, fullPath));
       setItems(prev => prev.filter(i => i.fullPath !== fullPath));

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppNotification, NotificationType } from '../types';
 import { cn } from '../utils/cn';
 
@@ -91,7 +91,7 @@ const NotificationEngine: React.FC<NotificationEngineProps> = ({ notifications, 
               className="glass p-8 rounded-[2.5rem] space-y-4 group hover:border-brand-primary/20 transition-all shadow-xl relative overflow-hidden"
             >
               <div className="flex justify-between items-start relative z-10">
-                <h4 className="font-black text-lg group-hover:text-brand-primary transition-colors italic leading-tight">"{n.title}"</h4>
+                <h4 className="font-black text-lg group-hover:text-brand-primary transition-colors italic leading-tight">{n.title}</h4>
                 <span className={cn(
                   "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border shadow-inner",
                   n.type === 'NEW_FACT' ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' :
@@ -101,7 +101,7 @@ const NotificationEngine: React.FC<NotificationEngineProps> = ({ notifications, 
                   {n.type}
                 </span>
               </div>
-              <p className="text-sm text-sub opacity-70 leading-relaxed italic">"{n.message}"</p>
+              <p className="text-sm text-sub opacity-70 leading-relaxed italic">{n.message}</p>
               <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest mt-4">Sequence Logged: {new Date(n.createdAt).toLocaleString()}</p>
 
               <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-brand-primary/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />

@@ -140,7 +140,7 @@ const UserActivityPage = () => {
                              }
                           </p>
                           {act.targetName && (
-                            <p className="text-sm font-black text-brand-primary italic opacity-80">"{act.targetName}"</p>
+                            <p className="text-sm font-black text-brand-primary italic opacity-80">{act.targetName}</p>
                           )}
                         </div>
                         <span className="text-[10px] font-black text-sub opacity-40 bg-brand-bg/5 dark:bg-brand-bg px-2 py-0.5 rounded-md border border-brand-sage/10 tabular-nums">

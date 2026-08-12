@@ -136,7 +136,7 @@ const AuditLogsPage = () => {
                       theme === 'dark' ? "bg-brand-bg/30 border-brand-sage/10 text-brand-white/70" : "bg-brand-primary/5 border-brand-primary/5 text-brand-surface/80"
                     )}>
                        <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary/20 rounded-l-2xl" />
-                       <span className="italic">"{log.details}"</span>
+                       <span className="italic">{log.details}</span>
                     </div>
                     {log.targetId && (
                       <div className="flex items-center gap-2 text-[9px] font-black text-sub uppercase tracking-[0.2em] opacity-30">

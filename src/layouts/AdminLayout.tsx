@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import GlobalSearch from '../components/GlobalSearch';
+import LivingEmeraldBackground from '../components/ui/LivingEmeraldBackground';
 import { cn } from '../utils/cn';
 import { fetchBites, fetchCollections, fetchNotifications } from '../services/firestoreService';
 import { useTheme } from '../context/ThemeContext';
@@ -47,66 +48,46 @@ const AdminLayout = () => {
 
   return (
     <div className={cn(
-      "min-h-screen flex antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden transition-colors duration-300",
+      "min-h-screen flex antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden transition-colors duration-1000",
       theme === 'dark' ? "bg-brand-bg text-brand-white" : "bg-[#F7FBF9] text-[#1A2B22]"
     )}>
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
-            background: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
+            background: theme === 'dark' ? 'rgba(26, 43, 34, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
             color: theme === 'dark' ? '#E6F4EA' : '#1A2B22',
-            borderRadius: '1rem',
-            border: theme === 'dark' ? '1px solid #274C3A' : '1px solid #E6F4EA'
+            borderRadius: '1.5rem',
+            border: theme === 'dark' ? '1px solid rgba(39, 76, 58, 0.2)' : '1px solid rgba(45, 106, 79, 0.1)',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            fontSize: '10px',
+            letterSpacing: '0.1em'
           }
         }}
       />
 
-      {/* Animated Mesh Background */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 50, 0],
-            y: [0, 30, 0]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className={cn(
-            "absolute top-[-10%] right-[-10%] w-[50%] h-[50%] blur-[120px] rounded-full transition-colors duration-500",
-            theme === 'dark' ? "bg-brand-primary/10" : "bg-brand-primary/5"
-          )}
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.5, 1],
-            x: [0, -40, 0],
-            y: [0, 60, 0]
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className={cn(
-            "absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] blur-[120px] rounded-full transition-colors duration-500",
-            theme === 'dark' ? "bg-brand-secondary/5" : "bg-brand-secondary/10"
-          )}
-        />
-      </div>
+      {/* High-Fidelity Living Background */}
+      <LivingEmeraldBackground />
 
       <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} stats={stats} />
       <GlobalSearch isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
 
       <div className={cn(
-        "flex-1 transition-all duration-500 ease-in-out flex flex-col min-h-screen relative z-10",
+        "flex-1 transition-all duration-700 cubic-bezier(0.22, 1, 0.36, 1) flex flex-col min-h-screen relative z-10",
         isSidebarCollapsed ? "ml-20" : "ml-64"
       )}>
         <TopBar title={getPageTitle()} setIsSearchOpen={setIsSearchOpen} />
 
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-10 overflow-y-auto scrollbar-hide">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+              initial={{ opacity: 0, y: 30, filter: 'blur(15px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, y: -30, filter: 'blur(15px)' }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
               <Outlet />
             </motion.div>

@@ -14,8 +14,14 @@ import {
   Filter,
   Sparkles
 } from 'lucide-react';
-import { QuoteItem, BiteCategory, BiteCategories } from '../../types';
-import { fetchQuotes, createOrUpdateQuote, deleteQuote, createAuditLog } from '../../services/firestoreService';
+import { QuoteItem, BiteCategory, Category } from '../../types';
+import {
+  fetchQuotes,
+  createOrUpdateQuote,
+  deleteQuote,
+  createAuditLog,
+  fetchCategories
+} from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
@@ -23,30 +29,38 @@ import { useTheme } from '../../context/ThemeContext';
 const QuotesPage = () => {
   const { theme } = useTheme();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<BiteCategory | 'All'>('All');
+  const [categoryFilter, setCategoryFilter] = useState<string | 'All'>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<QuoteItem | null>(null);
 
   const [formData, setFormData] = useState({
     text: '',
     author: '',
-    category: 'Human Behavior' as BiteCategory,
+    category: '',
     isActive: true
   });
 
   useEffect(() => {
-    loadQuotes();
+    loadData();
   }, []);
 
-  const loadQuotes = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchQuotes();
-      setQuotes(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      const [quoteData, catData] = await Promise.all([
+        fetchQuotes(),
+        fetchCategories()
+      ]);
+      setQuotes(quoteData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setCategories(catData);
+      if (catData.length > 0) {
+        setFormData(prev => ({ ...prev, category: catData[0].name }));
+      }
     } catch (err) {
-      toast.error('Failed to load quotes');
+      toast.error('Failed to load insights');
     } finally {
       setLoading(false);
     }
@@ -66,7 +80,7 @@ const QuotesPage = () => {
       setFormData({
         text: '',
         author: '',
-        category: 'Human Behavior',
+        category: categories.length > 0 ? categories[0].name : '',
         isActive: true
       });
     }
@@ -75,8 +89,8 @@ const QuotesPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.text || !formData.author) {
-      toast.error('Text and Author are required');
+    if (!formData.text || !formData.author || !formData.category) {
+      toast.error('Validation error: Identity missing');
       return;
     }
 
@@ -94,12 +108,13 @@ const QuotesPage = () => {
       await createAuditLog({
         adminEmail: 'master@brainbites.com',
         action: editingQuote ? 'UPDATE_QUOTE' : 'CREATE_QUOTE',
-        details: `${editingQuote ? 'Updated' : 'Created'} quote by ${quoteData.author}`
+        details: `${editingQuote ? 'Updated' : 'Created'} wisdom node by ${quoteData.author}`
       });
 
       toast.success(editingQuote ? 'Wisdom updated' : 'Wisdom published');
       setIsModalOpen(false);
-      loadQuotes();
+      const updatedQuotes = await fetchQuotes();
+      setQuotes(updatedQuotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (err) {
       toast.error('Sync failed');
     }
@@ -192,16 +207,16 @@ const QuotesPage = () => {
          >
            All Disciplines
          </button>
-         {BiteCategories.map(cat => (
+         {categories.map(cat => (
            <button
-             key={cat}
-             onClick={() => setCategoryFilter(cat)}
+             key={cat.id}
+             onClick={() => setCategoryFilter(cat.name)}
              className={cn(
                "px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap",
-               categoryFilter === cat ? "bg-brand-primary text-brand-white border-brand-primary" : "glass text-sub border-transparent hover:text-brand-primary"
+               categoryFilter === cat.name ? "bg-brand-primary text-brand-white border-brand-primary" : "glass text-sub border-transparent hover:text-brand-primary"
              )}
            >
-             {cat}
+             {cat.name}
            </button>
          ))}
       </div>
@@ -249,7 +264,7 @@ const QuotesPage = () => {
                    </div>
 
                    <p className="text-xl font-medium leading-relaxed italic line-clamp-5 text-glow">
-                     "{quote.text}"
+                     {quote.text}
                    </p>
 
                    <div className="flex items-center gap-3">
@@ -341,9 +356,9 @@ const QuotesPage = () => {
                         <select
                           className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-4 text-xs font-bold focus:outline-none focus:border-brand-primary/50 appearance-none uppercase tracking-widest"
                           value={formData.category}
-                          onChange={e => setFormData({...formData, category: e.target.value as BiteCategory})}
+                          onChange={e => setFormData({...formData, category: e.target.value})}
                         >
-                          {BiteCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                          {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                         </select>
                      </div>
                      <div className="space-y-3">
