@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -32,10 +33,18 @@ const FactsPage = () => {
     removeFact
   } = useFacts();
 
+  const [searchParams] = useSearchParams();
   const { categories } = useCategories();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFact, setSelectedFact] = useState<BiteItem | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setCategoryFilter(categoryParam);
+    }
+  }, [searchParams, setCategoryFilter]);
 
   const itemsPerPage = 12;
   const totalPages = Math.ceil(facts.length / itemsPerPage);

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
@@ -11,8 +12,14 @@ import {
   X,
   PieChart,
   Palette,
+  Search,
+  BookOpen,
+  LayoutGrid,
+  Puzzle
 } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
+import { useFacts } from '../../hooks/useFacts';
+import { useMousePosition } from '../../hooks/useMousePosition';
 import { useTheme } from '../../context/ThemeContext';
 import { Category, CategoryPresets } from '../../types';
 import { cn } from '../../utils/cn';
@@ -22,9 +29,15 @@ import ActionBadge from '../../components/ui/ActionBadge';
 
 const CategoriesPage = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const { categories, loading, saveCategory, removeCategory } = useCategories();
+  const { allFacts } = useFacts();
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const mouse = useMousePosition(headerRef);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +45,20 @@ const CategoriesPage = () => {
     color: '#2D6A4F',
     icon: '🧠'
   });
+
+  const getCategoryStats = (categoryName: string) => {
+    const categoryFacts = allFacts.filter(f => f.category === categoryName);
+    const quizCount = categoryFacts.filter(f => !!f.quizQuestion).length;
+    return {
+      facts: categoryFacts.length,
+      quizzes: quizCount
+    };
+  };
+
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cat.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleOpenModal = (cat: Category | null = null) => {
     if (cat) {
@@ -66,28 +93,59 @@ const CategoriesPage = () => {
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
 
-      {/* Premium Header */}
-      <div className="glass p-10 rounded-[3.5rem] shadow-2xl flex flex-col xl:flex-row justify-between items-end gap-10 relative overflow-hidden">
-        <div className="relative z-10">
-          <motion.h2
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-5xl font-black tracking-tighter flex items-center gap-5"
-          >
-             <div className="p-4 bg-brand-primary/10 rounded-[1.5rem] shadow-lg">
-                <Layers className="text-brand-primary" size={40} />
-             </div>
-             Taxonomy Hub
-          </motion.h2>
-          <p className="text-sub text-sm font-black uppercase tracking-[0.5em] mt-4 ml-2">Psychological Architecture Control</p>
+      {/* Category Matrix Header */}
+      <div
+        ref={headerRef}
+        className="glass p-10 rounded-[3.5rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden group border-brand-primary/10 hover:border-brand-primary/20 transition-colors"
+      >
+        <div
+          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{
+            background: `radial-gradient(circle 400px at ${mouse.x}px ${mouse.y}px, rgba(45, 106, 79, 0.1), transparent)`
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 w-full xl:w-auto">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-brand-primary/10 rounded-[1.5rem] shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                <LayoutGrid className="text-brand-primary relative z-10" size={40} />
+                <div className="absolute inset-0 bg-brand-primary/20 animate-pulse blur-xl" />
+            </div>
+            <div>
+              <motion.h2
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-4xl font-black tracking-tighter"
+              >
+                Category <span className="text-brand-primary">Matrix</span>
+              </motion.h2>
+              <p className="text-sub text-[10px] font-black uppercase tracking-[0.4em] mt-1 italic opacity-40">System Taxonomy Sequence Control</p>
+            </div>
+          </div>
+
+          <div className="w-[1px] h-12 bg-brand-sage/20 hidden md:block" />
+
+          <div className="relative w-full md:w-96 group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
+            <input
+              type="text"
+              placeholder="Filter domains..."
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner uppercase tracking-widest"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-8 relative z-10">
+        <div className="flex items-center gap-8 relative z-10 w-full md:w-auto justify-end">
            <div className="text-right hidden md:block">
-              <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Active Sectors</p>
+              <div className="flex items-center gap-2 justify-end">
+                <div className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse" />
+                <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Active Sectors</p>
+              </div>
               <p className="text-2xl font-black text-brand-primary">{categories.length}</p>
            </div>
-           <div className="w-[1px] h-12 bg-brand-sage/20 self-center mx-2 hidden md:block" />
+           <div className="w-[1px] h-12 bg-brand-sage/20 hidden md:block" />
            <ElasticButton
             onClick={() => handleOpenModal()}
             className="px-10 py-5"
@@ -96,6 +154,8 @@ const CategoriesPage = () => {
              Add Sector
            </ElasticButton>
         </div>
+
+        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
       </div>
 
       {/* Grid Flow */}
@@ -105,66 +165,72 @@ const CategoriesPage = () => {
             <div key={i} className="h-80 glass rounded-[3rem] animate-pulse" />
           ))
         ) : (
-          <AnimatePresence>
-            {categories.map((cat, idx) => (
-              <PremiumCard
-                key={cat.id}
-                glowColor={`${cat.color}22`}
-                className="p-10"
-              >
-                <div className="flex justify-between items-start mb-10">
-                   <div
-                    className={cn(
-                      "w-20 h-20 rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl transition-all duration-700 group-hover:scale-110",
-                      theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10"
-                    )}
-                    style={{ textShadow: `0 0 20px ${cat.color}66` }}
-                   >
-                      {cat.icon}
-                   </div>
-                   <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                      <motion.button
-                        whileHover={{ scale: 1.1, rotate: 10 }}
-                        onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }}
-                        className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-2xl transition-all border border-brand-sage/10"
-                      >
-                        <Edit3 size={18} />
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.1, rotate: -10 }}
-                        onClick={(e) => { e.stopPropagation(); removeCategory(cat.id, cat.name); }}
-                        className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-2xl transition-all border border-brand-sage/10"
-                      >
-                        <Trash2 size={18} />
-                      </motion.button>
-                   </div>
-                </div>
+          <AnimatePresence mode="popLayout">
+            {filteredCategories.map((cat, idx) => {
+              const stats = getCategoryStats(cat.name);
+              return (
+                <PremiumCard
+                  key={cat.id}
+                  glowColor={`${cat.color}22`}
+                  className="p-10 flex flex-col"
+                  onClick={() => navigate(`/facts?category=${cat.name}`)}
+                >
+                  <div className="flex justify-between items-start mb-10">
+                     <div
+                      className={cn(
+                        "w-20 h-20 rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl transition-all duration-700 group-hover:scale-110",
+                        theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10"
+                      )}
+                      style={{ textShadow: `0 0 20px ${cat.color}66` }}
+                     >
+                        {cat.icon}
+                     </div>
+                     <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                        <motion.button
+                          whileHover={{ scale: 1.1, rotate: 10 }}
+                          onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }}
+                          className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-2xl transition-all border border-brand-sage/10 shadow-lg"
+                        >
+                          <Edit3 size={18} />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1, rotate: -10 }}
+                          onClick={(e) => { e.stopPropagation(); removeCategory(cat.id, cat.name); }}
+                          className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-2xl transition-all border border-brand-sage/10 shadow-lg"
+                        >
+                          <Trash2 size={18} />
+                        </motion.button>
+                     </div>
+                  </div>
 
-                <h3 className="text-3xl font-black mb-4 tracking-tighter group-hover:text-brand-primary transition-colors">{cat.name}</h3>
-                <p className="text-sub text-sm font-medium leading-relaxed italic line-clamp-2 opacity-60 mb-10">"{cat.description}"</p>
+                  <div className="flex-1">
+                    <h3 className="text-3xl font-black mb-4 tracking-tighter group-hover:text-brand-primary transition-colors">{cat.name}</h3>
+                    <p className="text-sub text-sm font-medium leading-relaxed italic line-clamp-2 opacity-60 mb-10">"{cat.description}"</p>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-8 relative z-10">
-                   <div className="space-y-2">
-                      <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><FileText size={12} className="text-brand-primary" /> Facts</p>
-                      <p className="text-2xl font-black tracking-tighter">--</p>
-                   </div>
-                   <div className="space-y-2">
-                      <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><HelpCircle size={12} className="text-brand-gold" /> Quiz</p>
-                      <p className="text-2xl font-black tracking-tighter">--</p>
-                   </div>
-                </div>
+                  <div className="grid grid-cols-2 gap-8 relative z-10 mb-10">
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><BookOpen size={12} className="text-brand-primary" /> Facts</p>
+                        <p className="text-2xl font-black tracking-tighter tabular-nums">{stats.facts}</p>
+                     </div>
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><Puzzle size={12} className="text-brand-gold" /> Quiz</p>
+                        <p className="text-2xl font-black tracking-tighter tabular-nums">{stats.quizzes}</p>
+                     </div>
+                  </div>
 
-                <div className="mt-10 pt-8 border-t border-brand-sage/10 flex justify-between items-center relative z-10">
-                   <ActionBadge variant="info">System Node</ActionBadge>
-                   <motion.button
-                    whileHover={{ x: 5 }}
-                    className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] group-hover:opacity-100 transition-opacity"
-                   >
-                      Sequence <ArrowRight size={16} />
-                   </motion.button>
-                </div>
-              </PremiumCard>
-            ))}
+                  <div className="mt-auto pt-8 border-t border-brand-sage/10 flex justify-between items-center relative z-10">
+                     <ActionBadge variant="info">System Node</ActionBadge>
+                     <motion.button
+                      whileHover={{ x: 5 }}
+                      className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] group-hover:opacity-100 transition-opacity"
+                     >
+                        Sequence <ArrowRight size={16} />
+                     </motion.button>
+                  </div>
+                </PremiumCard>
+              );
+            })}
           </AnimatePresence>
         )}
       </div>
