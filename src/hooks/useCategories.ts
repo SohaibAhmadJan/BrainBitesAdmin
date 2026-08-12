@@ -16,7 +16,21 @@ export const useCategories = () => {
         const migrated = await fetchCategories();
         setCategories(migrated);
       } else {
-        setCategories(data);
+        // Auto-heal missing vectorIcons
+        const needsHealing = data.filter(cat => !cat.vectorIcon);
+        if (needsHealing.length > 0) {
+          await Promise.all(needsHealing.map(cat => {
+            const preset = CategoryPresets.find(p => p.name === cat.name || p.id === cat.id);
+            return createOrUpdateCategory({
+              ...cat,
+              vectorIcon: preset?.vectorIcon || 'LayoutGrid'
+            });
+          }));
+          const healed = await fetchCategories();
+          setCategories(healed);
+        } else {
+          setCategories(data);
+        }
       }
     } catch (err) {
       toast.error('Domain sync failure');
@@ -28,22 +42,26 @@ export const useCategories = () => {
   const migrateInitialCategories = async () => {
     const batch = CategoryPresets.map(preset => ({
       id: preset.id,
-      name: preset.id,
+      name: preset.name,
       description: `Official psychological domain for ${preset.name}.`,
       color: preset.color,
       icon: preset.icon,
+      vectorIcon: preset.vectorIcon,
       createdAt: new Date().toISOString()
     }));
-    await Promise.all(batch.map(cat => createOrUpdateCategory(cat)));
+    await Promise.all(batch.map(cat => createOrUpdateCategory(cat as Category)));
   };
 
   const saveCategory = async (cat: Partial<Category>) => {
+    const preset = CategoryPresets.find(p => p.name === cat.name);
+
     const fullCat: Category = {
-      id: cat.id || cat.name?.toLowerCase().replace(/ /g, '-') || `cat-${Date.now()}`,
+      id: cat.id || cat.name?.toUpperCase().replace(/ /g, '_') || `cat-${Date.now()}`,
       name: cat.name || '',
       description: cat.description || '',
       color: cat.color || '#2D6A4F',
-      icon: cat.icon || '🧠',
+      icon: cat.icon || preset?.icon || '🧠',
+      vectorIcon: cat.vectorIcon || preset?.vectorIcon || 'LayoutGrid',
       createdAt: cat.createdAt || new Date().toISOString()
     };
 

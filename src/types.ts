@@ -1,16 +1,16 @@
 export type BiteCategory = string;
 
 export const CategoryPresets = [
-  { id: 'HUMAN_BEHAVIOR', name: 'Human Behavior', color: '#A8DADC', icon: '👥' },
-  { id: 'MENTAL_HEALTH', name: 'Mental Health', color: '#457B9D', icon: '🧠' },
-  { id: 'BRAIN_SCIENCE', name: 'Brain Science', color: '#E9C46A', icon: '🔬' },
-  { id: 'LOVE_ATTRACTION', name: 'Love & Attraction', color: '#E76F51', icon: '❤️' },
-  { id: 'PERSONALITY', name: 'Personality', color: '#F4A261', icon: '🎭' },
-  { id: 'BODY_LANGUAGE', name: 'Body Language', color: '#2A9D8F', icon: '🚶' },
-  { id: 'SUBCONSCIOUS', name: 'Subconscious', color: '#264653', icon: '🌊' },
-  { id: 'SOCIAL_PSYCHOLOGY', name: 'Social Psychology', color: '#8AB17D', icon: '🌐' },
-  { id: 'HABITS_MOTIVATION', name: 'Habits & Motivation', color: '#B5838D', icon: '🔥' },
-  { id: 'MEMORY_LEARNING', name: 'Memory & Learning', color: '#6D6875', icon: '📚' },
+  { id: 'HUMAN_BEHAVIOR', name: 'Human Behavior', color: '#A8DADC', icon: '👥', vectorIcon: 'Users' },
+  { id: 'MENTAL_HEALTH', name: 'Mental Health', color: '#457B9D', icon: '🧠', vectorIcon: 'Brain' },
+  { id: 'BRAIN_SCIENCE', name: 'Brain Science', color: '#E9C46A', icon: '🧪', vectorIcon: 'FlaskConical' },
+  { id: 'LOVE_ATTRACTION', name: 'Love & Attraction', color: '#E76F51', icon: '💖', vectorIcon: 'Heart' },
+  { id: 'PERSONALITY', name: 'Personality Traits', color: '#F4A261', icon: '🎭', vectorIcon: 'Smile' },
+  { id: 'BODY_LANGUAGE', name: 'Body Language', color: '#2A9D8F', icon: '✋', vectorIcon: 'Hand' },
+  { id: 'SUBCONSCIOUS', name: 'Subconscious Mind', color: '#264653', icon: '🌌', vectorIcon: 'Waves' },
+  { id: 'SOCIAL_PSYCHOLOGY', name: 'Social Psychology', color: '#8AB17D', icon: '🏘️', vectorIcon: 'Globe' },
+  { id: 'HABITS_MOTIVATION', name: 'Habits & Motivation', color: '#B5838D', icon: '📈', vectorIcon: 'TrendingUp' },
+  { id: 'MEMORY_LEARNING', name: 'Memory & Learning', color: '#6D6875', icon: '📚', vectorIcon: 'BookOpen' },
 ];
 
 export interface Category {
@@ -19,6 +19,7 @@ export interface Category {
   description: string;
   color: string;
   icon: string;
+  vectorIcon: string;
   createdAt: string;
 }
 

@@ -15,7 +15,16 @@ import {
   Search,
   BookOpen,
   LayoutGrid,
-  Puzzle
+  Puzzle,
+  Brain,
+  FlaskConical,
+  Heart,
+  Smile,
+  Hand,
+  Waves,
+  Globe,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { useFacts } from '../../hooks/useFacts';
@@ -26,6 +35,19 @@ import { cn } from '../../utils/cn';
 import PremiumCard from '../../components/ui/PremiumCard';
 import ElasticButton from '../../components/ui/ElasticButton';
 import ActionBadge from '../../components/ui/ActionBadge';
+
+const IconMap: Record<string, React.ElementType> = {
+  'Users': Users,
+  'Brain': Brain,
+  'FlaskConical': FlaskConical,
+  'Heart': Heart,
+  'Smile': Smile,
+  'Hand': Hand,
+  'Waves': Waves,
+  'Globe': Globe,
+  'TrendingUp': TrendingUp,
+  'BookOpen': BookOpen,
+};
 
 const CategoriesPage = () => {
   const { theme } = useTheme();
@@ -43,7 +65,8 @@ const CategoriesPage = () => {
     name: '',
     description: '',
     color: '#2D6A4F',
-    icon: '🧠'
+    icon: '🧠',
+    vectorIcon: 'LayoutGrid'
   });
 
   const getCategoryStats = (categoryName: string) => {
@@ -67,7 +90,8 @@ const CategoriesPage = () => {
         name: cat.name,
         description: cat.description,
         color: cat.color,
-        icon: cat.icon
+        icon: cat.icon,
+        vectorIcon: cat.vectorIcon || 'LayoutGrid'
       });
     } else {
       setEditingCategory(null);
@@ -75,7 +99,8 @@ const CategoriesPage = () => {
         name: '',
         description: '',
         color: '#2D6A4F',
-        icon: '🧠'
+        icon: '🧠',
+        vectorIcon: 'LayoutGrid'
       });
     }
     setIsModalOpen(true);
@@ -168,6 +193,8 @@ const CategoriesPage = () => {
           <AnimatePresence mode="popLayout">
             {filteredCategories.map((cat, idx) => {
               const stats = getCategoryStats(cat.name);
+              const CategoryIcon = IconMap[cat.vectorIcon] || LayoutGrid;
+
               return (
                 <PremiumCard
                   key={cat.id}
@@ -178,12 +205,12 @@ const CategoriesPage = () => {
                   <div className="flex justify-between items-start mb-10">
                      <div
                       className={cn(
-                        "w-20 h-20 rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl transition-all duration-700 group-hover:scale-110",
+                        "w-20 h-20 rounded-[2rem] flex flex-col items-center justify-center shadow-2xl transition-all duration-700 group-hover:scale-110 relative",
                         theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10"
                       )}
-                      style={{ textShadow: `0 0 20px ${cat.color}66` }}
                      >
-                        {cat.icon}
+                        <CategoryIcon size={32} style={{ color: cat.color }} />
+                        <span className="absolute -bottom-2 -right-2 text-xl bg-brand-surface rounded-lg p-1 border border-brand-sage/20 shadow-lg">{cat.icon}</span>
                      </div>
                      <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
                         <motion.button
@@ -271,10 +298,11 @@ const CategoriesPage = () => {
                           key={preset.id}
                           type="button"
                           onClick={() => setFormData({
-                            name: preset.id,
+                            name: preset.name,
                             description: `Psychological insights regarding ${preset.name}.`,
                             color: preset.color,
-                            icon: preset.icon
+                            icon: preset.icon,
+                            vectorIcon: preset.vectorIcon
                           })}
                           className="px-4 py-2 bg-brand-bg/20 hover:bg-brand-primary/20 border border-brand-sage/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
                         >
@@ -284,9 +312,9 @@ const CategoriesPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-8">
-                     <div className="col-span-1 space-y-3">
-                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Symbol</label>
+                  <div className="grid grid-cols-2 gap-8">
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Emoji Identity</label>
                         <input
                           className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-3 py-5 text-4xl text-center focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
                           placeholder="🧠"
@@ -294,15 +322,25 @@ const CategoriesPage = () => {
                           onChange={e => setFormData({...formData, icon: e.target.value})}
                         />
                      </div>
-                     <div className="col-span-3 space-y-3">
-                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Node Identity</label>
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Vector Symbol ID</label>
                         <input
-                          className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-8 py-5 text-lg focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-bold"
-                          placeholder="e.g. Cognitive Dynamics"
-                          value={formData.name}
-                          onChange={e => setFormData({...formData, name: e.target.value})}
+                          className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-6 py-6 text-sm text-center focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-mono font-bold"
+                          placeholder="Brain"
+                          value={formData.vectorIcon}
+                          onChange={e => setFormData({...formData, vectorIcon: e.target.value})}
                         />
                      </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-sub uppercase tracking-[0.4em] ml-2">Node Identity</label>
+                    <input
+                        className="w-full bg-brand-bg/20 border border-brand-sage/20 rounded-3xl px-8 py-5 text-lg focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-bold"
+                        placeholder="e.g. Cognitive Dynamics"
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
                   </div>
 
                   <div className="space-y-3">
