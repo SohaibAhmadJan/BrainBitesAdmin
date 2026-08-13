@@ -216,21 +216,24 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
                 </div>
 
                 <div className={cn(
-                  "p-10 rounded-[3.5rem] flex-1 flex flex-col justify-center space-y-12 border-4 relative overflow-hidden transition-all duration-500",
+                  "p-10 rounded-[3.5rem] flex-1 flex flex-col justify-center space-y-12 border-4 relative overflow-hidden transition-all duration-500 group/tile",
                   theme === 'dark'
-                    ? "bg-brand-surface/40 border-brand-primary/15 shadow-2xl backdrop-blur-2xl"
-                    : "bg-white/90 border-brand-primary/10 shadow-xl shadow-brand-primary/5"
+                    ? "bg-brand-surface/40 border-brand-primary/15 shadow-2xl backdrop-blur-2xl focus-within:border-brand-primary/40 focus-within:shadow-brand-primary/10"
+                    : "bg-white/90 border-brand-primary/10 shadow-xl shadow-brand-primary/5 focus-within:border-brand-primary/30 focus-within:shadow-brand-primary/10"
                 )}>
-                  <div className="flex justify-between items-start gap-10">
-                     <div className="flex-1 space-y-10">
-                        <div className="space-y-4">
+                  {/* Focus Aura Glow */}
+                  <div className="absolute inset-0 bg-brand-primary/5 opacity-0 group-focus-within/tile:opacity-100 transition-opacity pointer-events-none" />
+
+                  <div className="grid grid-cols-12 gap-8 relative z-10">
+                     <div className="col-span-8 space-y-8">
+                        <div className="space-y-3">
                           <label className={cn(
                             "text-[10px] font-black uppercase tracking-[0.3em] ml-2",
                             theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary/80"
                           )}>Emoji Symbol</label>
                           <input
                             className={cn(
-                              "w-full max-w-[140px] border-2 rounded-3xl px-4 py-4 text-5xl text-center focus:outline-none transition-all shadow-inner",
+                              "w-full border-2 rounded-3xl px-4 py-4 text-5xl text-center focus:outline-none transition-all shadow-inner",
                               theme === 'dark'
                                 ? "bg-black/30 border-brand-primary/10 focus:border-brand-primary/50"
                                 : "bg-brand-primary/5 border-brand-primary/20 focus:border-brand-primary/40 text-brand-primary"
@@ -239,7 +242,7 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
                             onChange={e => setFormData({...formData, icon: e.target.value})}
                           />
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           <label className={cn(
                             "text-[10px] font-black uppercase tracking-[0.3em] ml-2",
                             theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary/80"
@@ -257,12 +260,11 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
                         </div>
                      </div>
 
-                     {/* Card Preview Icon */}
-                     <div className="shrink-0 flex flex-col items-center gap-4">
+                     <div className="col-span-4 flex flex-col items-center justify-center pt-6">
                         <label className={cn(
-                          "text-[10px] font-black uppercase tracking-[0.3em] text-center",
+                          "text-[10px] font-black uppercase tracking-[0.3em] text-center mb-4",
                           theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary/80"
-                        )}>Card<br/>Preview</label>
+                        )}>Live Card<br/>Preview</label>
                         <div
                           className={cn(
                             "w-24 h-24 rounded-[2.5rem] flex items-center justify-center shadow-2xl relative transition-transform duration-500 hover:scale-110",

@@ -12,12 +12,12 @@ module.exports = {
           primary: '#2D6A4F',      // ForestGreen
           secondary: '#95D5B2',    // SageGreen
           mint: '#F1FAEE',         // MintCream
-          gold: '#E9C46A',         // SoftGold
+          gold: '#B8860B',         // DarkGold
           bg: '#0F1F17',           // DeepForest
           surface: '#1A2B22',      // DarkSurface
           white: '#E6F4EA',        // MintWhite
           sage: '#274C3A',         // DeepSage
-          accent: '#E9C46A'
+          accent: '#B8860B'
         }
       },
       textColor: {
