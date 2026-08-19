@@ -1,6 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import { SPRING_SWIFT } from '../../utils/animations';
 
 interface ElasticButtonProps {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ const ElasticButton: React.FC<ElasticButtonProps> = ({
   disabled = false,
   type = 'button'
 }) => {
+  const shouldReduceMotion = useReducedMotion();
+
   const variants = {
     primary: "bg-brand-primary text-brand-white shadow-[0_20px_50px_rgba(45,106,79,0.3)]",
     secondary: "glass text-brand-primary border-brand-primary/20",
@@ -30,9 +33,9 @@ const ElasticButton: React.FC<ElasticButtonProps> = ({
     <motion.button
       type={type}
       disabled={disabled}
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 400, damping: 10 }}
+      whileHover={shouldReduceMotion ? { opacity: 0.8 } : { scale: 1.02, y: -2 }}
+      whileTap={shouldReduceMotion ? { opacity: 0.6 } : { scale: 0.98 }}
+      transition={SPRING_SWIFT}
       onClick={onClick}
       className={cn(
         "px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:pointer-events-none",

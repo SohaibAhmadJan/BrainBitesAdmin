@@ -17,11 +17,19 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { AdminUser, AdminRole } from '../../types';
-import { fetchAdmins, createOrUpdateAdmin, deleteAdmin, createAuditLog } from '../../services/firestoreService';
+import { fetchAdmins } from '../../services/firestoreService';
+import { updateAdmin, deleteAdmin as deleteAdminApi } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
+import PermissionGate from '../../components/ui/PermissionGate';
+import { useAdmin } from '../../context/AdminContext';
 
 const AdminsPage = () => {
+  const { isRole } = useAdmin();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,9 +39,19 @@ const AdminsPage = () => {
   const [formData, setFormData] = useState({
     email: '',
     displayName: '',
-    role: 'VIEWER' as AdminRole,
-    status: 'Active' as 'Active' | 'Inactive'
+    role: 'ANALYST' as AdminRole,
+    isActive: true,
+    permissions: [] as string[]
   });
+
+  const PERMISSIONS_LIST = [
+    { id: 'manage.content', label: 'Content Management (Facts, Quizzes)' },
+    { id: 'manage.config', label: 'Engine Configuration' },
+    { id: 'manage.admins', label: 'Security Registry Access' },
+    { id: 'users.edit', label: 'User Modification / Suspension' },
+    { id: 'audit.view', label: 'Audit Stream Visibility' },
+    { id: 'analytics.view', label: 'Analytics Intel' }
+  ];
 
   useEffect(() => {
     loadAdmins();
@@ -58,15 +76,17 @@ const AdminsPage = () => {
         email: admin.email,
         displayName: admin.displayName,
         role: admin.role,
-        status: admin.status
+        isActive: admin.isActive,
+        permissions: admin.permissions || []
       });
     } else {
       setEditingAdmin(null);
       setFormData({
         email: '',
         displayName: '',
-        role: 'VIEWER',
-        status: 'Active'
+        role: 'ANALYST',
+        isActive: true,
+        permissions: ['audit.view', 'analytics.view']
       });
     }
     setIsModalOpen(true);
@@ -80,43 +100,34 @@ const AdminsPage = () => {
     }
 
     const adminData: AdminUser = {
-      id: editingAdmin?.id || formData.email.replace(/[@.]/g, '_'),
+      uid: editingAdmin?.uid || formData.email.replace(/[@.]/g, '_'),
       email: formData.email,
       displayName: formData.displayName,
       role: formData.role,
-      status: formData.status,
-      createdAt: editingAdmin?.createdAt || new Date().toISOString()
+      permissions: formData.permissions,
+      isActive: formData.isActive,
+      createdAt: editingAdmin?.createdAt || Date.now(),
+      updatedAt: Date.now()
     };
 
     try {
-      await createOrUpdateAdmin(adminData);
-      await createAuditLog({
-        adminEmail: 'master@brainbites.com',
-        action: editingAdmin ? 'UPDATE_ADMIN' : 'CREATE_ADMIN',
-        details: `${editingAdmin ? 'Updated' : 'Created'} admin registry for ${adminData.email}`
-      });
-
-      toast.success('Registry updated');
+      await updateAdmin(adminData.uid, adminData, `Registry sync for ${adminData.email}`);
+      toast.success('Registry updated (Atomic)');
       setIsModalOpen(false);
       loadAdmins();
-    } catch (err) {
-      toast.error('Cloud sync failed');
+    } catch (err: any) {
+      toast.error(`Cloud sync failed: ${err.message}`);
     }
   };
 
-  const handleDelete = async (id: string, email: string) => {
+  const handleDelete = async (uid: string, email: string) => {
     if (window.confirm(`Revoke administrative access for ${email}?`)) {
       try {
-        await deleteAdmin(id);
-        await createAuditLog({
-          adminEmail: 'master@brainbites.com',
-          action: 'DELETE_ADMIN',
-          details: `Revoked access for ${email}`
-        });
+        await deleteAdminApi(uid, `Revoked access for ${email}`);
         toast.success('Access terminated');
-        setAdmins(prev => prev.filter(a => a.id !== id));
-      } catch (err) {
-        toast.error('Termination failed');
+        setAdmins(prev => prev.filter(a => a.uid !== uid));
+      } catch (err: any) {
+        toast.error(`Termination failed: ${err.message}`);
       }
     }
   };
@@ -129,58 +140,63 @@ const AdminsPage = () => {
   const getRoleStyle = (role: AdminRole) => {
     switch (role) {
       case 'SUPER_ADMIN': return 'bg-brand-primary/10 text-brand-primary border-brand-primary/20 shadow-brand-primary/10';
-      case 'EDITOR': return 'bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20 shadow-brand-secondary/10';
-      case 'VIEWER': return 'bg-brand-white/5 text-brand-white/40 border-brand-white/10 shadow-inner';
+      case 'ADMIN': return 'bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20 shadow-brand-secondary/10';
+      case 'CONTENT_MANAGER': return 'bg-brand-gold/10 text-brand-gold border-brand-gold/20 shadow-brand-gold/10';
+      case 'ANALYST': return 'bg-brand-white/5 text-brand-white/40 border-brand-white/10 shadow-inner';
+      default: return 'bg-brand-white/5 text-brand-white/40 border-brand-white/10';
     }
   };
+
+  if (!isRole('SUPER_ADMIN')) {
+      return <PermissionGate message="Management of administrative identities is restricted to the SUPER_ADMIN protocol level." />;
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
 
-      {/* High-End Header */}
-      <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-4xl font-black text-brand-white tracking-tighter flex items-center gap-4">
-             <div className="p-3 bg-brand-primary/10 rounded-2xl">
-                <ShieldCheck className="text-brand-primary" size={32} />
-             </div>
-             Security Governance
-          </h2>
-          <p className="text-brand-secondary/40 text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Administrative Registry • Access Protocols</p>
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             Security <span className="text-brand-primary">Governance</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="error" className="px-5 py-1.5">Administrative Root</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">System Access Control \u0026 Registry</p>
+           </div>
         </div>
-
-        <div className="flex items-center gap-6 w-full xl:w-auto relative z-10">
-          <div className="relative flex-1 xl:w-80 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/30 group-focus-within:text-brand-primary transition-colors" size={20} />
-            <input
-              type="text"
-              placeholder="Query team members..."
-              className="w-full bg-brand-bg/40 border border-brand-sage/20 rounded-2xl pl-12 pr-6 py-4 text-sm text-brand-white focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-3 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-brand-primary/30 text-xs uppercase tracking-widest whitespace-nowrap"
-          >
-            <Plus size={20} strokeWidth={3} />
-            Register Agent
-          </motion.button>
+        <div className="flex gap-4">
+           <ElasticButton onClick={() => handleOpenModal()}>
+              <Plus size={18} strokeWidth={3} />
+              Register Agent
+           </ElasticButton>
         </div>
+      </div>
 
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* Search \u0026 Action Bar */}
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+        <div className="relative flex-1 md:w-[32rem] group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
+          <input
+            type="text"
+            placeholder="Query administrative identifiers..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Registry Table */}
-      <div className="glass rounded-[3rem] overflow-hidden shadow-2xl relative">
+      <div className="glass rounded-[2rem] overflow-hidden shadow-2xl relative">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[10px] font-black text-brand-secondary/30 uppercase tracking-[0.3em]">
+              <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[10px] font-black text-sub uppercase tracking-[0.3em]">
                 <th className="p-8">Agent Identity</th>
                 <th className="p-8">Protocol Role</th>
                 <th className="p-8">Connection State</th>
@@ -192,23 +208,28 @@ const AdminsPage = () => {
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                     <td colSpan={5} className="p-10"><div className="h-10 bg-brand-sage/10 rounded-2xl w-full" /></td>
+                     <td colSpan={5} className="p-10">
+                        <div className="h-10 bg-brand-primary/5 rounded-2xl w-full relative overflow-hidden">
+                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                        </div>
+                     </td>
                   </tr>
                 ))
               ) : filteredAdmins.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-32 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-20">
-                       <Key size={64} className="text-brand-secondary" />
-                       <p className="text-lg font-black tracking-widest uppercase">No verified agents in registry</p>
-                    </div>
+                  <td colSpan={5} className="p-0">
+                    <EmptyBuffer
+                      icon={ShieldCheck}
+                      title="No Verified Agents"
+                      message="The administrative registry is currently empty or no agents match your identity query."
+                    />
                   </td>
                 </tr>
               ) : (
                 <AnimatePresence>
                   {filteredAdmins.map((admin, idx) => (
                     <motion.tr
-                      key={admin.id}
+                      key={admin.uid}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
@@ -218,7 +239,7 @@ const AdminsPage = () => {
                       <td className="p-8">
                         <div className="flex items-center gap-5">
                           <div className="w-14 h-14 rounded-3xl bg-brand-bg/80 border border-brand-sage/30 flex items-center justify-center text-brand-primary font-black text-xl shadow-xl group-hover:scale-110 group-hover:border-brand-primary/40 transition-all duration-500 overflow-hidden relative">
-                            {admin.displayName[0].toUpperCase()}
+                            {admin.displayName[0]?.toUpperCase() || 'A'}
                             <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div>
@@ -237,8 +258,8 @@ const AdminsPage = () => {
                       </td>
                       <td className="p-8">
                          <div className="flex items-center gap-3">
-                           <div className={cn("w-2 h-2 rounded-full", admin.status === 'Active' ? "bg-brand-primary animate-pulse shadow-[0_0_10px_rgba(45,106,79,1)]" : "bg-brand-sage")} />
-                           <span className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest">{admin.status}</span>
+                           <div className={cn("w-2 h-2 rounded-full", admin.isActive ? "bg-brand-primary animate-pulse shadow-[0_0_10px_rgba(45,106,79,1)]" : "bg-brand-sage")} />
+                           <span className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest">{admin.isActive ? 'Active' : 'Inactive'}</span>
                          </div>
                       </td>
                       <td className="p-8">
@@ -257,7 +278,7 @@ const AdminsPage = () => {
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              onClick={(e) => { e.stopPropagation(); handleDelete(admin.id, admin.email); }}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(admin.uid, admin.email); }}
                               className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-2xl transition-all shadow-xl"
                             >
                               <Trash2 size={18} />
@@ -331,8 +352,9 @@ const AdminsPage = () => {
                           value={formData.role}
                           onChange={e => setFormData({...formData, role: e.target.value as AdminRole})}
                         >
-                          <option value="VIEWER">Viewer</option>
-                          <option value="EDITOR">Editor</option>
+                          <option value="ANALYST">Analyst</option>
+                          <option value="CONTENT_MANAGER">Content Manager</option>
+                          <option value="ADMIN">Admin</option>
                           <option value="SUPER_ADMIN">Super Admin</option>
                         </select>
                      </div>
@@ -340,14 +362,62 @@ const AdminsPage = () => {
                         <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2">System Status</label>
                         <select
                           className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-4 text-brand-white text-xs font-bold focus:outline-none focus:border-brand-primary appearance-none uppercase tracking-widest"
-                          value={formData.status}
-                          onChange={e => setFormData({...formData, status: e.target.value as any})}
+                          value={formData.isActive ? 'Active' : 'Inactive'}
+                          onChange={e => setFormData({...formData, isActive: e.target.value === 'Active'})}
                         >
                           <option value="Active">Active</option>
                           <option value="Inactive">Inactive</option>
                         </select>
                      </div>
                   </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-brand-secondary/50 uppercase tracking-[0.3em] ml-2 flex items-center gap-2">
+                        <Shield size={14} className="text-brand-primary" /> Clearance Matrix
+                    </label>
+                    <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin">
+                        {PERMISSIONS_LIST.map(perm => (
+                            <label
+                                key={perm.id}
+                                className={cn(
+                                    "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer group",
+                                    formData.permissions.includes(perm.id)
+                                        ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                                        : "bg-brand-bg/50 border-brand-sage/10 text-sub opacity-60 hover:opacity-100"
+                                )}
+                            >
+                                <span className="text-[10px] font-bold uppercase tracking-widest">{perm.label}</span>
+                                <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={formData.permissions.includes(perm.id)}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setFormData({...formData, permissions: [...formData.permissions, perm.id]});
+                                        } else {
+                                            setFormData({...formData, permissions: formData.permissions.filter(p => p !== perm.id)});
+                                        }
+                                    }}
+                                />
+                                <div className={cn(
+                                    "w-4 h-4 rounded-md border-2 transition-all flex items-center justify-center",
+                                    formData.permissions.includes(perm.id) ? "bg-brand-primary border-brand-primary" : "border-brand-sage/20"
+                                )}>
+                                    {formData.permissions.includes(perm.id) && <CheckCircle2 size={10} className="text-white" />}
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                  </div>
+
+                  {formData.role === 'SUPER_ADMIN' && (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex gap-4 items-start animate-pulse">
+                          <ShieldAlert size={20} className="text-red-500 shrink-0" />
+                          <p className="text-[9px] font-black text-red-400 uppercase leading-relaxed tracking-widest">
+                              Warning: SUPER_ADMIN bypasses the clearance matrix and has full authoritative control over the root registry.
+                          </p>
+                      </div>
+                  )}
 
                   <div className="pt-6">
                      <motion.button

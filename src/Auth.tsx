@@ -1,65 +1,55 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
-import type { User } from 'firebase/auth';
-import { motion } from 'framer-motion';
-import { isFirebaseConfigured, firebaseInitError, observeAuthState, signInAdmin } from './services/firebaseService';
+import React, { useState, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldAlert, LogOut, RefreshCcw, Lock } from 'lucide-react';
+import { isFirebaseConfigured, firebaseInitError, signInAdmin, signOutAdmin } from './services/firebaseService';
+import { AdminProvider, useAdmin } from './context/AdminContext';
+import ElasticButton from './components/ui/ElasticButton';
 
 interface AuthProps {
   children: ReactNode;
 }
 
-function Auth({ children }: AuthProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const AuthContent: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { firebaseUser, adminUser, isLoading, isAuthorized } = useAdmin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    // If config issues exist, don't try to observe auth state as it might be null
-    if (!isFirebaseConfigured || firebaseInitError) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const unsubscribe = observeAuthState((currentUser) => {
-        setUser(currentUser);
-        setLoading(false);
-      });
-      return unsubscribe;
-    } catch (err) {
-      console.error('Auth state observation failed', err);
-      setLoading(false);
-    }
-  }, []);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSigningIn(true);
     try {
       await signInAdmin(email, password);
     } catch (err: any) {
       setError(err.message || 'Identity validation failed. Please retry.');
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
-  // If there's a configuration error, we let App.tsx handle the error UI
-  if (!isFirebaseConfigured || firebaseInitError) {
-    return <>{children}</>;
-  }
+  const handleSignOut = async () => {
+    try {
+      await signOutAdmin();
+    } catch (err) {
+      console.error("Sign out failed", err);
+    }
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-brand-bg flex items-center justify-center relative overflow-hidden">
-        <div className="w-12 h-12 border-2 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin shadow-[0_0_20px_rgba(45,106,79,0.2)]"></div>
+      <div className="min-h-screen bg-brand-bg flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="w-16 h-16 border-4 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin shadow-[0_0_30px_rgba(45,106,79,0.3)] mb-6"></div>
+        <p className="text-brand-secondary/40 font-black tracking-[0.4em] text-[10px] uppercase animate-pulse">Syncing Identity Stream</p>
       </div>
     );
   }
 
-  if (!user) {
+  // CASE 1: Not logged into Firebase
+  if (!firebaseUser) {
     return (
       <div className="min-h-screen bg-brand-bg flex items-center justify-center p-6 antialiased relative overflow-hidden">
-        {/* Animated Mesh Background */}
         <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-brand-primary/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-secondary/5 blur-[120px] rounded-full"></div>
 
@@ -114,20 +104,79 @@ function Auth({ children }: AuthProps) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-2xl transition-all shadow-[0_20px_50px_rgba(45,106,79,0.3)] tracking-[0.3em] text-xs uppercase"
+                disabled={isSigningIn}
+                className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-2xl transition-all shadow-[0_20px_50px_rgba(45,106,79,0.3)] tracking-[0.3em] text-xs uppercase flex items-center justify-center gap-3 disabled:opacity-50"
               >
+                {isSigningIn ? <RefreshCcw size={18} className="animate-spin" /> : <Lock size={18} />}
                 Initiate Handshake
               </motion.button>
             </form>
           </div>
-
           <p className="text-center text-brand-secondary/20 text-[9px] font-bold tracking-[0.4em] uppercase">Encrypted Multi-Factor Protocol Active</p>
         </motion.div>
       </div>
     );
   }
 
+  // CASE 2: Logged in via Firebase, but NOT an authorized Admin
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center p-6 antialiased relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_50%,rgba(239,68,68,0.1),transparent)]"></div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-xl glass p-16 rounded-[4rem] border-red-500/20 shadow-2xl text-center space-y-10 relative z-10"
+        >
+          <div className="w-24 h-24 bg-red-500/20 rounded-[2.5rem] flex items-center justify-center mx-auto text-red-500 shadow-lg shadow-red-500/20">
+             <ShieldAlert size={48} strokeWidth={2.5} />
+          </div>
+
+          <div className="space-y-4">
+             <h2 className="text-4xl font-black text-brand-white tracking-tighter uppercase">Access Denied</h2>
+             <p className="text-brand-secondary/60 text-base font-medium max-w-md mx-auto leading-relaxed">
+               Your identity signature <span className="text-brand-white font-black">{firebaseUser.email}</span> is not registered within the Administrative Registry or has been deactivated.
+             </p>
+          </div>
+
+          <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-3xl space-y-2">
+             <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Protocol Failure: ERROR_ADMIN_NOT_FOUND</p>
+             <p className="text-[9px] text-brand-secondary/40 font-bold uppercase">Contact a SUPER_ADMIN to authorize this node.</p>
+          </div>
+
+          <div className="pt-4 flex flex-col gap-4">
+             <ElasticButton
+               variant="danger"
+               className="w-full py-5 rounded-2xl text-xs uppercase tracking-[0.3em] font-black"
+               onClick={handleSignOut}
+             >
+                <LogOut size={18} />
+                Switch Identifier
+             </ElasticButton>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // CASE 3: Fully Authorized Admin
   return <>{children}</>;
+};
+
+function Auth({ children }: AuthProps) {
+  // If config issues exist, we let App.tsx handle the error UI
+  if (!isFirebaseConfigured || firebaseInitError) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AdminProvider>
+      <AuthContent>
+        {children}
+      </AuthContent>
+    </AdminProvider>
+  );
 }
 
 export default Auth;

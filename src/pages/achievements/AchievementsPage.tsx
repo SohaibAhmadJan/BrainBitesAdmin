@@ -17,8 +17,11 @@ import {
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import { Achievement } from '../../types';
-import { fetchAchievements, createOrUpdateAchievement, deleteAchievement } from '../../services/firestoreService';
+import { fetchAchievements } from '../../services/firestoreService';
+import { updateAchievement, deleteAchievement as deleteAchievementApi } from '../../services/adminApi';
 import toast from 'react-hot-toast';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
 
 const AchievementsPage = () => {
   const { theme } = useTheme();
@@ -46,67 +49,67 @@ const AchievementsPage = () => {
       id: `ach-${Date.now()}`,
       title: 'New Achievement',
       description: 'Describe the milestone criteria...',
-      icon: '🏆',
+      iconName: 'Trophy',
       maxProgress: 1,
-      points: 10,
-      type: 'MILESTONE',
-      isActive: true
+      requirementType: 'READ_COUNT',
+      isActive: true,
+      createdAt: Date.now()
     };
     try {
-      await createOrUpdateAchievement(newAch);
-      setAchievements([newAch, ...achievements]);
-      toast.success('Milestone initialized');
-    } catch (err) {
-      toast.error('Initialization failed');
+      await updateAchievement(newAch.id, newAch, 'Administrative achievement initialization');
+      toast.success('Milestone anchored (Atomic)');
+      loadAchievements();
+    } catch (err: any) {
+      toast.error(`Initialization failed: ${err.message}`);
     }
   };
 
   const toggleStatus = async (ach: Achievement) => {
     const updated = { ...ach, isActive: !ach.isActive };
     try {
-      await createOrUpdateAchievement(updated);
-      setAchievements(prev => prev.map(a => a.id === ach.id ? updated : a));
+      await updateAchievement(updated.id, updated, `State toggle: ${updated.isActive ? 'ACTIVATE' : 'ARCHIVE'}`);
       toast.success(updated.isActive ? 'Achievement active' : 'Achievement archived');
-    } catch (err) {
-      toast.error('State toggle failed');
+      loadAchievements();
+    } catch (err: any) {
+      toast.error(`State toggle failed: ${err.message}`);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Dissolve this achievement definition?')) return;
     try {
-      await deleteAchievement(id);
-      setAchievements(prev => prev.filter(a => a.id !== id));
+      await deleteAchievementApi(id, 'Manual achievement removal');
       toast.success('Definition expunged');
-    } catch (err) {
-      toast.error('Expunge failed');
+      loadAchievements();
+    } catch (err: any) {
+      toast.error(`Expunge failed: ${err.message}`);
     }
   };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
-       <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-4xl font-black tracking-tighter flex items-center gap-4">
-             <div className="p-3 bg-brand-primary/10 rounded-2xl">
-                <Trophy className="text-brand-gold" size={32} />
-             </div>
-             Reward Architecture
-          </h2>
-          <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Gamification Mechanics • Milestone Logic</p>
+
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             Reward <span className="text-brand-primary">Architecture</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="warning" className="px-5 py-1.5">Gamification Root</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Mechanics \u0026 Milestone Logic</p>
+           </div>
         </div>
-
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleAddAchievement}
-          className="relative z-10 flex items-center gap-3 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-brand-primary/30 text-xs uppercase tracking-widest whitespace-nowrap"
-        >
-          <Plus size={20} strokeWidth={3} />
-          Create Definition
-        </motion.button>
-
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-gold/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="flex gap-4">
+           <ElasticButton onClick={handleAddAchievement}>
+              <Plus size={18} strokeWidth={3} />
+              Create Definition
+           </ElasticButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
@@ -134,16 +137,14 @@ const AchievementsPage = () => {
                 <div className="p-10 flex-1 space-y-8">
                    <div className="flex justify-between items-start">
                       <div className="w-20 h-20 bg-brand-bg/5 dark:bg-brand-bg rounded-[1.8rem] flex items-center justify-center text-4xl border border-brand-sage/10 shadow-inner group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(233,196,106,0.2)] transition-all duration-500">
-                        {ach.icon}
+                        🏆
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={cn(
                           "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border shadow-sm",
-                          ach.type === 'MILESTONE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" :
-                          ach.type === 'SOCIAL' ? "bg-pink-500/10 border-pink-500/20 text-pink-500" :
-                          "bg-brand-bg/5 dark:bg-brand-bg border-brand-sage/10 text-sub"
+                          "bg-brand-primary/10 border-brand-primary/20 text-brand-primary"
                         )}>
-                          {ach.type}
+                          {ach.requirementType}
                         </span>
                         <motion.button
                           whileTap={{ scale: 0.8 }}
@@ -172,9 +173,9 @@ const AchievementsPage = () => {
                       </div>
                       <div className="space-y-1">
                         <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
-                           <Star size={12} className="text-brand-gold" /> Rewards
+                           <Star size={12} className="text-brand-gold" /> Established
                         </p>
-                        <p className="text-base font-black text-brand-gold">{ach.points} BB Points</p>
+                        <p className="text-base font-black text-brand-gold">{new Date(ach.createdAt).toLocaleDateString()}</p>
                       </div>
                    </div>
                 </div>

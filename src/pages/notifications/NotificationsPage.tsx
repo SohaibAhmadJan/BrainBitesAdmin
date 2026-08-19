@@ -14,10 +14,12 @@ import {
   ExternalLink,
   ChevronRight,
   Zap,
-  Radio
+  Radio,
+  Trash2
 } from 'lucide-react';
 import { AppNotification, NotificationType, BiteItem } from '../../types';
-import { fetchNotifications, fetchBites, createNotification } from '../../services/firestoreService';
+import { fetchNotifications, fetchBites } from '../../services/firestoreService';
+import { sendGlobalNotification, deleteNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 
@@ -45,7 +47,7 @@ const NotificationsPage = () => {
         fetchNotifications(),
         fetchBites()
       ]);
-      setNotifications(notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setNotifications(notifs.sort((a, b) => b.timestamp - a.timestamp));
       setFacts(allFacts);
     } catch (err) {
       console.error(err);
@@ -68,16 +70,17 @@ const NotificationsPage = () => {
       type: form.type,
       imageUrl: form.imageUrl || null,
       deepLinkFactId: form.deepLinkFactId || null,
-      createdAt: new Date().toISOString()
+      isGlobal: true,
+      timestamp: Date.now()
     };
 
     try {
-      await createNotification(newNotif);
+      await sendGlobalNotification(newNotif, `Global broadcast: ${newNotif.title}`);
       setNotifications([newNotif, ...notifications]);
       setForm({ title: '', message: '', type: 'NEW_FACT', imageUrl: '', deepLinkFactId: '' });
-      toast.success('Broadcast Dispatched Globally');
-    } catch (err) {
-      toast.error('Transmission Failure');
+      toast.success('Broadcast Dispatched Globally (Atomic)');
+    } catch (err: any) {
+      toast.error(`Transmission Failure: ${err.message}`);
     }
   };
 
@@ -274,7 +277,7 @@ const NotificationsPage = () => {
                              {n.type}
                           </span>
                        </div>
-                       <span className="text-[10px] font-black text-brand-secondary/30 tabular-nums">{new Date(n.createdAt).toLocaleDateString()}</span>
+                       \u003cspan className\u003d"text-[10px] font-black text-brand-secondary/30 tabular-nums"\u003e{new Date(n.timestamp).toLocaleDateString()}\u003c/span\u003e
                     </div>
                     <p className="text-[11px] text-brand-secondary/50 leading-relaxed line-clamp-2 italic">{n.message}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-brand-sage/10 relative z-10">
@@ -282,12 +285,30 @@ const NotificationsPage = () => {
                           {n.imageUrl && <div className="p-1.5 glass rounded-lg"><ImageIcon size={12} className="text-brand-primary" /></div>}
                           {n.deepLinkFactId && <div className="p-1.5 glass rounded-lg"><Zap size={12} className="text-brand-gold" /></div>}
                        </div>
-                       <motion.button
-                        whileHover={{ x: 3 }}
-                        className="text-[9px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5"
-                       >
-                          Sequence Audit <ChevronRight size={12} />
-                       </motion.button>
+                       <div className="flex gap-3">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            onClick={async () => {
+                                if (!window.confirm('Retract this global broadcast?')) return;
+                                try {
+                                    await deleteNotification(n.id, 'Manual broadcast retraction');
+                                    toast.success('Broadcast retracted');
+                                    loadData();
+                                } catch (err: any) {
+                                    toast.error(`Retraction failed: ${err.message}`);
+                                }
+                            }}
+                            className="p-1.5 hover:bg-red-500/10 text-sub hover:text-red-500 rounded-lg transition-all"
+                          >
+                             <Trash2 size={14} />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ x: 3 }}
+                            className="text-[9px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5"
+                          >
+                             Sequence Audit <ChevronRight size={12} />
+                          </motion.button>
+                       </div>
                     </div>
 
                     <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-brand-primary/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />

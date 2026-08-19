@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Edit3, Save, Smartphone, Heart, ChevronLeft, BookOpen } from 'lucide-react';
-import { BiteItem, CategoryPresets, BiteCategory } from '../types';
+import { BiteItem, BiteCategory } from '../types';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
 
@@ -93,9 +93,18 @@ const FactEditor: React.FC<FactEditorProps> = ({
                     <select
                       className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-3 text-xs font-bold focus:outline-none focus:border-brand-primary appearance-none"
                       value={selectedFact.category}
-                      onChange={(e) => onUpdateFact({ category: e.target.value as BiteCategory })}
+                      onChange={(e) => onUpdateFact({ category: e.target.value as BiteCategory, categoryId: e.target.value })}
                     >
-                      {CategoryPresets.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                      <option value="HUMAN_BEHAVIOR">Human Behavior</option>
+                      <option value="MENTAL_HEALTH">Mental Health</option>
+                      <option value="BRAIN_SCIENCE">Brain Science</option>
+                      <option value="LOVE_ATTRACTION">Love & Attraction</option>
+                      <option value="PERSONALITY">Personality Traits</option>
+                      <option value="BODY_LANGUAGE">Body Language</option>
+                      <option value="SUBCONSCIOUS">Subconscious Mind</option>
+                      <option value="SOCIAL_PSYCHOLOGY">Social Psychology</option>
+                      <option value="HABITS_MOTIVATION">Habits & Motivation</option>
+                      <option value="MEMORY_LEARNING">Memory & Learning</option>
                     </select>
                   </div>
                   <div className="space-y-3">
@@ -114,30 +123,7 @@ const FactEditor: React.FC<FactEditorProps> = ({
 
               <div className="glass p-8 rounded-[2.5rem] space-y-6 shadow-xl relative overflow-hidden">
                 <h3 className="text-lg font-black tracking-tight border-b border-brand-sage/10 pb-4">Challenge Logic</h3>
-                <div className="space-y-3">
-                   <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Question Node</label>
-                   <input
-                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
-                    value={selectedFact.quizQuestion || ''}
-                    onChange={(e) => onUpdateFact({ quizQuestion: e.target.value || null })}
-                    placeholder="Input question..."
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                   {Array.from({ length: 4 }).map((_, i) => (
-                     <input
-                       key={i}
-                       className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary shadow-inner"
-                       placeholder={`Option ${i+1}`}
-                       value={selectedFact.quizOptions?.[i] || ''}
-                       onChange={(e) => {
-                         const options = [...(selectedFact.quizOptions || ['', '', '', ''])];
-                         options[i] = e.target.value;
-                         onUpdateFact({ quizOptions: options });
-                       }}
-                     />
-                   ))}
-                </div>
+                <p className="text-xs italic opacity-40 text-center py-4">Quiz normalized to external collection. Handle via Transaction API.</p>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 blur-2xl rounded-full" />
               </div>
             </div>

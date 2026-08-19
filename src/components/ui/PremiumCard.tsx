@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useMousePosition } from '../../hooks/useMousePosition';
 import { cn } from '../../utils/cn';
+import { SPRING_SMOOTH } from '../../utils/animations';
 
 interface PremiumCardProps {
   children: React.ReactNode;
@@ -20,19 +21,16 @@ const PremiumCard: React.FC<PremiumCardProps> = ({
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const mouse = useMousePosition(cardRef);
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <motion.div
       ref={cardRef}
       layoutId={layoutId}
       onClick={onClick}
-      whileHover={{ y: -8, scale: 1.01 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 20
-      }}
+      whileHover={shouldReduceMotion ? { borderColor: 'rgba(45, 106, 79, 0.3)' } : { y: -8, scale: 1.01 }}
+      whileTap={shouldReduceMotion ? { opacity: 0.9 } : { scale: 0.98 }}
+      transition={SPRING_SMOOTH}
       className={cn(
         "glass rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group cursor-pointer",
         className

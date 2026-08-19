@@ -21,6 +21,10 @@ import { fetchUsers, fetchAchievements } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import UserSiteDrawer from './UserSiteDrawer';
 import { useTheme } from '../../context/ThemeContext';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const UsersPage = () => {
   const { theme } = useTheme();
@@ -29,6 +33,7 @@ const UsersPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Suspended'>('All');
+  const [sortBy, setSortBy] = useState<'engagement' | 'newest'>('engagement');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
@@ -51,76 +56,103 @@ const UsersPage = () => {
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (statusFilter === 'All' || user.status === statusFilter)
-  );
+  const filteredUsers = users
+    .filter(user =>
+        (user.profile.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         user.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         user.profile.displayName?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        (statusFilter === 'All' || user.account.status === statusFilter.toUpperCase())
+    )
+    .sort((a, b) => {
+        if (sortBy === 'engagement') return b.stats.factsReadCount - a.stats.factsReadCount;
+        return b.account.createdAt - a.account.createdAt;
+    });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header Info */}
-      <div className="glass p-8 rounded-[3rem] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-4xl font-black tracking-tighter flex items-center gap-4">
-             <div className="p-3 bg-brand-primary/10 rounded-[1.5rem] shadow-lg">
-                <Users className="text-brand-primary" size={32} />
-             </div>
-             User Directory
-          </h2>
-          <p className="text-sub text-xs font-black uppercase tracking-[0.3em] mt-2 ml-1">Identity Management • Engagement Intelligence</p>
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             User <span className="text-brand-primary">Directory</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="info" className="px-5 py-1.5">Engagement Tracking</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Identity Management \u0026 Intelligence</p>
+           </div>
+        </div>
+      </div>
+
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+        <div className="relative flex-1 md:w-[32rem] group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
+          <input
+            type="text"
+            placeholder="Query identity identifiers or email profiles..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-auto relative z-10">
-          <div className="relative flex-1 md:w-96 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/30 group-focus-within:text-brand-primary transition-colors" size={20} />
-            <input
-              type="text"
-              placeholder="Query identity..."
-              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-[1.5rem] pl-12 pr-6 py-4 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner backdrop-blur-xl"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-4 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white rounded-2xl border border-brand-primary/20 transition-all shadow-lg"
-          >
-            <Filter size={20} />
-          </motion.button>
-        </div>
+        <div className="flex flex-col md:flex-row items-center gap-4">
+            <select
+                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all shadow-sm"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+            >
+                <option value="engagement">High Engagement</option>
+                <option value="newest">Recent Onboarding</option>
+            </select>
 
-        {/* Background Decoration */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
+            <select
+                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all shadow-sm"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as any)}
+            >
+                <option value="All">All Status</option>
+                <option value="Active">Active Only</option>
+                <option value="Suspended">Disabled Only</option>
+            </select>
+        </div>
       </div>
 
       {/* Users Table */}
-      <div className="glass rounded-[3rem] overflow-hidden shadow-2xl relative">
+      <div className="glass rounded-[2rem] overflow-hidden shadow-2xl relative">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-brand-primary/5 border-b border-brand-sage/5 text-[10px] font-black text-sub uppercase tracking-[0.3em]">
+              <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[10px] font-black text-sub uppercase tracking-[0.3em]">
                 <th className="p-8">Participant Identity</th>
                 <th className="p-8">Security Status</th>
                 <th className="p-8">Engagement Profile</th>
                 <th className="p-8">Last Sequence</th>
-                <th className="p-8 text-right">Administrative Actions</th>
+                <th className="p-8 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-sage/5">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="p-8"><div className="h-12 bg-brand-sage/5 rounded-2xl w-full" /></td>
+                    <td colSpan={5} className="p-8">
+                       <div className="h-12 bg-brand-primary/5 rounded-2xl w-full relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                       </div>
+                    </td>
                   </tr>
                 ))
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-32 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-20">
-                       <SearchX size={64} className="text-brand-primary" />
-                       <p className="text-lg font-black tracking-widest uppercase">Zero matches in current subset</p>
-                    </div>
+                  <td colSpan={5} className="p-0">
+                    <EmptyBuffer
+                      icon={Users}
+                      title="Zero Matches Found"
+                      message="No user profiles in the global audience index match your identity query sequence."
+                    />
                   </td>
                 </tr>
               ) : (
@@ -137,47 +169,47 @@ const UsersPage = () => {
                       <td className="p-8">
                         <div className="flex items-center gap-5">
                           <div className="w-14 h-14 rounded-3xl bg-brand-bg/5 dark:bg-brand-bg/80 border border-brand-sage/10 flex items-center justify-center text-brand-primary font-black text-xl shadow-md group-hover:scale-110 group-hover:border-brand-primary/40 transition-all duration-500 overflow-hidden relative">
-                            {user.email[0].toUpperCase()}
+                            {user.profile.displayName[0]?.toUpperCase() || 'U'}
                             <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div>
-                            <p className="text-base font-bold group-hover:text-brand-primary transition-colors">{user.email}</p>
-                            <p className="text-[10px] text-sub font-mono mt-1 uppercase tracking-[0.2em]">UID: {user.id.slice(0, 12)}...</p>
+                            <p className="text-base font-bold group-hover:text-brand-primary transition-colors">{user.profile.displayName}</p>
+                            <p className="text-[10px] text-sub font-mono mt-1 uppercase tracking-[0.2em]">{user.profile.email || user.id.slice(0, 16)}</p>
                           </div>
                         </div>
                       </td>
                       <td className="p-8">
                         <div className={cn(
                           "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-lg",
-                          user.status === 'Active' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary shadow-brand-primary/5" :
-                          user.status === 'Suspended' ? "bg-red-500/10 border-red-500/20 text-red-500 shadow-red-500/5" :
+                          user.account.status === 'ACTIVE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary shadow-brand-primary/5" :
+                          user.account.status === 'DISABLED' ? "bg-red-500/10 border-red-500/20 text-red-500 shadow-red-500/5" :
                           "bg-brand-bg/5 text-sub border-brand-sage/10 shadow-inner"
                         )}>
-                          <div className={cn("w-1.5 h-1.5 rounded-full", user.status === 'Active' ? 'bg-brand-primary animate-pulse' : 'bg-red-500')} />
-                          {user.status}
+                          <div className={cn("w-1.5 h-1.5 rounded-full", user.account.status === 'ACTIVE' ? 'bg-brand-primary animate-pulse' : 'bg-red-500')} />
+                          {user.account.status}
                         </div>
                       </td>
                       <td className="p-8">
                         <div className="flex items-center gap-8">
                           <div className="flex flex-col gap-1">
                             <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Read Facts</span>
-                            <span className="text-sm font-black opacity-80">{user.factsViewed}</span>
+                            <span className="text-sm font-black opacity-80">{user.stats.factsReadCount}</span>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">BB Score</span>
-                            <span className="text-sm font-black text-brand-gold">{user.quizScore}</span>
+                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Streak</span>
+                            <span className="text-sm font-black text-brand-gold">{user.stats.streakCount}</span>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Shelf</span>
-                            <span className="text-sm font-black text-brand-primary">{user.achievementsCount} 🏆</span>
+                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Favs</span>
+                            <span className="text-sm font-black text-brand-primary">{user.stats.favoritesCount} \ud83d\udc99</span>
                           </div>
                         </div>
                       </td>
                       <td className="p-8">
                         <div className="flex flex-col gap-1">
-                           <span className="text-sm font-bold opacity-70">{user.lastActive}</span>
+                           <span className="text-sm font-bold opacity-70">{new Date(user.stats.lastActiveAt).toLocaleDateString()}</span>
                            <span className="text-[9px] text-sub uppercase font-black tracking-widest flex items-center gap-1 opacity-60">
-                             <Calendar size={10} /> Joined {new Date(user.registrationDate).toLocaleDateString()}
+                             <Calendar size={10} /> Joined {new Date(user.account.createdAt).toLocaleDateString()}
                            </span>
                         </div>
                       </td>
@@ -222,7 +254,6 @@ const UsersPage = () => {
       {selectedUser && (
         <UserSiteDrawer
           user={selectedUser}
-          allAchievements={achievements}
           onClose={() => setSelectedUser(null)}
         />
       )}

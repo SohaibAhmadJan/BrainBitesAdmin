@@ -18,9 +18,14 @@ import {
   Layers
 } from 'lucide-react';
 import { CollectionSet } from '../../types';
-import { fetchCollections, createOrUpdateCollection, deleteCollection } from '../../services/firestoreService';
+import { fetchCollections } from '../../services/firestoreService';
+import { updateCollection, deleteCollection as deleteCollectionApi } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const CollectionsPage = () => {
   const [collections, setCollections] = useState<CollectionSet[]>([]);
@@ -51,14 +56,16 @@ const CollectionsPage = () => {
       description: 'Define the scope and narrative of this custom set...',
       icon: '✨',
       color: '#2D6A4F',
-      factIds: []
+      factIds: [],
+      isPublished: true,
+      createdAt: Date.now()
     };
     try {
-      await createOrUpdateCollection(newCol);
-      setCollections([newCol, ...collections]);
-      toast.success('Collection initialized');
-    } catch (err) {
-      toast.error('Initialization failed');
+      await updateCollection(newCol.id, newCol, 'Administrative collection initialization');
+      toast.success('Collection anchored (Atomic)');
+      loadCollections();
+    } catch (err: any) {
+      toast.error(`Initialization failed: ${err.message}`);
     }
   };
 
@@ -70,42 +77,41 @@ const CollectionsPage = () => {
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
 
-      {/* High-End Header */}
-      <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-4xl font-black text-brand-white tracking-tighter flex items-center gap-4">
-             <div className="p-3 bg-brand-primary/10 rounded-2xl">
-                <Library className="text-brand-primary" size={32} />
-             </div>
-             Curated Collections
-          </h2>
-          <p className="text-brand-secondary/40 text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Hand-Picked Fact Groupings • Narrative Orchestration</p>
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             Curated <span className="text-brand-primary">Collections</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="info" className="px-5 py-1.5">Narrative Hub</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Hand-Picked Fact Groupings \u0026 Orchestration</p>
+           </div>
         </div>
-
-        <div className="flex items-center gap-6 w-full xl:w-auto relative z-10">
-          <div className="relative flex-1 xl:w-80 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/30 group-focus-within:text-brand-primary transition-colors" size={20} />
-            <input
-              type="text"
-              placeholder="Search collections..."
-              className="w-full bg-brand-bg/40 border border-brand-sage/20 rounded-2xl pl-12 pr-6 py-4 text-sm text-brand-white focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleAddCollection}
-            className="flex items-center gap-3 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-brand-primary/30 text-xs uppercase tracking-widest whitespace-nowrap"
-          >
-            <Plus size={20} strokeWidth={3} />
-            New Collection
-          </motion.button>
+        <div className="flex gap-4">
+           <ElasticButton onClick={handleAddCollection}>
+              <Plus size={18} strokeWidth={3} />
+              New Collection
+           </ElasticButton>
         </div>
+      </div>
 
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* Search \u0026 Action Bar */}
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+        <div className="relative flex-1 md:w-[32rem] group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
+          <input
+            type="text"
+            placeholder="Search custom collections by identity or content..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -209,11 +215,11 @@ const CollectionsPage = () => {
                       e.stopPropagation();
                       if(window.confirm('Dissolve this collection record?')) {
                         try {
-                          await deleteCollection(col.id);
-                          setCollections(prev => prev.filter(c => c.id !== col.id));
+                          await deleteCollectionApi(col.id, 'Manual collection removal');
                           toast.success('Collection dissolved');
-                        } catch (err) {
-                          toast.error('Dissolution failed');
+                          loadCollections();
+                        } catch (err: any) {
+                          toast.error(`Dissolution failed: ${err.message}`);
                         }
                       }
                     }}

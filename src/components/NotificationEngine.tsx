@@ -102,7 +102,7 @@ const NotificationEngine: React.FC<NotificationEngineProps> = ({ notifications, 
                 </span>
               </div>
               <p className="text-sm text-sub opacity-70 leading-relaxed italic">{n.message}</p>
-              <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest mt-4">Sequence Logged: {new Date(n.createdAt).toLocaleString()}</p>
+              <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest mt-4">Sequence Logged: {new Date(n.timestamp).toLocaleString()}</p>
 
               <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-brand-primary/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             </motion.div>

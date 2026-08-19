@@ -17,6 +17,18 @@ import MediaPage from '../pages/media/MediaPage';
 import EngagementPage from '../pages/analytics/EngagementPage';
 import AdminsPage from '../pages/admins/AdminsPage';
 import QuotesPage from '../pages/quotes/QuotesPage';
+import PermissionGate from '../components/ui/PermissionGate';
+import { useAdmin } from '../context/AdminContext';
+
+const Guard = ({ children, permission }: { children: React.ReactNode, permission?: string }) => {
+  const { isAuthorized, hasPermission, isLoading } = useAdmin();
+
+  if (isLoading) return null;
+  if (!isAuthorized) return <Navigate to="/" replace />;
+  if (permission && !hasPermission(permission)) return <PermissionGate />;
+
+  return <>{children}</>;
+};
 
 export const router = createBrowserRouter([
   {
@@ -24,23 +36,19 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'facts', element: <FactsPage /> },
-      { path: 'categories', element: <CategoriesPage /> },
-      { path: 'collections', element: <CollectionsPage /> },
-      { path: 'quizzes', element: <QuizzesPage /> },
-      { path: 'achievements', element: <AchievementsPage /> },
-      { path: 'quotes', element: <QuotesPage /> },
-      { path: 'media', element: <MediaPage /> },
-      { path: 'users', element: <UsersPage /> },
-      { path: 'user-activity', element: <UserActivityPage /> },
-      { path: 'favorites', element: <EngagementPage /> },
-      { path: 'notifications', element: <NotificationsPage /> },
-      { path: 'broadcasts', element: <NotificationsPage /> },
-      { path: 'announcements', element: <NotificationsPage /> },
-      { path: 'settings', element: <AppSettingsPage /> },
-      { path: 'admins', element: <AdminsPage /> },
-      { path: 'audit-logs', element: <AuditLogsPage /> },
-      { path: 'import-export', element: <ImportExportPage /> },
+      { path: 'facts', element: <Guard permission="read.all"><FactsPage /></Guard> },
+      { path: 'categories', element: <Guard permission="read.all"><CategoriesPage /></Guard> },
+      { path: 'collections', element: <Guard permission="read.all"><CollectionsPage /></Guard> },
+      { path: 'quizzes', element: <Guard permission="read.all"><QuizzesPage /></Guard> },
+      { path: 'achievements', element: <Guard permission="read.all"><AchievementsPage /></Guard> },
+      { path: 'quotes', element: <Guard permission="read.all"><QuotesPage /></Guard> },
+      { path: 'users', element: <Guard permission="read.all"><UsersPage /></Guard> },
+      { path: 'user-activity', element: <Guard permission="read.all"><UserActivityPage /></Guard> },
+      { path: 'notifications', element: <Guard permission="read.all"><NotificationsPage /></Guard> },
+      { path: 'settings', element: <Guard permission="manage.config"><AppSettingsPage /></Guard> },
+      { path: 'admins', element: <Guard permission="manage.admins"><AdminsPage /></Guard> },
+      { path: 'audit-logs', element: <Guard permission="audit.view"><AuditLogsPage /></Guard> },
+      { path: 'import-export', element: <Guard permission="manage.admins"><ImportExportPage /></Guard> },
       { path: '*', element: <Navigate to='/' replace /> }
     ]
   }

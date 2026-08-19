@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Upload, Info, CheckCircle2, AlertTriangle, FileJson, Server, RefreshCcw, Database } from 'lucide-react';
 import { BiteItem } from '../../types';
-import { bulkImportBites, fetchBites } from '../../services/firestoreService';
+import { bulkImportFacts } from '../../services/adminApi';
+import { fetchBites } from '../../services/firestoreService';
 import ImportExport from '../../components/ImportExport';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -17,45 +18,40 @@ const ImportExportPage = () => {
     setLoading(true);
     try {
       let importedFacts: any[] = [];
-      let importedQuizzes: any[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const text = await files[i].text();
         const parsed = JSON.parse(text);
         if (parsed.facts) importedFacts = [...importedFacts, ...parsed.facts];
-        else if (parsed.quizzes) importedQuizzes = [...importedQuizzes, ...parsed.quizzes];
-        else if (Array.isArray(parsed)) {
-           if (parsed.length > 0 && parsed[0].factId) importedQuizzes = [...importedQuizzes, ...parsed];
-           else importedFacts = [...importedFacts, ...parsed];
-        }
+        else if (Array.isArray(parsed)) importedFacts = [...importedFacts, ...parsed];
       }
 
       if (importedFacts.length === 0) {
         throw new Error('No valid facts detected in sequence.');
       }
 
-      const quizMap = new Map(importedQuizzes.map(q => [q.factId, q]));
-
       const normalized: BiteItem[] = importedFacts.map(fact => {
-        const quiz = quizMap.get(fact.id);
         return {
           id: String(fact.id),
           fact: fact.fact || '',
           category: fact.category || 'Human Behavior',
+          categoryId: fact.categoryId || 'HUMAN_BEHAVIOR',
+          title: fact.title || '',
+          snippet: fact.snippet || '',
           fullFact: fact.fullFact || '',
           whyItMatters: fact.whyItMatters || '',
-          quizQuestion: quiz?.question || fact.quizQuestion || null,
-          quizOptions: quiz?.options || fact.quizOptions || null,
-          correctAnswerIndex: quiz?.correctIndex ?? fact.correctAnswerIndex ?? null,
-          teaserType: quiz?.teaserType || fact.teaserType || null,
           readTimeMinutes: fact.readTimeMinutes || 1,
           imageUrl: fact.imageUrl || null,
-          keywords: fact.keywords || ''
+          keywords: fact.keywords || '',
+          isPublished: fact.isPublished ?? true,
+          isFeatured: fact.isFeatured ?? false,
+          createdAt: fact.createdAt || Date.now(),
+          updatedAt: Date.now()
         };
       });
 
-      await bulkImportBites(normalized);
-      alert(`Successfully merged and ingested ${normalized.length} sequence nodes to Cloud Repository.`);
+      await bulkImportFacts(normalized, `Bulk ingestion of ${normalized.length} sequence nodes`);
+      alert(`Successfully merged and ingested ${normalized.length} sequence nodes to Cloud Repository (Atomic).`);
     } catch (e: any) {
       setImportError(e.message || 'Node decryption failed: Invalid JSON format');
     } finally {

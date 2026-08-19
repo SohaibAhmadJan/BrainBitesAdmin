@@ -26,47 +26,96 @@ import {
   PieChart as RechartsPieChart,
   Pie
 } from 'recharts';
-import { fetchBites } from '../../services/firestoreService';
+import { fetchBites, fetchAnalyticsEvents } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const COLORS = ['#2D6A4F', '#95D5B2', '#E9C46A', '#3b82f6', '#ec4899'];
 
 const EngagementPage = () => {
   const { theme } = useTheme();
   const [popularFacts, setPopularFacts] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
+  const [range, setRange] = useState<7 | 30 | 90>(7);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [range]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const facts = await fetchBites();
-      const data = facts.map((f) => ({
-        name: f.fact.slice(0, 20) + '...',
-        likes: (f as any).likes || Math.floor(Math.random() * 100),
-        views: (f as any).views || Math.floor(Math.random() * 500),
-        shares: (f as any).shares || Math.floor(Math.random() * 50),
-        category: f.category
-      })).sort((a, b) => b.likes - a.likes).slice(0, 8);
+      const [facts, events] = await Promise.all([
+        fetchBites(),
+        fetchAnalyticsEvents(range)
+      ]);
 
-      setPopularFacts(data);
+      const factMap = new Map(facts.map(f => [f.id, f]));
+
+      // 1. Leaderboard Aggregation
+      const factStats: Record<string, { id: string, name: string, views: number, likes: number, shares: number, category: string }> = {};
+      events.forEach(event => {
+          const id = event.params?.item_id;
+          if (!id) return;
+          if (!factStats[id]) {
+              const fact = factMap.get(id);
+              factStats[id] = {
+                  id,
+                  name: fact?.fact.slice(0, 30) + '...' || 'Unknown',
+                  views: 0,
+                  likes: 0,
+                  shares: 0,
+                  category: fact?.category || 'General'
+              };
+          }
+          if (event.name === 'read_fact') factStats[id].views++;
+          else if (event.name === 'like_fact') factStats[id].likes++;
+          else if (event.name === 'share_fact') factStats[id].shares++;
+      });
+
+      const leaderboard = Object.values(factStats)
+        .sort((a, b) => (b.views + b.likes + b.shares) - (a.views + a.likes + a.shares))
+        .slice(0, 10);
+
+      setPopularFacts(leaderboard);
+
+      // 2. Category Distribution
+      const catMap: Record<string, number> = {};
+      events.forEach(event => {
+          const id = event.params?.item_id;
+          const fact = factMap.get(id);
+          const cat = fact?.category || 'General';
+          catMap[cat] = (catMap[cat] || 0) + 1;
+      });
+      setCategoryData(Object.entries(catMap).map(([name, value]) => ({ name, value })));
+
+      // 3. Time Series
+      const dailyMap: Record<string, { views: number, interactions: number }> = {};
+      for (let i = 0; i < range; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const str = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          dailyMap[str] = { views: 0, interactions: 0 };
+      }
+      events.forEach(event => {
+          const str = new Date(event.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          if (dailyMap[str]) {
+              if (event.name === 'read_fact') dailyMap[str].views++;
+              else dailyMap[str].interactions++;
+          }
+      });
+      setTimeSeriesData(Object.entries(dailyMap).map(([name, vals]) => ({ name, ...vals })).reverse());
+
     } catch (err) {
       console.error('Load engagement data failed', err);
     } finally {
       setLoading(false);
     }
   };
-
-  const dummyPieData = [
-    { name: 'Social', value: 400 },
-    { name: 'Behavior', value: 300 },
-    { name: 'Brain', value: 300 },
-    { name: 'Habits', value: 200 },
-  ];
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -85,8 +134,18 @@ const EngagementPage = () => {
 
         <div className="flex gap-4 relative z-10">
            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/10">
-              <button className="px-6 py-2.5 text-[10px] font-black text-brand-white bg-brand-primary rounded-xl shadow-lg uppercase tracking-widest transition-all">All History</button>
-              <button className="px-6 py-2.5 text-[10px] font-black text-sub opacity-40 hover:opacity-100 uppercase tracking-widest transition-all">Periodic</button>
+              {[7, 30, 90].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setRange(d as any)}
+                    className={cn(
+                        "px-6 py-2.5 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest",
+                        range === d ? "bg-brand-primary text-brand-white shadow-lg" : "text-sub opacity-40 hover:opacity-100"
+                    )}
+                  >
+                      {d} Days
+                  </button>
+              ))}
            </div>
         </div>
 
@@ -112,28 +171,27 @@ const EngagementPage = () => {
            </div>
 
            <div className="h-[450px] w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={popularFacts} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="5 5" horizontal={true} vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.3} />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} />
-                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700, width: 120}} width={120} />
-                  <Tooltip
-                    cursor={{fill: theme === 'dark' ? '#1e293b' : '#f8fafc', opacity: 0.1}}
-                    contentStyle={{
-                      backgroundColor: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
-                      borderColor: 'rgba(45,106,79,0.3)',
-                      borderRadius: '20px',
-                      boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
-                      border: '1px solid rgba(45,106,79,0.1)'
-                    }}
-                  />
-                  <Bar dataKey="likes" radius={[0, 12, 12, 0]} barSize={24} animationDuration={2000}>
-                    {popularFacts.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} fillOpacity={0.8} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {loading ? <LoadingNode /> : popularFacts.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={timeSeriesData}>
+                    <CartesianGrid strokeDasharray="5 5" horizontal={true} vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.3} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#95D5B2', fontSize: 11, fontWeight: 700}} />
+                    <Tooltip
+                        cursor={{fill: theme === 'dark' ? '#1e293b' : '#f8fafc', opacity: 0.1}}
+                        contentStyle={{
+                        backgroundColor: theme === 'dark' ? '#1A2B22' : '#FFFFFF',
+                        borderColor: 'rgba(45,106,79,0.3)',
+                        borderRadius: '20px',
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
+                        border: '1px solid rgba(45,106,79,0.1)'
+                        }}
+                    />
+                    <Bar dataKey="views" fill="var(--brand-primary)" radius={[12, 12, 0, 0]} barSize={range === 7 ? 40 : 12} />
+                    <Bar dataKey="interactions" fill="var(--brand-secondary)" radius={[12, 12, 0, 0]} barSize={range === 7 ? 40 : 12} />
+                    </BarChart>
+                </ResponsiveContainer>
+              ) : <EmptyBuffer title="Telemetry Void" message="No behavioral events recorded in the specified date range." />}
            </div>
 
            <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
@@ -152,44 +210,48 @@ const EngagementPage = () => {
            </h3>
 
            <div className="w-full aspect-square relative flex items-center justify-center scale-110">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={dummyPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={120}
-                    paddingAngle={8}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {dummyPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                </RechartsPieChart>
-              </ResponsiveContainer>
-              <div className="absolute flex flex-col items-center animate-in zoom-in duration-1000">
-                 <p className="text-5xl font-black">42<span className="text-2xl text-brand-primary">%</span></p>
-                 <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em]">Social Psych</p>
-              </div>
+              {loading ? <LoadingNode /> : categoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                    <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={120}
+                        paddingAngle={8}
+                        dataKey="value"
+                        stroke="none"
+                    >
+                        {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    </RechartsPieChart>
+                </ResponsiveContainer>
+              ) : <div className="text-[10px] uppercase font-black opacity-20">No Data</div>}
+
+              {!loading && categoryData.length > 0 && (
+                <div className="absolute flex flex-col items-center animate-in zoom-in duration-1000">
+                    <p className="text-4xl font-black">{Math.round((categoryData[0]?.value / categoryData.reduce((acc, c) => acc + c.value, 0)) * 100)}<span className="text-xl text-brand-primary">%</span></p>
+                    <p className="text-[8px] font-black text-sub uppercase tracking-[0.3em]">{categoryData[0]?.name.split(' ')[0]}</p>
+                </div>
+              )}
            </div>
 
            <div className="w-full mt-12 space-y-6">
-              {[
-                { name: 'Social Psychology', val: '1,240 clicks', color: 'bg-brand-primary' },
-                { name: 'Human Behavior', val: '890 clicks', color: 'bg-brand-secondary' },
-                { name: 'Brain Science', val: '640 clicks', color: 'bg-brand-gold' },
-              ].map((item, i) => (
+              {categoryData.slice(0, 3).map((item, i) => (
                 <div key={i} className="flex justify-between items-center bg-brand-bg/5 dark:bg-brand-bg/30 p-4 rounded-2xl border border-brand-sage/5 hover:border-brand-primary/20 transition-all group">
                    <span className="flex items-center gap-3 text-xs font-bold opacity-70">
-                      <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg transition-transform group-hover:scale-125", item.color)}></div>
+                      <div className="w-2.5 h-2.5 rounded-full shadow-lg transition-transform group-hover:scale-125" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
                       {item.name}
                    </span>
-                   <span className="font-black text-brand-primary text-xs uppercase tracking-tighter">{item.val}</span>
+                   <span className="font-black text-brand-primary text-[10px] uppercase tracking-tighter">{item.value} Actions</span>
                 </div>
               ))}
+              {categoryData.length === 0 && !loading && (
+                  <p className="text-[10px] text-center opacity-20 uppercase font-black">Cluster Empty</p>
+              )}
            </div>
 
            <div className="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-brand-secondary/5 blur-[80px] rounded-full pointer-events-none" />

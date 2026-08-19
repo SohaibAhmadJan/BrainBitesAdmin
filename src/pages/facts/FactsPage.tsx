@@ -19,6 +19,8 @@ import PremiumCard from '../../components/ui/PremiumCard';
 import ElasticButton from '../../components/ui/ElasticButton';
 import ActionBadge from '../../components/ui/ActionBadge';
 import FactEditorDrawer from './FactEditorDrawer';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 import { cn } from '../../utils/cn';
 
 const FactsPage = () => {
@@ -63,15 +65,42 @@ const FactsPage = () => {
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
 
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             Sequence <span className="text-brand-primary">Repository</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="info" className="px-5 py-1.5">Node Matrix Active</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Global Insight Stream Control</p>
+           </div>
+        </div>
+        <div className="flex gap-4">
+           <ElasticButton variant="secondary" onClick={() => {/* TODO: Implement export */}}>
+              <Download size={18} />
+              Extract Snapshot
+           </ElasticButton>
+           <ElasticButton onClick={handleAddNew}>
+              <Plus size={18} strokeWidth={3} />
+              Append Sequence
+           </ElasticButton>
+        </div>
+      </div>
+
       {/* Search & Action Bar */}
-      <div className="glass p-8 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
         <div className="flex flex-col md:flex-row items-center gap-6 w-full xl:w-auto">
           <div className="relative flex-1 md:w-[32rem] group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
             <input
               type="text"
               placeholder="Query sequence identifiers or content..."
-              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-[1.8rem] pl-14 pr-8 py-5 text-base focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-base focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -80,7 +109,7 @@ const FactsPage = () => {
           <div className="relative w-full md:w-72 group">
              <Filter className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={20} />
              <select
-                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-[1.8rem] pl-14 pr-10 py-5 text-xs font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
+                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-10 py-5 text-xs font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -89,92 +118,76 @@ const FactsPage = () => {
               </select>
           </div>
         </div>
-
-        <div className="flex items-center gap-5 w-full md:w-auto justify-end">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            className="p-5 glass rounded-[1.5rem] border border-brand-sage/10 text-sub hover:text-brand-primary transition-all shadow-lg"
-          >
-            <Download size={24} />
-          </motion.button>
-          <ElasticButton
-            onClick={handleAddNew}
-            className="px-10 py-5 h-full"
-          >
-            <Plus size={22} strokeWidth={3} />
-            Append Sequence
-          </ElasticButton>
-        </div>
-
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
       </div>
 
       {/* Results Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {loading ? (
           Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-80 glass rounded-[3.5rem] animate-pulse" />
+            <div key={i} className="h-80 glass rounded-[2.5rem] animate-pulse relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+            </div>
           ))
         ) : currentItems.length > 0 ? (
           <AnimatePresence mode="popLayout">
             {currentItems.map((fact, idx) => (
-              <PremiumCard
-                key={fact.id}
-                layoutId={fact.id}
-                onClick={() => handleEdit(fact)}
-                className="p-10 flex flex-col h-full border-transparent hover:border-brand-primary/20"
-              >
-                <div className="flex justify-between items-start mb-8">
-                   <ActionBadge variant="success">{fact.category}</ActionBadge>
-                   <span className="text-[10px] font-mono text-sub opacity-30 font-black tracking-widest uppercase">ID: {fact.id.slice(0, 6)}</span>
-                </div>
+              <motion.div key={fact.id} layout>
+                <PremiumCard
+                  layoutId={fact.id}
+                  onClick={() => handleEdit(fact)}
+                  className="p-10 flex flex-col h-full border-transparent hover:border-brand-primary/20"
+                >
+                  <div className="flex justify-between items-start mb-8">
+                     <ActionBadge variant="success">{fact.category}</ActionBadge>
+                     <span className="text-[10px] font-mono text-sub opacity-30 font-black tracking-widest uppercase">ID: {fact.id.slice(0, 6)}</span>
+                  </div>
 
-                <div className="flex-1 space-y-6">
-                   <div className="flex gap-5">
-                      <div className="w-12 h-12 shrink-0 bg-brand-bg/5 dark:bg-brand-bg rounded-2xl flex items-center justify-center text-brand-primary/40 transition-colors border border-brand-sage/10">
-                         <BookOpen size={24} />
-                      </div>
-                      <p className="text-base font-bold leading-relaxed line-clamp-4 italic group-hover:text-brand-primary transition-colors">
-                        {fact.fact}
-                      </p>
-                   </div>
-                   <p className="text-[11px] text-sub font-medium line-clamp-2 leading-relaxed border-l-2 border-brand-primary/20 pl-5 opacity-60">
-                     {fact.fullFact || 'No supplementary data available...'}
-                   </p>
-                </div>
+                  <div className="flex-1 space-y-6">
+                     <div className="flex gap-5">
+                        <div className="w-12 h-12 shrink-0 bg-brand-bg/5 dark:bg-brand-bg rounded-2xl flex items-center justify-center text-brand-primary/40 transition-colors border border-brand-sage/10">
+                           <BookOpen size={24} />
+                        </div>
+                        <p className="text-base font-bold leading-relaxed line-clamp-4 italic group-hover:text-brand-primary transition-colors">
+                          {fact.fact}
+                        </p>
+                     </div>
+                     <p className="text-[11px] text-sub font-medium line-clamp-2 leading-relaxed border-l-2 border-brand-primary/20 pl-5 opacity-60">
+                       {fact.fullFact || 'No supplementary data available...'}
+                     </p>
+                  </div>
 
-                <div className="mt-10 pt-8 border-t border-brand-sage/5 flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" />
-                      <span className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-60">{fact.readTimeMinutes || 2}m Stream</span>
-                   </div>
-                   <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                      <motion.button
-                        whileHover={{ scale: 1.1, rotate: 10 }}
-                        onClick={(e) => { e.stopPropagation(); handleEdit(fact); }}
-                        className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-xl transition-all border border-brand-sage/10 shadow-lg"
-                      >
-                        <Edit3 size={18} />
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.1, rotate: -10 }}
-                        onClick={(e) => { e.stopPropagation(); removeFact(fact.id); }}
-                        className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl transition-all border border-brand-sage/10 shadow-lg"
-                      >
-                        <Trash2 size={18} />
-                      </motion.button>
-                   </div>
-                </div>
-              </PremiumCard>
+                  <div className="mt-10 pt-8 border-t border-brand-sage/5 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" />
+                        <span className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-60">{fact.readTimeMinutes || 2}m Stream</span>
+                     </div>
+                     <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                        <motion.button
+                          whileHover={{ scale: 1.1, rotate: 10 }}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(fact); }}
+                          className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-xl transition-all border border-brand-sage/10 shadow-lg"
+                        >
+                          <Edit3 size={18} />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1, rotate: -10 }}
+                          onClick={(e) => { e.stopPropagation(); removeFact(fact.id); }}
+                          className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl transition-all border border-brand-sage/10 shadow-lg"
+                        >
+                          <Trash2 size={18} />
+                        </motion.button>
+                     </div>
+                  </div>
+                </PremiumCard>
+              </motion.div>
             ))}
           </AnimatePresence>
         ) : (
-          <div className="col-span-full py-40 glass rounded-[3.5rem] border border-dashed border-brand-sage/20 text-center flex flex-col items-center gap-8 opacity-40">
-             <div className="p-8 bg-brand-primary/5 rounded-full">
-                <BookOpen size={80} className="text-brand-primary opacity-20" />
-             </div>
-             <p className="text-3xl font-black uppercase tracking-[0.4em] tracking-tighter">Zero matches in sequence buffer</p>
-          </div>
+          <EmptyBuffer
+            icon={BookOpen}
+            title="Zero matches in sequence buffer"
+            message="The repository section is currently empty or your query returned no matches in the insight stream."
+          />
         )}
       </div>
 

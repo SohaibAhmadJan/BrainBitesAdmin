@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BiteItem } from '../types';
-import { fetchBites, createOrUpdateBite, deleteBite, createAuditLog } from '../services/firestoreService';
+import { fetchBites } from '../services/firestoreService';
+import { updateFact, deleteFact } from '../services/adminApi';
 import toast from 'react-hot-toast';
 
 export const useFacts = () => {
@@ -23,17 +24,12 @@ export const useFacts = () => {
 
   const saveFact = async (fact: BiteItem) => {
     try {
-      await createOrUpdateBite(fact);
-      await createAuditLog({
-        adminEmail: 'master@brainbites.com',
-        action: 'UPDATE_BITE',
-        details: `Synchronized node: ${fact.id}`
-      });
-      toast.success('Sequence anchored to Cloud');
+      await updateFact(fact.id, fact, 'UI Update via Sequence Editor');
+      toast.success('Sequence anchored to Cloud (Atomic)');
       await loadFacts();
       return true;
-    } catch (err) {
-      toast.error('Sync failure');
+    } catch (err: any) {
+      toast.error(`Sync failure: ${err.message}`);
       return false;
     }
   };
@@ -41,16 +37,11 @@ export const useFacts = () => {
   const removeFact = async (id: string) => {
     if (!window.confirm('Erase this sequence node?')) return;
     try {
-      await deleteBite(id);
-      await createAuditLog({
-        adminEmail: 'master@brainbites.com',
-        action: 'DELETE_BITE',
-        details: `Expunged node: ${id}`
-      });
+      await deleteFact(id, 'Manual expunge from repository');
       toast.success('Node expunged');
       await loadFacts();
-    } catch (err) {
-      toast.error('Expunge failed');
+    } catch (err: any) {
+      toast.error(`Expunge failed: ${err.message}`);
     }
   };
 

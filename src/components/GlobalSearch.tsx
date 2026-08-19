@@ -54,7 +54,7 @@ const GlobalSearch = ({ isOpen, setIsOpen }: GlobalSearchProps) => {
 
         setResults({
           facts: facts.filter(f => f.fact.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
-          users: users.filter(u => u.email.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
+          users: users.filter(u => u.profile.email.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
           collections: collections.filter(c => c.title.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
         });
       } catch (err) {
@@ -151,8 +151,8 @@ const GlobalSearch = ({ isOpen, setIsOpen }: GlobalSearchProps) => {
                             <Users size={18} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold truncate block">{user.email}</span>
-                            <span className="text-[10px] text-sub uppercase font-black tracking-tighter">Level {user.level || 1} • {user.status}</span>
+                            <span className="text-sm font-semibold truncate block">{user.profile.email}</span>
+                            <span className="text-[10px] text-sub uppercase font-black tracking-tighter">{user.account.status}</span>
                           </div>
                         </button>
                       ))}

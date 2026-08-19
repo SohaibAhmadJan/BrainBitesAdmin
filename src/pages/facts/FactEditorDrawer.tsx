@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Eye, Smartphone, AlertCircle, Info, Hash, Clock, Edit3, CheckCircle2, Image as ImageIcon, Heart, Trash2, Lightbulb, ChevronLeft, HelpCircle } from 'lucide-react';
+import { X, Save, Eye, Smartphone, AlertCircle, Info, Hash, Clock, Edit3, CheckCircle2, Image as ImageIcon, Heart, Trash2, Lightbulb, ChevronLeft, HelpCircle, Star } from 'lucide-react';
 import { BiteItem, Category } from '../../types';
 import { cn } from '../../utils/cn';
 import { fetchCategories } from '../../services/firestoreService';
 import { useTheme } from '../../context/ThemeContext';
+import { DRAWER_TRANSITION } from '../../utils/animations';
 import ElasticButton from '../../components/ui/ElasticButton';
 import ActionBadge from '../../components/ui/ActionBadge';
 
@@ -21,17 +22,21 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
     id: fact?.id || `f-${Math.random().toString(36).slice(2, 11)}`,
     fact: fact?.fact || '',
     category: fact?.category || 'Human Behavior',
+    categoryId: fact?.categoryId || 'HUMAN_BEHAVIOR',
+    title: fact?.title || '',
+    snippet: fact?.snippet || '',
     fullFact: fact?.fullFact || '',
     whyItMatters: fact?.whyItMatters || '',
-    quizQuestion: fact?.quizQuestion || null,
-    quizOptions: fact?.quizOptions || ['', '', '', ''],
-    correctAnswerIndex: fact?.correctAnswerIndex ?? null,
     readTimeMinutes: fact?.readTimeMinutes || 1,
     imageUrl: fact?.imageUrl || '',
-    keywords: fact?.keywords || ''
+    keywords: fact?.keywords || '',
+    isPublished: fact?.isPublished ?? true,
+    isFeatured: fact?.isFeatured ?? false,
+    createdAt: fact?.createdAt || Date.now(),
+    updatedAt: fact?.updatedAt || Date.now()
   });
 
-  const [showQuiz, setShowQuiz] = useState(!!fact?.quizQuestion);
+  const [showQuiz, setShowQuiz] = useState(false); // TODO: Phase 5.4 - Dedicated Quiz Manager
   const [activeTab, setActivePage] = useState<'edit' | 'preview'>('edit');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -53,11 +58,6 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
     if (formData.fact.length > 120) newErrors.fact = "Fact title too long for mobile UI";
     if (!formData.category) newErrors.category = "Please select a category";
     if (!formData.whyItMatters?.trim()) newErrors.whyItMatters = "Practical bridge is required for premium UX";
-
-    if (formData.quizQuestion) {
-      if (!formData.quizOptions?.every(opt => opt.trim())) newErrors.quiz = "All 4 quiz options must be filled";
-      if (formData.correctAnswerIndex === null) newErrors.quiz = "Please select the correct answer";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -82,10 +82,7 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
 
       {/* Drawer */}
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        {...DRAWER_TRANSITION}
         className={cn(
           "relative w-full max-w-5xl border-l shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col h-full overflow-hidden",
           theme === 'dark' ? "bg-brand-surface border-brand-sage/20" : "bg-white border-brand-primary/10"
@@ -198,7 +195,14 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                           <select
                             className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 appearance-none shadow-inner cursor-pointer"
                             value={formData.category}
-                            onChange={(e) => setFormData({...formData, category: e.target.value})}
+                            onChange={(e) => {
+                                const selectedCat = categories.find(c => c.name === e.target.value);
+                                setFormData({
+                                    ...formData,
+                                    category: e.target.value,
+                                    categoryId: selectedCat?.id || 'HUMAN_BEHAVIOR'
+                                });
+                            }}
                           >
                             {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                           </select>
@@ -257,8 +261,8 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                   </div>
                 </section>
 
-                {/* Challenge Matrix (Quiz) */}
-                <section className="space-y-8">
+                {/* Challenge Matrix (Quiz) - DISABLED IN THIS PHASE */}
+                <section className="space-y-8 opacity-50 grayscale pointer-events-none">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 bg-brand-primary/10 rounded-xl">
@@ -267,80 +271,18 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                       <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Challenge Matrix</h3>
                     </div>
                     <div
-                      onClick={() => {
-                        const newShow = !showQuiz;
-                        setShowQuiz(newShow);
-                        if (!newShow) {
-                          setFormData({...formData, quizQuestion: null});
-                        } else if (!formData.quizQuestion) {
-                          setFormData({...formData, quizQuestion: ''});
-                        }
-                      }}
                       className={cn(
                         "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer border transition-all shadow-lg",
-                        showQuiz ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary" : "glass border-brand-sage/10 text-sub opacity-40 hover:opacity-100"
+                        "glass border-brand-sage/10 text-sub opacity-40 hover:opacity-100"
                       )}
                     >
-                      <div className={cn("w-3 h-3 rounded-full transition-all", showQuiz ? "bg-brand-primary animate-pulse" : "bg-sub")} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">{showQuiz ? 'Logic Active' : 'Logic Bypassed'}</span>
+                      <div className={cn("w-3 h-3 rounded-full transition-all", "bg-sub")} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Logic Bypassed</span>
                     </div>
                   </div>
-
-                  <AnimatePresence>
-                    {showQuiz && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="glass p-10 rounded-[3rem] space-y-10 shadow-inner border-brand-sage/5 overflow-hidden"
-                      >
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Sequence Challenge Question</label>
-                          <input
-                            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-8 py-5 text-sm font-bold focus:outline-none focus:border-brand-primary/50 shadow-inner"
-                            placeholder="What is the core takeaway of this insight?"
-                            value={formData.quizQuestion || ''}
-                            onChange={(e) => setFormData({...formData, quizQuestion: e.target.value})}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-8">
-                          {(formData.quizOptions || ['', '', '', '']).map((option, idx) => (
-                            <div key={idx} className="space-y-3">
-                              <div className="flex justify-between items-center ml-2">
-                                <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em]">Option {idx + 1}</label>
-                                <button
-                                  type="button"
-                                  onClick={() => setFormData({...formData, correctAnswerIndex: idx})}
-                                  className={cn(
-                                    "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                    formData.correctAnswerIndex === idx ? "bg-brand-primary text-brand-white" : "glass border-brand-sage/10 text-sub opacity-30 hover:opacity-100"
-                                  )}
-                                >
-                                  {formData.correctAnswerIndex === idx ? 'Correct Node' : 'Set as Correct'}
-                                </button>
-                              </div>
-                              <input
-                                className={cn(
-                                  "w-full bg-brand-bg/5 dark:bg-brand-bg/50 border rounded-2xl px-6 py-4 text-xs focus:outline-none transition-all shadow-inner",
-                                  formData.correctAnswerIndex === idx ? "border-brand-primary/50" : "border-brand-sage/10 focus:border-brand-primary/50"
-                                )}
-                                value={option}
-                                onChange={(e) => {
-                                  const newOptions = [...(formData.quizOptions || ['', '', '', ''])];
-                                  newOptions[idx] = e.target.value;
-                                  setFormData({...formData, quizOptions: newOptions});
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </section>
 
-                {/* Media & Meta */}
+                {/* Resource Metadata */}
                 <section className="space-y-8">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-brand-secondary/10 rounded-xl">
@@ -349,6 +291,39 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                     <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Resource Metadata</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-8 glass p-10 rounded-[3rem] border-brand-sage/5 shadow-inner">
+                    <div className="grid grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Visibility Status</label>
+                            <button
+                                onClick={() => setFormData({...formData, isPublished: !formData.isPublished})}
+                                className={cn(
+                                    "w-full py-4 rounded-2xl border transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg",
+                                    formData.isPublished
+                                        ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                                        : "bg-brand-bg/5 dark:bg-brand-bg/50 border-brand-sage/20 text-sub"
+                                )}
+                            >
+                                <div className={cn("w-1.5 h-1.5 rounded-full", formData.isPublished ? "bg-brand-primary animate-pulse" : "bg-brand-secondary/20")} />
+                                {formData.isPublished ? 'Live in Repository' : 'Draft Node'}
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Featured Selection</label>
+                            <button
+                                onClick={() => setFormData({...formData, isFeatured: !formData.isFeatured})}
+                                className={cn(
+                                    "w-full py-4 rounded-2xl border transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg",
+                                    formData.isFeatured
+                                        ? "bg-brand-gold/10 border-brand-gold/30 text-brand-gold"
+                                        : "bg-brand-bg/5 dark:bg-brand-bg/50 border-brand-sage/20 text-sub"
+                                )}
+                            >
+                                <Star size={14} className={cn(formData.isFeatured ? "fill-brand-gold" : "opacity-20")} />
+                                {formData.isFeatured ? 'Promoted Sequence' : 'Standard Feed'}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="space-y-3">
                       <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Visual Asset Node (URL)</label>
                       <input

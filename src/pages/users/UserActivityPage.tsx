@@ -15,15 +15,17 @@ import {
   Radio,
   Fingerprint
 } from 'lucide-react';
-import { UserActivity } from '../../types';
-import { fetchRecentActivity } from '../../services/firestoreService';
+import { AnalyticsEvent } from '../../types';
+import { fetchAnalyticsEvents } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const UserActivityPage = () => {
   const { theme } = useTheme();
-  const [activities, setActivities] = useState<UserActivity[]>([]);
+  const [activities, setActivities] = useState<AnalyticsEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -34,8 +36,8 @@ const UserActivityPage = () => {
   const loadActivity = async () => {
     setLoading(true);
     try {
-      const data = await fetchRecentActivity();
-      setActivities(data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      const data = await fetchAnalyticsEvents(30); // Last 30 days
+      setActivities(data.sort((a, b) => b.timestamp - a.timestamp));
     } catch (err) {
       console.error('Load activity failed', err);
     } finally {
@@ -44,9 +46,9 @@ const UserActivityPage = () => {
   };
 
   const filteredActivities = activities.filter(act =>
-    act.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    act.targetName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    act.type.toLowerCase().includes(searchTerm.toLowerCase())
+    act.uid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (act.params?.item_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    act.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -100,12 +102,13 @@ const UserActivityPage = () => {
 
         <div className="divide-y divide-brand-sage/5">
           {loading ? (
-            <div className="p-40 text-center flex flex-col items-center justify-center gap-6 animate-pulse opacity-20">
-               <Fingerprint size={64} className="text-brand-primary" />
-               <p className="font-black uppercase tracking-[0.5em] text-sm">Decoding Event Buffer...</p>
-            </div>
+            <LoadingNode message="Decoding Event Buffer..." />
           ) : filteredActivities.length === 0 ? (
-            <div className="p-40 text-center text-sub opacity-20 uppercase font-black tracking-[0.3em]">No activity matches in current sequence</div>
+            <EmptyBuffer
+              icon={Activity}
+              title="Activity Radar Zero"
+              message="No behavioral sequences detected in the real-time identity stream."
+            />
           ) : (
             <AnimatePresence>
               {filteredActivities.map((act, idx) => (
@@ -118,33 +121,33 @@ const UserActivityPage = () => {
                 >
                   <div className={cn(
                     "shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-inner group-hover:scale-110",
-                    act.type === 'READ_FACT' ? "bg-brand-primary/10 text-brand-primary" :
-                    act.type === 'LIKE_FACT' ? "bg-pink-500/10 text-pink-500" :
-                    act.type === 'COMPLETE_QUIZ' ? "bg-brand-gold/10 text-brand-gold" :
+                    act.name === 'read_fact' ? "bg-brand-primary/10 text-brand-primary" :
+                    act.name === 'like_fact' ? "bg-pink-500/10 text-pink-500" :
+                    act.name === 'complete_quiz' ? "bg-brand-gold/10 text-brand-gold" :
                     "bg-brand-secondary/10 text-brand-secondary"
                   )}>
-                    {act.type === 'READ_FACT' && <Eye size={22} />}
-                    {act.type === 'LIKE_FACT' && <Heart size={22} />}
-                    {act.type === 'COMPLETE_QUIZ' && <CheckCircle2 size={22} />}
-                    {act.type === 'APP_OPEN' && <Smartphone size={22} />}
+                    {act.name === 'read_fact' && <Eye size={22} />}
+                    {act.name === 'like_fact' && <Heart size={22} />}
+                    {act.name === 'complete_quiz' && <CheckCircle2 size={22} />}
+                    {act.name === 'app_open' && <Smartphone size={22} />}
                   </div>
 
                   <div className="flex-1 space-y-2 relative z-10">
                      <div className="flex justify-between items-start">
                         <div className="space-y-1">
                           <p className="text-base font-bold tracking-tight">
-                             Agent <span className="text-brand-primary font-black">#{act.userId.slice(0, 8)}...</span> {
-                               act.type === 'READ_FACT' ? 'executed reading of' :
-                               act.type === 'LIKE_FACT' ? 'anchored appreciation for' :
-                               act.type === 'COMPLETE_QUIZ' ? 'verified challenge logic for' : 'initiated sequence access'
+                             Agent <span className="text-brand-primary font-black">#{act.uid.slice(0, 8)}...</span> {
+                               act.name === 'read_fact' ? 'executed reading of' :
+                               act.name === 'like_fact' ? 'anchored appreciation for' :
+                               act.name === 'complete_quiz' ? 'verified challenge logic for' : 'initiated sequence access'
                              }
                           </p>
-                          {act.targetName && (
-                            <p className="text-sm font-black text-brand-primary italic opacity-80">{act.targetName}</p>
+                          {act.params?.item_name && (
+                            <p className="text-sm font-black text-brand-primary italic opacity-80">{act.params.item_name}</p>
                           )}
                         </div>
                         <span className="text-[10px] font-black text-sub opacity-40 bg-brand-bg/5 dark:bg-brand-bg px-2 py-0.5 rounded-md border border-brand-sage/10 tabular-nums">
-                          {new Date(act.timestamp).toLocaleTimeString()} • {formatTimeAgo(act.timestamp)}
+                          {new Date(act.timestamp).toLocaleTimeString()} \u2022 {formatTimeAgo(new Date(act.timestamp).toISOString())}
                         </span>
                      </div>
                      <div className="flex items-center gap-6 text-[9px] font-black text-sub uppercase tracking-[0.2em] opacity-30 group-hover:opacity-60 transition-opacity">

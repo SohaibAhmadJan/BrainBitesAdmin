@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
+import { useAdmin } from '../context/AdminContext';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -38,56 +39,64 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
   const { theme } = useTheme();
+  const { adminUser, hasPermission } = useAdmin();
+
   const sections = [
     {
       title: "Main",
       items: [
-        { name: "Dashboard", icon: LayoutDashboard, path: "/" },
+        { name: "Dashboard", icon: LayoutDashboard, path: "/", permission: 'read.all' },
       ]
     },
     {
       title: "Content",
       items: [
-        { name: "Facts", icon: FileText, path: "/facts" },
-        { name: "Categories", icon: Layers, path: "/categories" },
-        { name: "Collections", icon: Library, path: "/collections" },
-        { name: "Quizzes", icon: Lightbulb, path: "/quizzes" },
-        { name: "Achievements", icon: Trophy, path: "/achievements" },
+        { name: "Facts", icon: FileText, path: "/facts", permission: 'read.all' },
+        { name: "Categories", icon: Layers, path: "/categories", permission: 'read.all' },
+        { name: "Collections", icon: Library, path: "/collections", permission: 'read.all' },
+        { name: "Quizzes", icon: Lightbulb, path: "/quizzes", permission: 'read.all' },
+        { name: "Achievements", icon: Trophy, path: "/achievements", permission: 'read.all' },
       ]
     },
     {
       title: "Users",
       items: [
-        { name: "Users", icon: Users, path: "/users" },
-        { name: "Reports", icon: AlertCircle, path: "/reports" },
+        { name: "Users", icon: Users, path: "/users", permission: 'read.all' },
+        { name: "Reports", icon: AlertCircle, path: "/reports", permission: 'read.all' },
       ]
     },
     {
       title: "Communication",
       items: [
-        { name: "Notifications", icon: Bell, path: "/notifications" },
-        { name: "Broadcasts", icon: Radio, path: "/broadcasts" },
-        { name: "Announcements", icon: Megaphone, path: "/announcements" },
+        { name: "Notifications", icon: Bell, path: "/notifications", permission: 'read.all' },
+        { name: "Broadcasts", icon: Radio, path: "/broadcasts", permission: 'manage.content' },
+        { name: "Announcements", icon: Megaphone, path: "/announcements", permission: 'manage.content' },
       ]
     },
     {
       title: "Analytics",
       items: [
-        { name: "Overview", icon: BarChart3, path: "/analytics" },
-        { name: "Engagement", icon: TrendingUp, path: "/analytics/engagement" },
-        { name: "Content Stats", icon: PieChart, path: "/analytics/content" },
+        { name: "Overview", icon: BarChart3, path: "/analytics", permission: 'read.all' },
+        { name: "Engagement", icon: TrendingUp, path: "/analytics/engagement", permission: 'read.all' },
+        { name: "Content Stats", icon: PieChart, path: "/analytics/content", permission: 'read.all' },
       ]
     },
     {
       title: "System",
       items: [
-        { name: "App Settings", icon: Settings, path: "/settings" },
-        { name: "Admins & Roles", icon: ShieldCheck, path: "/admins" },
-        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs" },
-        { name: "Import / Export", icon: Download, path: "/import-export" },
+        { name: "App Settings", icon: Settings, path: "/settings", permission: 'manage.config' },
+        { name: "Admins & Roles", icon: ShieldCheck, path: "/admins", permission: 'manage.admins' },
+        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs", permission: 'read.all' },
+        { name: "Import / Export", icon: Download, path: "/import-export", permission: 'manage.admins' },
       ]
     }
   ];
+
+  // Filter sections and items based on permissions
+  const filteredSections = sections.map(section => ({
+    ...section,
+    items: section.items.filter(item => hasPermission(item.permission))
+  })).filter(section => section.items.length > 0);
 
   return (
     <aside
@@ -108,7 +117,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
                <div className="w-2 h-6 bg-brand-primary rounded-full shadow-[0_0_15px_rgba(45,106,79,0.6)]" />
                BrainBites
             </h1>
-            <span className="text-[10px] font-black text-brand-secondary uppercase tracking-[0.3em] block ml-4 opacity-50">Admin Master</span>
+            <span className="text-[10px] font-black text-brand-secondary uppercase tracking-[0.3em] block ml-4 opacity-50">
+              {adminUser?.role.replace('_', ' ') || 'Identity Loading'}
+            </span>
           </motion.div>
         )}
         <button
@@ -123,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-8 scrollbar-hide">
-        {sections.map((section, idx) => (
+        {filteredSections.map((section, idx) => (
           <div key={idx} className="space-y-3">
             {!isCollapsed && (
               <h3 className={cn(

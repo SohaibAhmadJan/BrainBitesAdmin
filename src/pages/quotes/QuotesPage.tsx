@@ -14,17 +14,19 @@ import {
   Filter,
   Sparkles
 } from 'lucide-react';
-import { QuoteItem, BiteCategory, Category } from '../../types';
+import { QuoteItem, Category } from '../../types';
 import {
   fetchQuotes,
-  createOrUpdateQuote,
-  deleteQuote,
-  createAuditLog,
   fetchCategories
 } from '../../services/firestoreService';
+import { updateQuote, deleteQuote } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
+import LoadingNode from '../../components/ui/LoadingNode';
+import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const QuotesPage = () => {
   const { theme } = useTheme();
@@ -54,7 +56,7 @@ const QuotesPage = () => {
         fetchQuotes(),
         fetchCategories()
       ]);
-      setQuotes(quoteData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setQuotes(quoteData.sort((a, b) => b.createdAt - a.createdAt));
       setCategories(catData);
       if (catData.length > 0) {
         setFormData(prev => ({ ...prev, category: catData[0].name }));
@@ -100,39 +102,27 @@ const QuotesPage = () => {
       author: formData.author,
       category: formData.category,
       isActive: formData.isActive,
-      createdAt: editingQuote?.createdAt || new Date().toISOString()
+      createdAt: editingQuote?.createdAt || Date.now()
     };
 
     try {
-      await createOrUpdateQuote(quoteData);
-      await createAuditLog({
-        adminEmail: 'master@brainbites.com',
-        action: editingQuote ? 'UPDATE_QUOTE' : 'CREATE_QUOTE',
-        details: `${editingQuote ? 'Updated' : 'Created'} wisdom node by ${quoteData.author}`
-      });
-
-      toast.success(editingQuote ? 'Wisdom updated' : 'Wisdom published');
+      await updateQuote(quoteData.id, quoteData, `Registry sync: ${quoteData.author}`);
+      toast.success(editingQuote ? 'Wisdom updated (Atomic)' : 'Wisdom published (Atomic)');
       setIsModalOpen(false);
-      const updatedQuotes = await fetchQuotes();
-      setQuotes(updatedQuotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) {
-      toast.error('Sync failed');
+      loadData();
+    } catch (err: any) {
+      toast.error(`Sync failed: ${err.message}`);
     }
   };
 
   const handleDelete = async (id: string, author: string) => {
     if (window.confirm(`Expunge wisdom by ${author}?`)) {
       try {
-        await deleteQuote(id);
-        await createAuditLog({
-          adminEmail: 'master@brainbites.com',
-          action: 'DELETE_QUOTE',
-          details: `Deleted quote by ${author}`
-        });
+        await deleteQuote(id, `Manual wisdom removal: ${author}`);
         toast.success('Wisdom expunged');
-        setQuotes(prev => prev.filter(q => q.id !== id));
-      } catch (err) {
-        toast.error('Expunge failed');
+        loadData();
+      } catch (err: any) {
+        toast.error(`Expunge failed: ${err.message}`);
       }
     }
   };
@@ -140,11 +130,11 @@ const QuotesPage = () => {
   const toggleActive = async (quote: QuoteItem) => {
     const updated = { ...quote, isActive: !quote.isActive };
     try {
-      await createOrUpdateQuote(updated);
-      setQuotes(prev => prev.map(q => q.id === quote.id ? updated : q));
+      await updateQuote(updated.id, updated, `State toggle: ${updated.isActive ? 'ACTIVATE' : 'VAULT'}`);
       toast.success(updated.isActive ? 'Insight featured' : 'Insight retracted');
-    } catch (err) {
-      toast.error('State toggle failed');
+      loadData();
+    } catch (err: any) {
+      toast.error(`State toggle failed: ${err.message}`);
     }
   };
 
@@ -158,42 +148,41 @@ const QuotesPage = () => {
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
 
-      {/* High-End Header */}
-      <div className="glass p-10 rounded-[3rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-10 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-4xl font-black tracking-tighter flex items-center gap-4">
-             <div className="p-3 bg-brand-primary/10 rounded-2xl">
-                <Sparkles className="text-brand-primary" size={32} />
-             </div>
-             Insight Repository
-          </h2>
-          <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 ml-1">Curated Psychological Wisdom & Theoretical Snippets</p>
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <motion.h1
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="text-4xl font-black tracking-tighter uppercase"
+           >
+             Insight <span className="text-brand-primary">Repository</span>
+           </motion.h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="info" className="px-5 py-1.5">Wisdom Nexus</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Psychological Theoretical Snippets</p>
+           </div>
         </div>
-
-        <div className="flex items-center gap-6 w-full xl:w-auto relative z-10">
-          <div className="relative flex-1 xl:w-80 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-secondary/40 group-focus-within:text-brand-primary transition-colors" size={20} />
-            <input
-              type="text"
-              placeholder="Search wisdom..."
-              className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/10 rounded-2xl pl-12 pr-6 py-4 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-3 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-brand-primary/30 text-xs uppercase tracking-widest whitespace-nowrap"
-          >
-            <Plus size={20} strokeWidth={3} />
-            Deposit Wisdom
-          </motion.button>
+        <div className="flex gap-4">
+           <ElasticButton onClick={() => handleOpenModal()}>
+              <Plus size={18} strokeWidth={3} />
+              Deposit Wisdom
+           </ElasticButton>
         </div>
+      </div>
 
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* Search & Action Bar */}
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+        <div className="relative flex-1 md:w-[32rem] group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
+          <input
+            type="text"
+            placeholder="Search wisdom profiles by author or content..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Modern Filter Strip */}
@@ -225,13 +214,16 @@ const QuotesPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-72 glass rounded-[3rem] animate-pulse" />
+            <div key={i} className="h-72 glass rounded-[3rem] animate-pulse relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+            </div>
           ))
         ) : filteredQuotes.length === 0 ? (
-          <div className="col-span-full py-40 glass rounded-[3rem] border border-dashed border-brand-sage/20 text-center space-y-4 opacity-40">
-             <MessageSquare size={64} className="mx-auto" />
-             <p className="text-xl font-black uppercase tracking-widest">Repository section empty</p>
-          </div>
+          <EmptyBuffer
+            icon={Quote}
+            title="Wisdom Repository Empty"
+            message="No curated theoretical snippets or psychological insights found in the current sector."
+          />
         ) : (
           <AnimatePresence>
             {filteredQuotes.map((quote, idx) => (
@@ -362,7 +354,7 @@ const QuotesPage = () => {
                         </select>
                      </div>
                      <div className="space-y-3">
-                        <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Publish Status</label>
+                        <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Publish Status</label>
                         <button
                           type="button"
                           onClick={() => setFormData({...formData, isActive: !formData.isActive})}

@@ -13,13 +13,19 @@ import {
   Server,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Lightbulb,
+  LayoutGrid,
+  ChevronRight
 } from 'lucide-react';
 import { AppSettings } from '../../types';
-import { fetchAppSettings, updateAppSettings, createAuditLog } from '../../services/firestoreService';
+import { fetchAppSettings } from '../../services/firestoreService';
+import { updateConfig } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import toast from 'react-hot-toast';
+import ActionBadge from '../../components/ui/ActionBadge';
+import ElasticButton from '../../components/ui/ElasticButton';
 
 const AppSettingsPage = () => {
   const [settings, setSettings] = useState<AppSettings>({
@@ -28,11 +34,14 @@ const AppSettingsPage = () => {
     latestVersion: '3.4.8.7',
     minVersion: '3.0.0',
     supportEmail: 'support@brainbites.com',
-    featureFlags: {
-      quizzesEnabled: true,
-      achievementsEnabled: true,
-      dailyFactEnabled: true
-    }
+    quizzesEnabled: true,
+    achievementsEnabled: true,
+    dailyFactEnabled: true,
+    dailyTipTitle: 'The 2-Minute Rule',
+    dailyTipMessage: 'If a task takes less than 2 minutes, do it now.',
+    featuredFactId: '1',
+    homeSectionsOrder: ['HERO', 'CATEGORIES', 'QUICK_ACTIONS', 'MOOD', 'RECENT', 'DISCOVER', 'ACHIEVEMENTS', 'TIP', 'TRENDING'],
+    updatedAt: Date.now()
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,15 +61,10 @@ const AppSettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateAppSettings(settings);
-      await createAuditLog({
-        adminEmail: 'master@brainbites.com',
-        action: 'UPDATE_SYSTEM_SETTINGS',
-        details: `Maintenance: ${settings.maintenanceMode}, Version: ${settings.latestVersion}`
-      });
-      toast.success('System configuration updated successfully.');
-    } catch (err) {
-      toast.error('System update failed');
+      await updateConfig(settings, `Manual update of system state: Version ${settings.latestVersion}`);
+      toast.success('System configuration updated successfully (Atomic).');
+    } catch (err: any) {
+      toast.error(`System update failed: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -74,7 +78,30 @@ const AppSettingsPage = () => {
   );
 
   return (
-    <div className="max-w-6xl space-y-8 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700">
+
+      {/* High-Fidelity Header */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+        <div>
+           <h1 className="text-4xl font-black tracking-tighter uppercase">
+             Engine <span className="text-brand-primary">Config</span>
+           </h1>
+           <div className="flex items-center gap-4 mt-3">
+              <ActionBadge variant="info" className="px-5 py-1.5">System Hub</ActionBadge>
+              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Global Environment Variables & Controls</p>
+           </div>
+        </div>
+        <div className="flex gap-4">
+           <ElasticButton
+             onClick={handleSave}
+             disabled={saving}
+             className="px-12 py-5 shadow-[0_20px_50px_rgba(45,106,79,0.3)]"
+           >
+             {saving ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
+             Execute Master Sync
+           </ElasticButton>
+        </div>
+      </div>
 
       {/* Maintenance Mode Banner */}
       {settings.maintenanceMode && (
@@ -89,43 +116,10 @@ const AppSettingsPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-        {/* Left: Core Config & Theme */}
-        <div className="space-y-8">
-          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black flex items-center gap-3">
-               <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Monitor size={24} /></div>
-               Appearance & Branding
-            </h2>
-
-            <div className="space-y-4">
-               <div className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage/20 rounded-3xl group hover:border-brand-primary/30 transition-all">
-                  <div className="flex gap-4 items-center">
-                    <div className="p-3 bg-brand-surface rounded-2xl text-brand-primary shadow-lg">
-                       {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
-                    </div>
-                    <div>
-                       <p className="text-sm font-black tracking-tight">Interface Theme</p>
-                       <p className="text-[10px] text-brand-secondary/40 font-medium uppercase tracking-widest">Toggle between light and dark mode</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleTheme}
-                    className={cn(
-                      "w-14 h-8 rounded-full relative transition-all duration-500",
-                      theme === 'light' ? "bg-brand-primary shadow-[0_0_15px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
-                    )}
-                  >
-                    <div className={cn(
-                      "absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-500 shadow-md",
-                      theme === 'light' ? "left-7" : "left-1"
-                    )} />
-                  </button>
-               </div>
-            </div>
-          </div>
-
+        {/* Left: Engine & Flags */}
+        <div className="space-y-10">
           <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
             <h2 className="text-2xl font-black flex items-center gap-3">
                <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Server size={24} /></div>
@@ -155,7 +149,7 @@ const AppSettingsPage = () => {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Lockdown Message</label>
                 <textarea
-                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-4 text-sm focus:outline-none focus:border-red-500/50 transition-all shadow-inner"
+                  className="w-full bg-brand-bg/5 border border-brand-sage/20 rounded-2xl p-4 text-sm focus:outline-none focus:border-red-500/50 transition-all shadow-inner"
                   rows={3}
                   value={settings.maintenanceMessage}
                   onChange={e => setSettings({...settings, maintenanceMessage: e.target.value})}
@@ -182,11 +176,8 @@ const AppSettingsPage = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right: Feature Flags */}
-        <div className="space-y-8">
-           <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
               <h2 className="text-2xl font-black flex items-center gap-3">
                  <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Flag size={24} /></div>
                  Feature Manifest
@@ -194,14 +185,14 @@ const AppSettingsPage = () => {
 
               <div className="space-y-4">
                  {[
-                   { id: 'quizzesEnabled', label: 'Psychometric Challenges', desc: 'Enable quiz repository & point system', icon: Info },
-                   { id: 'achievementsEnabled', label: 'Reward Milestones', desc: 'Active achievement tracking & notifications', icon: Info },
-                   { id: 'dailyFactEnabled', label: 'Smart Daily Insights', desc: 'Automated "Fact of the Day" delivery', icon: Info },
+                   { id: 'quizzesEnabled', label: 'Psychometric Challenges', desc: 'Enable quiz repository & point system' },
+                   { id: 'achievementsEnabled', label: 'Reward Milestones', desc: 'Active achievement tracking & notifications' },
+                   { id: 'dailyFactEnabled', label: 'Smart Daily Insights', desc: 'Automated "Fact of the Day" delivery' },
                  ].map((flag) => (
                    <div key={flag.id} className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage/20 rounded-3xl group hover:border-brand-primary/30 transition-all">
                       <div className="flex gap-4 items-center">
                          <div className="p-2 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10">
-                           <flag.icon size={16} />
+                           <Info size={16} />
                          </div>
                          <div>
                             <p className="text-sm font-black tracking-tight">{flag.label}</p>
@@ -211,38 +202,92 @@ const AppSettingsPage = () => {
                       <button
                         onClick={() => setSettings({
                           ...settings,
-                          featureFlags: { ...settings.featureFlags, [flag.id]: !((settings.featureFlags as any)[flag.id]) }
+                          [flag.id]: !(settings as any)[flag.id]
                         })}
                         className={cn(
                           "w-12 h-6 rounded-full relative transition-all duration-300",
-                          (settings.featureFlags as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
+                          (settings as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
                         )}
                       >
                         <div className={cn(
                           "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
-                          (settings.featureFlags as any)[flag.id] ? "left-7" : "left-1"
+                          (settings as any)[flag.id] ? "left-7" : "left-1"
                         )} />
                       </button>
                    </div>
                  ))}
               </div>
-
-              <div className="p-6 bg-brand-gold/5 border border-brand-gold/10 rounded-3xl flex gap-4">
-                 <AlertTriangle className="text-brand-gold shrink-0" size={20} />
-                 <p className="text-[10px] text-brand-secondary/40 font-bold leading-relaxed uppercase tracking-tight">
-                   Changes to Feature Manifest are propagated to mobile clients via real-time listeners. Disabling a core feature may affect user progress tracking.
-                 </p>
-              </div>
            </div>
+        </div>
 
-           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-[2rem] transition-all shadow-2xl shadow-brand-primary/30 active:scale-[0.98] uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 disabled:opacity-50"
-           >
-             {saving ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
-             Commit Changes to Engine
-           </button>
+        {/* Right: Tip & Reordering */}
+        <div className="space-y-10">
+          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+            <h2 className="text-2xl font-black flex items-center gap-3">
+               <div className="p-2 bg-brand-gold/10 rounded-xl text-brand-gold"><Lightbulb size={24} /></div>
+               Daily Wisdom Pulse
+            </h2>
+            <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Tip Title Headline</label>
+                  <input
+                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-6 py-4 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner font-bold"
+                    value={settings.dailyTipTitle}
+                    onChange={e => setSettings({...settings, dailyTipTitle: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Tip Message Payload</label>
+                  <textarea
+                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-6 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner italic leading-relaxed"
+                    rows={4}
+                    value={settings.dailyTipMessage}
+                    onChange={e => setSettings({...settings, dailyTipMessage: e.target.value})}
+                  />
+                </div>
+            </div>
+          </div>
+
+          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
+            <h2 className="text-2xl font-black flex items-center gap-3">
+               <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><LayoutGrid size={24} /></div>
+               Hub Section Priority
+            </h2>
+            <div className="space-y-3">
+              {settings.homeSectionsOrder.map((section, idx) => (
+                <div key={section} className="flex items-center justify-between p-4 bg-brand-bg/50 border border-brand-sage/10 rounded-2xl group hover:border-brand-primary/30 transition-all">
+                  <div className="flex items-center gap-4">
+                    <span className="w-6 h-6 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
+                    <p className="text-xs font-black uppercase tracking-widest">{section.replace(/_/g, ' ')}</p>
+                  </div>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        if (idx === 0) return;
+                        const newOrder = [...settings.homeSectionsOrder];
+                        [newOrder[idx], newOrder[idx-1]] = [newOrder[idx-1], newOrder[idx]];
+                        setSettings({...settings, homeSectionsOrder: newOrder});
+                      }}
+                      className="p-2 hover:bg-brand-primary/10 rounded-lg text-sub hover:text-brand-primary transition-all"
+                    >
+                      <ChevronRight className="-rotate-90" size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (idx === settings.homeSectionsOrder.length - 1) return;
+                        const newOrder = [...settings.homeSectionsOrder];
+                        [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
+                        setSettings({...settings, homeSectionsOrder: newOrder});
+                      }}
+                      className="p-2 hover:bg-brand-primary/10 rounded-lg text-sub hover:text-brand-primary transition-all"
+                    >
+                      <ChevronRight className="rotate-90" size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
       </div>

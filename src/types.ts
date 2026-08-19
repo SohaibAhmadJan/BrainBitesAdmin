@@ -1,18 +1,5 @@
 export type BiteCategory = string;
 
-export const CategoryPresets = [
-  { id: 'HUMAN_BEHAVIOR', name: 'Human Behavior', color: '#A8DADC', icon: '👥', vectorIcon: 'Users' },
-  { id: 'MENTAL_HEALTH', name: 'Mental Health', color: '#457B9D', icon: '🧠', vectorIcon: 'Brain' },
-  { id: 'BRAIN_SCIENCE', name: 'Brain Science', color: '#E9C46A', icon: '🧪', vectorIcon: 'FlaskConical' },
-  { id: 'LOVE_ATTRACTION', name: 'Love & Attraction', color: '#E76F51', icon: '💖', vectorIcon: 'Heart' },
-  { id: 'PERSONALITY', name: 'Personality Traits', color: '#F4A261', icon: '🎭', vectorIcon: 'Smile' },
-  { id: 'BODY_LANGUAGE', name: 'Body Language', color: '#2A9D8F', icon: '✋', vectorIcon: 'Hand' },
-  { id: 'SUBCONSCIOUS', name: 'Subconscious Mind', color: '#264653', icon: '🌌', vectorIcon: 'Waves' },
-  { id: 'SOCIAL_PSYCHOLOGY', name: 'Social Psychology', color: '#8AB17D', icon: '🏘️', vectorIcon: 'Globe' },
-  { id: 'HABITS_MOTIVATION', name: 'Habits & Motivation', color: '#B5838D', icon: '📈', vectorIcon: 'TrendingUp' },
-  { id: 'MEMORY_LEARNING', name: 'Memory & Learning', color: '#6D6875', icon: '📚', vectorIcon: 'BookOpen' },
-];
-
 export interface Category {
   id: string;
   name: string;
@@ -20,24 +7,39 @@ export interface Category {
   color: string;
   icon: string;
   vectorIcon: string;
-  createdAt: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: number;
 }
 
 export interface BiteItem {
   id: string;
   fact: string;
   category: BiteCategory;
-  title?: string | null;
-  snippet?: string | null;
-  fullFact?: string | null;
-  whyItMatters?: string | null;
-  quizQuestion?: string | null;
-  quizOptions?: string[] | null;
-  correctAnswerIndex?: number | null;
-  teaserType?: string | null;
-  imageUrl?: string | null;
-  keywords?: string | null;
-  readTimeMinutes?: number;
+  categoryId: string;
+  title: string | null;
+  snippet: string | null;
+  fullFact: string | null;
+  whyItMatters: string | null;
+  imageUrl: string | null;
+  keywords: string | null;
+  readTimeMinutes: number;
+  isPublished: boolean;
+  isFeatured: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface QuizQuestion {
+  id: string;
+  factId: string;
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  teaserType: string;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface CollectionSet {
@@ -47,6 +49,8 @@ export interface CollectionSet {
   icon: string;
   color: string;
   factIds: string[];
+  isPublished: boolean;
+  createdAt: number;
 }
 
 export type NotificationType = 'NEW_FACT' | 'ACHIEVEMENT' | 'SYSTEM' | 'GENERAL';
@@ -58,39 +62,82 @@ export interface AppNotification {
   type: NotificationType;
   imageUrl?: string | null;
   deepLinkFactId?: string | null;
-  createdAt: string;
+  isGlobal: boolean;
+  timestamp: number;
+}
+
+export interface UserAccount {
+  uid: string;
+  status: 'ACTIVE' | 'DISABLED';
+  createdAt: number;
+  updatedAt: number;
+  lastLoginAt: number;
+}
+
+export interface UserProfileFields {
+  displayName: string;
+  email: string;
+  photoUrl: string;
+  bio: string;
+  isPublic: boolean;
+}
+
+export interface UserStats {
+  streakCount: number;
+  factsReadCount: number;
+  favoritesCount: number;
+  sharesCount: number;
+  lastActiveAt: number;
+}
+
+export interface UserPreferences {
+  dailyGoal: number;
+  textScale: number;
+  hapticsEnabled: boolean;
+  analyticsEnabled: boolean;
+  notificationsEnabled: boolean;
 }
 
 export interface UserProfile {
-  id: string;
-  email: string;
-  displayName: string;
-  userName: string;
-  about: string;
-  registrationDate: string;
-  lastActive: string;
-  factsViewed: number;
-  favoritesCount: number;
-  quizScore: number;
-  achievementsCount: number;
-  level: number;
-  streak: number;
-  status: 'Active' | 'Suspended' | 'Pending';
-  achievements: string[]; // List of achievement IDs
-  collections: {
-    id: string;
-    title: string;
-    progress: number; // 0 to 1
-  }[];
+  id: string; // Matches account.uid
+  account: UserAccount;
+  profile: UserProfileFields;
+  stats: UserStats;
+  preferences: UserPreferences;
 }
 
-export interface UserActivity {
+export interface UserDevice {
+  id: string; // deviceId
+  fcmToken: string;
+  platform: 'android';
+  appVersion: string;
+  createdAt: number;
+  updatedAt: number;
+  lastSeenAt: number;
+}
+
+export interface CollectionProgress {
+  id: string; // collectionId
+  progress: number; // 0 to 1
+  lastUpdated: number;
+  readFactIds: string[];
+}
+
+export interface UserQuizResult {
+  id: string; // attemptId
+  factId: string;
+  isCorrect: boolean;
+  score: number;
+  attemptedAt: number;
+  answerIndex: number;
+}
+
+export interface AnalyticsEvent {
   id: string;
-  userId: string;
-  type: 'READ_FACT' | 'LIKE_FACT' | 'COMPLETE_QUIZ' | 'APP_OPEN';
-  targetId?: string;
-  targetName?: string;
-  timestamp: string;
+  name: string;
+  params: Record<string, any>;
+  uid: string;
+  timestamp: number;
 }
 
 export interface AppSettings {
@@ -99,43 +146,50 @@ export interface AppSettings {
   latestVersion: string;
   minVersion: string;
   supportEmail: string;
-  featureFlags: {
-    quizzesEnabled: boolean;
-    achievementsEnabled: boolean;
-    dailyFactEnabled: boolean;
-  };
+  quizzesEnabled: boolean;
+  achievementsEnabled: boolean;
+  dailyFactEnabled: boolean;
+  dailyTipTitle: string;
+  dailyTipMessage: string;
+  featuredFactId: string;
+  homeSectionsOrder: string[];
+  updatedAt: number;
 }
 
 export interface AuditLog {
   id: string;
-  adminEmail: string;
+  adminUid: string;
   action: string;
-  targetId?: string;
-  details: string;
-  timestamp: string;
+  targetType: string;
+  targetId: string;
+  before: Record<string, any> | null;
+  after: Record<string, any> | null;
+  reason: string | null;
+  createdAt: number;
 }
 
 export interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  iconName: string;
   maxProgress: number;
-  points: number;
-  type: 'MILESTONE' | 'STREAK' | 'SOCIAL' | 'HIDDEN';
+  requirementType: string;
   isActive: boolean;
+  createdAt: number;
 }
 
-export type AdminRole = 'SUPER_ADMIN' | 'EDITOR' | 'VIEWER';
+export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'CONTENT_MANAGER' | 'ANALYST';
 
 export interface AdminUser {
-  id: string;
+  uid: string;
   email: string;
   displayName: string;
   role: AdminRole;
-  status: 'Active' | 'Inactive';
-  createdAt: string;
-  lastLogin?: string;
+  permissions: string[];
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface QuoteItem {
@@ -144,5 +198,5 @@ export interface QuoteItem {
   author: string;
   category: BiteCategory;
   isActive: boolean;
-  createdAt: string;
+  createdAt: number;
 }
