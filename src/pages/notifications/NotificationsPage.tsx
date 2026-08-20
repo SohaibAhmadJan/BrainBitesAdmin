@@ -97,7 +97,7 @@ const NotificationsPage = () => {
           <div className="flex items-center justify-between relative z-10">
             <h2 className="text-3xl font-black text-brand-white flex items-center gap-4">
                <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary shadow-lg"><Radio size={28} className="animate-pulse" /></div>
-               Broadcast Center
+               Broadcast Hub
             </h2>
             <div className="flex items-center gap-2 px-5 py-1.5 bg-brand-primary/10 border border-brand-primary/20 rounded-full text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] shadow-inner">
                <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-ping" />
@@ -110,7 +110,7 @@ const NotificationsPage = () => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.3em] ml-2">Message Headline</label>
                   <input
-                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-brand-white text-sm focus:outline-none focus:border-brand-primary transition-all shadow-inner"
+                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl px-6 py-4 text-brand-white text-sm focus:outline-none focus:border-brand-primary transition-all shadow-inner font-medium"
                     placeholder="Input catchy dispatch title..."
                     value={form.title}
                     onChange={(e) => setForm({...form, title: e.target.value})}
@@ -277,7 +277,7 @@ const NotificationsPage = () => {
                              {n.type}
                           </span>
                        </div>
-                       \u003cspan className\u003d"text-[10px] font-black text-brand-secondary/30 tabular-nums"\u003e{new Date(n.timestamp).toLocaleDateString()}\u003c/span\u003e
+                       <span className="text-[10px] font-black text-brand-secondary/30 tabular-nums">{new Date(n.timestamp).toLocaleDateString()}</span>
                     </div>
                     <p className="text-[11px] text-brand-secondary/50 leading-relaxed line-clamp-2 italic">{n.message}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-brand-sage/10 relative z-10">

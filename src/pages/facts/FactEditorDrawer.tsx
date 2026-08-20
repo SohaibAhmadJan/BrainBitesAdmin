@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Eye, Smartphone, AlertCircle, Info, Hash, Clock, Edit3, CheckCircle2, Image as ImageIcon, Heart, Trash2, Lightbulb, ChevronLeft, HelpCircle, Star } from 'lucide-react';
 import { BiteItem, Category } from '../../types';
 import { cn } from '../../utils/cn';
-import { fetchCategories } from '../../services/firestoreService';
+import { fetchCategories, fetchQuizzes } from '../../services/firestoreService';
+import { updateFact, updateQuiz } from '../../services/adminApi';
 import { useTheme } from '../../context/ThemeContext';
 import { DRAWER_TRANSITION } from '../../utils/animations';
 import ElasticButton from '../../components/ui/ElasticButton';
 import ActionBadge from '../../components/ui/ActionBadge';
+import toast from 'react-hot-toast';
 
 interface FactEditorDrawerProps {
   fact: BiteItem | null;
@@ -36,13 +38,41 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
     updatedAt: fact?.updatedAt || Date.now()
   });
 
-  const [showQuiz, setShowQuiz] = useState(false); // TODO: Phase 5.4 - Dedicated Quiz Manager
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<QuizQuestion>({
+    id: `q-${Math.random().toString(36).slice(2, 11)}`,
+    factId: fact?.id || '',
+    question: '',
+    options: ['', '', '', ''],
+    correctAnswerIndex: 0,
+    teaserType: 'Standard',
+    isActive: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
+  const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActivePage] = useState<'edit' | 'preview'>('edit');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadCategories();
-  }, []);
+    if (fact) {
+      loadQuiz();
+    }
+  }, [fact]);
+
+  const loadQuiz = async () => {
+    try {
+      const allQuizzes = await fetchQuizzes();
+      const linkedQuiz = allQuizzes.find(q => q.factId === fact?.id);
+      if (linkedQuiz) {
+        setQuizData(linkedQuiz);
+        setShowQuiz(true);
+      }
+    } catch (err) {
+      console.error("Failed to load linked quiz");
+    }
+  };
 
   const loadCategories = async () => {
     const data = await fetchCategories();
@@ -63,9 +93,28 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validate()) {
-      onSave(formData);
+      setIsSyncing(true);
+      try {
+        // Coordinated sync
+        await onSave(formData);
+
+        if (showQuiz) {
+          const quizToSave = {
+            ...quizData,
+            factId: formData.id,
+            updatedAt: Date.now()
+          };
+          await updateQuiz(quizToSave.id, quizToSave, `Coordinated sync with Fact ${formData.id}`);
+        }
+
+        onClose();
+      } catch (err) {
+        toast.error("Deployment failed");
+      } finally {
+        setIsSyncing(false);
+      }
     }
   };
 
@@ -140,8 +189,18 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
              <ElasticButton
               onClick={handleSave}
               className="px-10 py-4 rounded-2xl"
+              disabled={isSyncing}
              >
-               <Save size={20} /> Deploy to Cloud
+               {isSyncing ? (
+                 <div className="flex items-center gap-2">
+                   <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
+                   Anchoring...
+                 </div>
+               ) : (
+                 <>
+                   <Save size={20} /> Deploy to Cloud
+                 </>
+               )}
              </ElasticButton>
           </div>
         </div>
@@ -261,8 +320,8 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                   </div>
                 </section>
 
-                {/* Challenge Matrix (Quiz) - DISABLED IN THIS PHASE */}
-                <section className="space-y-8 opacity-50 grayscale pointer-events-none">
+                {/* Challenge Matrix (Integrated Quiz Editor) */}
+                <section className="space-y-8">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 bg-brand-primary/10 rounded-xl">
@@ -270,16 +329,107 @@ const FactEditorDrawer: React.FC<FactEditorDrawerProps> = ({ fact, onClose, onSa
                       </div>
                       <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Challenge Matrix</h3>
                     </div>
-                    <div
+                    <button
+                      onClick={() => setShowQuiz(!showQuiz)}
                       className={cn(
                         "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer border transition-all shadow-lg",
-                        "glass border-brand-sage/10 text-sub opacity-40 hover:opacity-100"
+                        showQuiz
+                          ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                          : "glass border-brand-sage/10 text-sub opacity-40 hover:opacity-100"
                       )}
                     >
-                      <div className={cn("w-3 h-3 rounded-full transition-all", "bg-sub")} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Logic Bypassed</span>
-                    </div>
+                      <div className={cn("w-3 h-3 rounded-full transition-all", showQuiz ? "bg-brand-primary animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" : "bg-sub")} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {showQuiz ? 'Logic Active' : 'Initiate Challenge'}
+                      </span>
+                    </button>
                   </div>
+
+                  <AnimatePresence>
+                    {showQuiz && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="glass p-10 rounded-[3rem] space-y-10 shadow-inner border-brand-sage/5">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Psychometric Question</label>
+                            <textarea
+                              className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-[2rem] p-8 text-sm font-bold focus:outline-none focus:border-brand-primary/50 transition-all resize-none shadow-inner"
+                              rows={3}
+                              placeholder="Challenge the user's understanding of this insight..."
+                              value={quizData.question}
+                              onChange={(e) => setQuizData({ ...quizData, question: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {quizData.options.map((option, idx) => (
+                              <div key={idx} className="space-y-3">
+                                <div className="flex justify-between items-center ml-2">
+                                  <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em]">Option {idx + 1}</label>
+                                  <button
+                                    onClick={() => setQuizData({ ...quizData, correctAnswerIndex: idx })}
+                                    className={cn(
+                                      "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border",
+                                      quizData.correctAnswerIndex === idx
+                                        ? "bg-brand-primary text-brand-white border-brand-primary/50 shadow-lg"
+                                        : "glass border-brand-sage/10 text-sub opacity-40 hover:opacity-100"
+                                    )}
+                                  >
+                                    {quizData.correctAnswerIndex === idx ? 'Correct' : 'Mark'}
+                                  </button>
+                                </div>
+                                <input
+                                  className={cn(
+                                    "w-full bg-brand-bg/5 dark:bg-brand-bg/50 border rounded-2xl px-6 py-4 text-xs focus:outline-none transition-all shadow-inner",
+                                    quizData.correctAnswerIndex === idx ? "border-brand-primary/30" : "border-brand-sage/10 focus:border-brand-primary/30"
+                                  )}
+                                  value={option}
+                                  placeholder={`Response vector ${idx + 1}...`}
+                                  onChange={(e) => {
+                                    const newOptions = [...quizData.options];
+                                    newOptions[idx] = e.target.value;
+                                    setQuizData({ ...quizData, options: newOptions });
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-6 pt-6 border-t border-brand-sage/5">
+                             <div className="flex-1 space-y-3">
+                                <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Logic Complexity</label>
+                                <select
+                                  className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
+                                  value={quizData.teaserType}
+                                  onChange={(e) => setQuizData({ ...quizData, teaserType: e.target.value })}
+                                >
+                                  <option value="Standard">Standard Matrix</option>
+                                  <option value="Premium">Deep Reflection</option>
+                                  <option value="Logic-Heavy">Neural Strain</option>
+                                </select>
+                             </div>
+                             <div className="flex-1 space-y-3">
+                                <label className="text-[10px] font-black text-sub uppercase tracking-[0.3em] ml-2">Deployment Tier</label>
+                                <button
+                                  onClick={() => setQuizData({ ...quizData, isActive: !quizData.isActive })}
+                                  className={cn(
+                                    "w-full py-4 rounded-2xl border transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3",
+                                    quizData.isActive ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary" : "bg-brand-bg/5 dark:bg-brand-bg/50 border-brand-sage/20 text-sub"
+                                  )}
+                                >
+                                  <div className={cn("w-2 h-2 rounded-full", quizData.isActive ? "bg-brand-primary animate-pulse" : "bg-sub")} />
+                                  {quizData.isActive ? 'Logical Node Active' : 'Suspended State'}
+                                </button>
+                             </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </section>
 
                 {/* Resource Metadata */}

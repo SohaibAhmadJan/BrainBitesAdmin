@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Bell,
   TrendingUp,
   Clock,
   ArrowUpRight,
@@ -19,7 +20,9 @@ import {
   UserRound,
   Trophy,
   FolderHeart,
-  BellRing
+  BellRing,
+  Send,
+  Radio
 } from 'lucide-react';
 import {
   AreaChart,
@@ -29,6 +32,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  LineChart,
+  Line
 } from 'recharts';
 import {
   fetchBites,
@@ -42,10 +51,12 @@ import {
   fetchQuizzes,
   fetchAnalyticsEvents
 } from '../../services/firestoreService';
+import { sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
-import { AuditLog, AnalyticsEvent } from '../../types';
+import { AuditLog, AnalyticsEvent, AppNotification } from '../../types';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
+import toast from 'react-hot-toast';
 import PremiumCard from '../../components/ui/PremiumCard';
 import ElasticButton from '../../components/ui/ElasticButton';
 import ActionBadge from '../../components/ui/ActionBadge';
@@ -93,9 +104,11 @@ const DashboardPage = () => {
     achievements: 0,
     quizzes: 0
   });
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [engagementData, setEngagementData] = useState<any[]>([]);
+  const [lifecycleData, setLifecycleData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quickMessage, setQuickMessage] = useState('');
+  const [isDispatching, setIsDispatching] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -123,35 +136,54 @@ const DashboardPage = () => {
           achievements: achievements.length,
           quizzes: quizzes.length
         });
-        setLogs(auditLogs.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10));
 
-        // Real Throughput Aggregation (Last 7 Days)
-        const dailyMap: Record<string, { views: number, interactions: number }> = {};
+        // Domain Inventory Aggregation
+        const distMap: Record<string, number> = {};
+        facts.forEach(f => {
+            distMap[f.category] = (distMap[f.category] || 0) + 1;
+        });
+
+        const distChart = categories
+            .filter(cat => distMap[cat.name] > 0)
+            .map(cat => ({
+                name: cat.name,
+                value: distMap[cat.name],
+                color: cat.color || '#2D6A4F'
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        setCategoryData(distChart);
+
+        // User Lifecycle Aggregation (Last 7 Days)
+        const lifecycleMap: Record<string, { installs: number, uninstalls: number, active: number }> = {};
         for (let i = 0; i < 7; i++) {
             const date = new Date();
             date.setDate(date.getDate() - i);
             const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            dailyMap[dateStr] = { views: 0, interactions: 0 };
+            lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
         }
 
         analytics.forEach(event => {
             const dateStr = new Date(event.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            if (dailyMap[dateStr]) {
-                if (event.name === 'read_fact' || event.name === 'app_open') {
-                    dailyMap[dateStr].views++;
-                } else {
-                    dailyMap[dateStr].interactions++;
+            if (lifecycleMap[dateStr]) {
+                if (event.name === 'app_install') {
+                    lifecycleMap[dateStr].installs++;
+                } else if (event.name === 'app_remove' || event.name === 'app_uninstall') {
+                    lifecycleMap[dateStr].uninstalls++;
+                } else if (event.name === 'app_open' || event.name === 'session_start') {
+                    lifecycleMap[dateStr].active++;
                 }
             }
         });
 
-        const chart = Object.keys(dailyMap).map(date => ({
+        const chart = Object.keys(lifecycleMap).map(date => ({
             name: date,
-            views: dailyMap[date].views,
-            interactions: dailyMap[date].interactions
+            installs: lifecycleMap[date].installs,
+            uninstalls: lifecycleMap[date].uninstalls,
+            active: lifecycleMap[date].active
         })).reverse();
 
-        setEngagementData(chart);
+        setLifecycleData(chart);
       } catch (err) {
         console.error('Dashboard synchronization failed:', err);
       } finally {
@@ -161,27 +193,42 @@ const DashboardPage = () => {
     loadStats();
   }, []);
 
-  const getLogIcon = (action: string) => {
-    switch (action) {
-      case 'UPDATE_SYSTEM_SETTINGS': return { icon: Settings, color: 'text-brand-primary' };
-      case 'CREATE_BITE':
-      case 'UPDATE_BITE': return { icon: BookOpen, color: 'text-brand-secondary' };
-      case 'DELETE_BITE': return { icon: BookOpen, color: 'text-red-400' };
-      case 'CREATE_NOTIFICATION': return { icon: BellRing, color: 'text-brand-accent' };
-      case 'IMPORT_DATA': return { icon: FolderHeart, color: 'text-brand-gold' };
-      default: return { icon: ShieldCheck, color: 'text-brand-primary' };
+  const handleQuickDispatch = async () => {
+    if (!quickMessage.trim()) {
+      toast.error('Dispatch Payload Empty');
+      return;
+    }
+
+    setIsDispatching(true);
+    const newNotif: AppNotification = {
+      id: `n-${Math.random().toString(36).slice(2, 11)}`,
+      title: 'Flash Broadcast',
+      message: quickMessage,
+      type: 'GENERAL',
+      isGlobal: true,
+      timestamp: Date.now()
+    };
+
+    try {
+      await sendGlobalNotification(newNotif, `Quick Dispatch: ${quickMessage}`);
+      toast.success('Atomic Dispatch Dispatched');
+      setQuickMessage('');
+    } catch (err: any) {
+      toast.error(`Transmission Failed: ${err.message}`);
+    } finally {
+      setIsDispatching(false);
     }
   };
 
   const stats = [
-    { label: 'Facts', value: counts.facts, icon: BookOpen, color: 'text-brand-primary', trend: '+12.5%', isUp: true, path: '/facts' },
-    { label: 'Categories', value: counts.categories, icon: LayoutGrid, color: 'text-brand-secondary', trend: 'STABLE', isUp: true, path: '/categories' },
-    { label: 'Quiz', value: counts.quizzes, icon: Puzzle, color: 'text-brand-primary', trend: '+5.1%', isUp: true, path: '/quizzes' },
-    { label: 'Quotes', value: counts.quotes, icon: ScrollText, color: 'text-brand-gold', trend: '+2.4%', isUp: true, path: '/quotes' },
-    { label: 'Users', value: counts.users, icon: UserRound, color: 'text-brand-secondary', trend: '+18%', isUp: true, path: '/users' },
-    { label: 'Achievements', value: counts.achievements, icon: Trophy, color: 'text-brand-gold', trend: 'NEW', isUp: true, path: '/achievements' },
-    { label: 'Collections', value: counts.collections, icon: FolderHeart, color: 'text-brand-primary', trend: 'STABLE', isUp: true, path: '/collections' },
-    { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', trend: '+4.2%', isUp: true, path: '/notifications' },
+    { label: 'Facts', value: counts.facts, icon: BookOpen, color: 'text-brand-primary', path: '/facts' },
+    { label: 'Categories', value: counts.categories, icon: LayoutGrid, color: 'text-brand-secondary', path: '/categories' },
+    { label: 'Quiz', value: counts.quizzes, icon: Puzzle, color: 'text-brand-primary', path: '/quizzes' },
+    { label: 'Quotes', value: counts.quotes, icon: ScrollText, color: 'text-brand-gold', path: '/quotes' },
+    { label: 'Users', value: counts.users, icon: UserRound, color: 'text-brand-secondary', path: '/users' },
+    { label: 'Achievements', value: counts.achievements, icon: Trophy, color: 'text-brand-gold', path: '/achievements' },
+    { label: 'Collections', value: counts.collections, icon: FolderHeart, color: 'text-brand-primary', path: '/collections' },
+    { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', path: '/notifications' },
   ];
 
   return (
@@ -197,20 +244,9 @@ const DashboardPage = () => {
            >
              Bite <span className="text-brand-primary">Controller</span>
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="success" className="px-5 py-1.5">System Secure</ActionBadge>
+           <div className="mt-3">
               <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Insight Management & Command Registry</p>
            </div>
-        </div>
-        <div className="flex gap-4">
-           <ElasticButton variant="secondary" onClick={() => navigate('/audit-logs')}>
-              <Terminal size={18} />
-              Protocol Logs
-           </ElasticButton>
-           <ElasticButton onClick={() => navigate('/facts')}>
-              <Plus size={18} strokeWidth={3} />
-              New Sequence
-           </ElasticButton>
         </div>
       </div>
 
@@ -227,13 +263,6 @@ const DashboardPage = () => {
               <div className="p-4 bg-brand-primary/10 rounded-2xl shadow-inner text-brand-primary">
                 <stat.icon size={24} />
               </div>
-              <div className={cn(
-                "flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-700",
-                stat.isUp ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-red-500/10 border-red-500/20 text-red-500"
-              )}>
-                {stat.isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                {stat.trend}
-              </div>
             </div>
             <p className="text-sub text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{stat.label}</p>
             <h3 className="text-5xl font-black mt-2 tracking-tighter tabular-nums group-hover:text-brand-primary transition-colors duration-500">
@@ -243,38 +272,24 @@ const DashboardPage = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Engagement Visualization */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
+        {/* User Lifecycle Metrics */}
         <PremiumCard
-          className="lg:col-span-2 p-12 relative overflow-hidden"
+          className="xl:col-span-3 p-12 relative overflow-hidden"
           glowColor="rgba(45, 106, 79, 0.05)"
         >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 relative z-10">
             <div>
               <h3 className="text-3xl font-black tracking-tighter flex items-center gap-4">
-                 <ActivityIcon size={28} className="text-brand-primary" /> System Throughput
+                 <ActivityIcon size={28} className="text-brand-primary" /> User Lifecycle
               </h3>
-              <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 opacity-40">Cross-platform Behavioral Dynamics</p>
-            </div>
-            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/50 p-1.5 rounded-2xl border border-brand-sage/10 shadow-inner">
-               <button className="px-8 py-2.5 text-[10px] font-black text-brand-white bg-brand-primary rounded-xl shadow-xl uppercase tracking-widest transition-all">Real-time</button>
-               <button className="px-8 py-2.5 text-[10px] font-black opacity-30 hover:opacity-100 uppercase tracking-widest transition-all">Analytical</button>
+              <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 opacity-40">Growth, Retention & Churn Dynamics</p>
             </div>
           </div>
 
           <div className="h-[400px] w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={engagementData}>
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--brand-primary)" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="var(--brand-primary)" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorLikes" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--brand-secondary)" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="var(--brand-secondary)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+              <LineChart data={lifecycleData}>
                 <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.2} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--brand-secondary)', fontSize: 11, fontWeight: 900}} dy={20} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--brand-secondary)', fontSize: 11, fontWeight: 900}} dx={-10} />
@@ -290,82 +305,182 @@ const DashboardPage = () => {
                   }}
                   itemStyle={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}
                 />
-                  <Area type="monotone" dataKey="views" stroke="var(--brand-primary)" strokeWidth={5} fillOpacity={1} fill="url(#colorViews)" animationDuration={2500} />
-                <Area type="monotone" dataKey="interactions" stroke="var(--brand-secondary)" strokeWidth={3} strokeDasharray="10 10" fillOpacity={1} fill="url(#colorLikes)" animationDuration={3000} />
-              </AreaChart>
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  content={({ payload }) => (
+                    <div className="flex gap-6 mb-8">
+                      {payload?.map((entry: any, index: number) => (
+                        <div key={`item-${index}`} className="flex items-center gap-2">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            entry.value === 'installs' ? "bg-brand-primary" :
+                            entry.value === 'uninstalls' ? "bg-red-500" : "bg-brand-gold"
+                          )} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-sub opacity-60">
+                            {entry.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="installs"
+                  stroke="var(--brand-primary)"
+                  strokeWidth={4}
+                  dot={{ r: 4, fill: 'var(--brand-primary)', strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationDuration={2500}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="uninstalls"
+                  stroke="#EF4444"
+                  strokeWidth={3}
+                  strokeDasharray="8 8"
+                  dot={{ r: 4, fill: '#EF4444', strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationDuration={3000}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="active"
+                  stroke="var(--brand-gold)"
+                  strokeWidth={3}
+                  strokeDasharray="2 4"
+                  dot={{ r: 4, fill: 'var(--brand-gold)', strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationDuration={3500}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </PremiumCard>
 
-        <div className="space-y-10">
+        {/* Domain Inventory Chart */}
+        <PremiumCard
+          className="xl:col-span-2 p-12 relative overflow-hidden"
+          glowColor="rgba(45, 106, 79, 0.05)"
+        >
+          <div className="mb-12 relative z-10">
+            <h3 className="text-3xl font-black tracking-tighter flex items-center gap-4">
+               <LayoutGrid size={28} className="text-brand-primary" /> Domain Inventory
+            </h3>
+            <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 opacity-40">Content Balance Analysis</p>
+          </div>
+
+          <div className="h-[400px] w-full relative z-10">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="45%"
+                  innerRadius={80}
+                  outerRadius={120}
+                  paddingAngle={8}
+                  dataKey="value"
+                  animationDuration={2000}
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: theme === 'dark' ? 'rgba(26, 43, 34, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: 'var(--border-glass)',
+                    borderRadius: '20px',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                    border: '1px solid var(--border-glass)',
+                    fontSize: '10px',
+                    fontWeight: 900,
+                    textTransform: 'uppercase'
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  content={({ payload }) => (
+                    <div className="flex flex-wrap justify-center gap-4 mt-8">
+                      {payload?.map((entry: any, index: number) => (
+                        <div key={`item-${index}`} className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-sub opacity-60">
+                            {entry.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </PremiumCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             {/* System Pulse */}
-            <PremiumCard className="p-10" glowColor="rgba(45, 106, 79, 0.1)">
+            <PremiumCard className="p-10 lg:col-span-1" glowColor="rgba(45, 106, 79, 0.1)">
                 <SystemPulse />
             </PremiumCard>
 
-            {/* Audit Sequence Stream */}
+            {/* Quick Dispatch Node */}
             <PremiumCard
-                className="p-12 flex flex-col relative overflow-hidden"
-                glowColor="rgba(45, 106, 79, 0.05)"
+              className="p-10 lg:col-span-2 relative overflow-hidden"
+              glowColor="rgba(45, 106, 79, 0.05)"
             >
-                <div className="flex items-center gap-4 mb-12 relative z-10">
-                    <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary shadow-inner">
-                    <HistoryIcon size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-2xl font-black tracking-tight">Audit Stream</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                        <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-ping" />
-                        <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Secured Registry</p>
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary shadow-lg">
+                            <Radio size={18} className="animate-pulse" />
+                        </div>
+                        <div>
+                            <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Quick Dispatch Node</h3>
+                            <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mt-1">High-Velocity Broadcast</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-1 space-y-10 overflow-y-auto pr-4 scrollbar-hide relative z-10">
-                    {loading ? (
-                        <LoadingNode message="Syncing Identity Registry..." />
-                    ) : logs.length === 0 ? (
-                        <EmptyBuffer
-                        icon={Clock}
-                        title="Audit Stream Offline"
-                        message="No recent administrative events recorded in the sequence buffer."
+                <div className="flex gap-6 items-center relative z-10">
+                    <div className="flex-1 relative group">
+                        <Bell className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Input flash broadcast headline..."
+                            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
+                            value={quickMessage}
+                            onChange={(e) => setQuickMessage(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleQuickDispatch()}
                         />
-                    ) : logs.map((log, idx) => {
-                        const { icon: Icon, color } = getLogIcon(log.action);
-                        return (
-                        <motion.div
-                            key={log.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.7 + (idx * 0.05) }}
-                            className="flex gap-6 group"
-                        >
-                            <div className="shrink-0 w-14 h-14 bg-brand-bg/5 dark:bg-brand-bg/80 rounded-2xl flex items-center justify-center border border-brand-sage/10 transition-all duration-700 shadow-inner group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(45,106,79,0.2)] group-hover:border-brand-primary/40">
-                            <Icon size={20} className={color} />
-                            </div>
-                            <div className="flex-1 min-w-0 border-b border-brand-sage/5 pb-8">
-                            <div className="flex justify-between items-start">
-                                <h4 className="text-xs font-black truncate pr-6 uppercase tracking-wider group-hover:text-brand-primary transition-colors">{log.action.replace(/_/g, ' ')}</h4>
-                                <span className="text-[9px] text-sub font-black whitespace-nowrap bg-brand-primary/5 px-2.5 py-1 rounded-lg border border-brand-primary/10 opacity-60">{formatTimeAgo(new Date(log.createdAt).toISOString())}</span>
-                            </div>
-                            <p className="text-[11px] text-sub mt-2 font-medium leading-relaxed italic line-clamp-1 opacity-70 group-hover:opacity-100 transition-opacity">"{log.reason || 'Node synchronization event'}"</p>
-                            </div>
-                        </motion.div>
-                        );
-                    })}
+                    </div>
+                    <ElasticButton
+                        onClick={handleQuickDispatch}
+                        disabled={isDispatching}
+                        className="px-10 py-5 rounded-2xl shadow-xl h-full flex items-center justify-center gap-3"
+                    >
+                        {isDispatching ? (
+                            <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Send size={18} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Execute</span>
+                            </>
+                        )}
+                    </ElasticButton>
                 </div>
 
-                <ElasticButton
-                    variant="ghost"
-                    onClick={() => navigate('/audit-logs')}
-                    className="mt-12 py-5 border border-brand-sage/10 relative z-10"
-                >
-                    Expand Manifest
-                </ElasticButton>
+                <div className="mt-8 flex items-center gap-4 relative z-10 opacity-30">
+                    <div className="h-px flex-1 bg-brand-sage/20" />
+                    <p className="text-[8px] font-black uppercase tracking-[0.3em]">Protocol: Universal Handshake</p>
+                    <div className="h-px flex-1 bg-brand-sage/20" />
+                </div>
             </PremiumCard>
         </div>
-      </div>
-
     </div>
   );
 };

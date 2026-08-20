@@ -82,11 +82,11 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen }) => {
 
         <div className={cn("flex items-center gap-4 border-l pl-8", theme === 'dark' ? "border-brand-sage/20" : "border-brand-primary/10")}>
           <motion.button
-            whileHover={{ scale: 1.1, rotate: 180 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={toggleTheme}
             className={cn(
-              "p-2.5 rounded-xl transition-all border shadow-lg",
+              "p-2.5 rounded-xl transition-all border shadow-lg duration-500",
               theme === 'dark'
                 ? "bg-brand-surface/30 border-brand-sage/10 text-brand-gold hover:text-brand-primary"
                 : "bg-brand-primary/5 border-brand-primary/10 text-brand-primary hover:bg-brand-primary/10"

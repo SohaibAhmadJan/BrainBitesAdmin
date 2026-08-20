@@ -32,7 +32,8 @@ const FactsPage = () => {
     categoryFilter,
     setCategoryFilter,
     saveFact,
-    removeFact
+    removeFact,
+    exportFacts
   } = useFacts();
 
   const [searchParams] = useSearchParams();
@@ -40,6 +41,7 @@ const FactsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFact, setSelectedFact] = useState<BiteItem | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const categoryParam = searchParams.get('category');
@@ -62,6 +64,14 @@ const FactsPage = () => {
     setIsEditorOpen(true);
   };
 
+  const handleExport = () => {
+    setIsExporting(true);
+    setTimeout(() => {
+      exportFacts('json');
+      setIsExporting(false);
+    }, 800);
+  };
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
 
@@ -81,9 +91,22 @@ const FactsPage = () => {
            </div>
         </div>
         <div className="flex gap-4">
-           <ElasticButton variant="secondary" onClick={() => {/* TODO: Implement export */}}>
-              <Download size={18} />
-              Extract Snapshot
+           <ElasticButton
+             variant="secondary"
+             onClick={handleExport}
+             disabled={isExporting}
+           >
+              {isExporting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                  Processing...
+                </div>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Extract Snapshot
+                </>
+              )}
            </ElasticButton>
            <ElasticButton onClick={handleAddNew}>
               <Plus size={18} strokeWidth={3} />

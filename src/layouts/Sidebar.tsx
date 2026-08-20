@@ -34,10 +34,9 @@ import { useAdmin } from '../context/AdminContext';
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
-  stats: { label: string, value: number }[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { theme } = useTheme();
   const { adminUser, hasPermission } = useAdmin();
 
@@ -68,9 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
     {
       title: "Communication",
       items: [
-        { name: "Notifications", icon: Bell, path: "/notifications", permission: 'read.all' },
-        { name: "Broadcasts", icon: Radio, path: "/broadcasts", permission: 'manage.content' },
-        { name: "Announcements", icon: Megaphone, path: "/announcements", permission: 'manage.content' },
+        { name: "Broadcast Hub", icon: Radio, path: "/notifications", permission: 'read.all' },
       ]
     },
     {
@@ -86,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
       items: [
         { name: "App Settings", icon: Settings, path: "/settings", permission: 'manage.config' },
         { name: "Admins & Roles", icon: ShieldCheck, path: "/admins", permission: 'manage.admins' },
-        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs", permission: 'read.all' },
+        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs", permission: 'audit.view' },
         { name: "Import / Export", icon: Download, path: "/import-export", permission: 'manage.admins' },
       ]
     }
@@ -178,22 +175,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, stats }) => {
         ))}
       </nav>
 
-      {/* Mini Stats Footer */}
-      {!isCollapsed && (
-        <div className={cn(
-          "p-6 border-t bg-brand-bg/20",
-          theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5"
-        )}>
-           <div className="grid grid-cols-3 gap-2">
-              {stats.slice(0, 3).map((s, i) => (
-                <div key={i} className="text-center">
-                   <p className="text-[8px] font-black text-brand-secondary/40 uppercase tracking-tighter">{s.label}</p>
-                   <p className="text-xs font-black text-brand-primary">{s.value}</p>
-                </div>
-              ))}
-           </div>
-        </div>
-      )}
     </aside>
   );
 };

@@ -16,34 +16,10 @@ const AdminLayout = () => {
   const { theme } = useTheme();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
-  const [stats, setStats] = React.useState([
-    { label: 'Facts', value: 0 },
-    { label: 'Collections', value: 0 },
-    { label: 'Notifs', value: 0 },
-  ]);
-
-  React.useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const [facts, collections, notifications] = await Promise.all([
-          fetchBites(),
-          fetchCollections(),
-          fetchNotifications(),
-        ]);
-        setStats([
-          { label: 'Facts', value: facts.length },
-          { label: 'Collections', value: collections.length },
-          { label: 'Notifs', value: notifications.length },
-        ]);
-      } catch (err) {
-        console.error('Layout stats load failed:', err);
-      }
-    };
-    loadStats();
-  }, []);
 
   const getPageTitle = () => {
     const path = location.pathname.split('/')[1] || 'dashboard';
+    if (path === 'notifications') return 'Broadcast Hub';
     return path.replace(/-/g, ' ');
   };
 
@@ -72,7 +48,7 @@ const AdminLayout = () => {
       {/* High-Fidelity Living Background */}
       <LivingEmeraldBackground />
 
-      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} stats={stats} />
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       <GlobalSearch isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
 
       <div className={cn(
