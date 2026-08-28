@@ -12,8 +12,16 @@ import {
   MessageSquareQuote,
   Edit3,
   Trash2,
-  SearchX
+  SearchX,
+  Trophy
 } from 'lucide-react';
+import {
+  writeBatch,
+  doc,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../../services/firebaseService';
+import { useAdmin } from '../../context/AdminContext';
 import { BiteItem, QuizQuestion } from '../../types';
 import { fetchBites, fetchQuizzes } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
@@ -23,16 +31,17 @@ import ElasticButton from '../../components/ui/ElasticButton';
 import LoadingNode from '../../components/ui/LoadingNode';
 import EmptyBuffer from '../../components/ui/EmptyBuffer';
 import QuizEditorDrawer from './QuizEditorDrawer';
-import { updateQuiz, deleteQuiz } from '../../services/adminApi';
+import PremiumCard from '../../components/ui/PremiumCard';
 import toast from 'react-hot-toast';
 
 const QuizzesPage = () => {
   const { theme } = useTheme();
-  const [quizzes, setQuizzes] = useState<QuizQuestion[]>([]);
+  const { adminUser } = useAdmin();
   const [facts, setFacts] = useState<BiteItem[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedQuiz, setSelectedQuiz] = useState<QuizQuestion | null>(null);
+  const [selectedFact, setSelectedFact] = useState<BiteItem | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
@@ -43,8 +52,8 @@ const QuizzesPage = () => {
     setLoading(true);
     try {
       const [allFacts, allQuizzes] = await Promise.all([
-          fetchBites(),
-          fetchQuizzes()
+        fetchBites(),
+        fetchQuizzes()
       ]);
       setFacts(allFacts);
       setQuizzes(allQuizzes);
@@ -56,38 +65,101 @@ const QuizzesPage = () => {
     }
   };
 
-  const handleEdit = (quiz: QuizQuestion | null = null) => {
-    setSelectedQuiz(quiz);
+  const handleEdit = (fact: BiteItem | null = null) => {
+    setSelectedFact(fact);
     setIsEditorOpen(true);
   };
 
-  const handleSave = async (quiz: QuizQuestion) => {
+  const handleSave = async (updatedFact: BiteItem) => {
+    if (!db || !adminUser) {
+        toast.error('Security protocol not initialized');
+        return;
+    }
+
     try {
-      await updateQuiz(quiz.id, quiz, 'Administrative challenge update');
-      toast.success('Challenge anchored successfully (Atomic)');
+      const batch = writeBatch(db);
+
+      // Separate Collection Sync: Write to 'quizzes' collection
+      const quizRef = doc(db, 'quizzes', updatedFact.id);
+      const quizData: Partial<QuizQuestion> = {
+        factId: updatedFact.id,
+        question: updatedFact.quizQuestion || '',
+        options: updatedFact.quizOptions || [],
+        correctAnswerIndex: updatedFact.correctAnswerIndex || 0,
+        teaserType: updatedFact.teaserType || 'Standard',
+        isActive: updatedFact.isPublished,
+        updatedAt: Date.now()
+      };
+
+      batch.set(quizRef, quizData, { merge: true });
+
+      // Audit Log
+      const logId = `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      batch.set(doc(db, 'audit_logs', logId), {
+        adminUid: adminUser.uid,
+        action: 'UPDATE_QUIZ_SEPARATE',
+        targetType: 'QUIZ',
+        targetId: updatedFact.id,
+        reason: 'Challenge anchored to separate collection (Spark Plan)',
+        createdAt: Date.now()
+      });
+
+      await batch.commit();
+      toast.success('Cognitive challenge anchored');
       setIsEditorOpen(false);
       loadData();
     } catch (err: any) {
-      toast.error(`Sync failure: ${err.message}`);
+      toast.error(`Anchor failure: ${err.message}`);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Dissolve this logical challenge?')) return;
+    if (!window.confirm('Dissolve this cognitive challenge?')) return;
+    if (!db || !adminUser) {
+        toast.error('Security protocol not initialized');
+        return;
+    }
+
     try {
-      await deleteQuiz(id, 'Manual challenge removal');
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'quizzes', id));
+
+      const logId = `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      batch.set(doc(db, 'audit_logs', logId), {
+        adminUid: adminUser.uid,
+        action: 'DELETE_QUIZ_SEPARATE',
+        targetType: 'QUIZ',
+        targetId: id,
+        reason: 'Cognitive challenge dissolved',
+        createdAt: Date.now()
+      });
+
+      await batch.commit();
       toast.success('Challenge dissolved');
       loadData();
     } catch (err: any) {
-      toast.error(`Dissolution failed: ${err.message}`);
+      toast.error(`Dissolve failed: ${err.message}`);
     }
   };
 
-  const filteredQuizzes = quizzes.filter(q => {
-    const fact = facts.find(f => f.id === q.factId);
-    return q.question?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           fact?.fact.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // Merge Facts and Quizzes for Display
+  const mergedQuizzes = facts.map(f => {
+    const q = quizzes.find(quiz => quiz.factId === f.id);
+    if (!q) return null;
+    return {
+      ...f,
+      quizQuestion: q.question,
+      quizOptions: q.options,
+      correctAnswerIndex: q.correctAnswerIndex,
+      teaserType: q.teaserType,
+      isPublished: q.isActive
+    };
+  }).filter(Boolean) as BiteItem[];
+
+  const filteredQuizzes = mergedQuizzes.filter(f =>
+    f.quizQuestion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.fact.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -102,10 +174,6 @@ const QuizzesPage = () => {
            >
              Challenge <span className="text-brand-primary">Nexus</span>
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="warning" className="px-5 py-1.5">Interactive Hub</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Psychometric Sequence Verification</p>
-           </div>
         </div>
         <div className="flex gap-4">
            <ElasticButton onClick={() => handleEdit(null)}>
@@ -129,10 +197,10 @@ const QuizzesPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
         {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-48 glass rounded-[3rem] animate-pulse relative overflow-hidden">
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-96 glass rounded-[3rem] animate-pulse relative overflow-hidden">
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
             </div>
           ))
@@ -140,92 +208,98 @@ const QuizzesPage = () => {
           <EmptyBuffer
             icon={BrainCircuit}
             title="Zero Challenges Active"
-            message="No psychometric evaluation nodes found in the current challenge nexus buffer."
+            message="No cognitive inquiry nodes found in the current challenge nexus buffer."
           />
         ) : (
           <AnimatePresence>
-            {filteredQuizzes.map((quiz, idx) => {
-              const fact = facts.find(f => f.id === quiz.factId);
+            {filteredQuizzes.map((fact, idx) => {
+              const isPremium = fact.teaserType === 'Premium';
+              const isLogicHeavy = fact.teaserType === 'Logic-Heavy';
+
               return (
-                <motion.div
-                  key={quiz.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="glass rounded-[3rem] p-10 shadow-xl group hover:border-brand-gold/20 transition-all flex flex-col lg:flex-row gap-10 relative overflow-hidden"
+                <PremiumCard
+                  key={fact.id}
+                  glowColor={
+                    isPremium ? 'rgba(233, 196, 106, 0.12)' :
+                    isLogicHeavy ? 'rgba(109, 104, 117, 0.12)' :
+                    'rgba(45, 106, 79, 0.12)'
+                  }
+                  className={cn(
+                    "flex flex-col gap-6 p-6 transition-all duration-500",
+                    isPremium && "border-brand-gold/20 shadow-[0_20px_50px_rgba(233, 196, 106,0.08)]",
+                    isLogicHeavy && "border-indigo-500/10"
+                  )}
                 >
-                  <div className="lg:w-1/3 space-y-6 relative z-10">
-                     <div className="flex items-center gap-3">
-                        <span className="px-4 py-1.5 bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black rounded-xl uppercase tracking-widest shadow-sm">
-                          {fact?.category || 'Unknown'}
-                        </span>
-                        <span className="text-[10px] font-mono text-sub opacity-40 font-black tracking-widest uppercase">ID: {quiz.id.slice(0, 8)}</span>
+                  {/* Universal Header Block */}
+                  <div className="flex justify-between items-start mb-2">
+                     <div className={cn("w-20 h-20 rounded-[2rem] flex flex-col items-center justify-center shadow-2xl transition-all duration-700 group-hover:scale-110 relative bg-brand-bg/50 border-2 border-brand-sage/20 text-brand-primary/60")}>
+                        <Trophy size={32} />
                      </div>
-                     <p className="text-lg font-bold leading-relaxed italic opacity-80 border-l-2 border-brand-sage/10 pl-6">
-                        {fact?.fact || 'Fact record missing...'}
-                     </p>
-                     <motion.button
-                      whileHover={{ x: 3 }}
-                      className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-widest hover:opacity-70 transition-all"
-                     >
-                        <ExternalLink size={14} /> Open Sequence Editor
-                     </motion.button>
+
+                     <div className="flex flex-col items-end gap-3">
+                        <span className="text-[12px] font-mono text-sub opacity-50 font-bold tracking-[0.1em]">UID: {fact.id.slice(0, 8)}</span>
+                        <ActionBadge variant={fact.isPublished ? 'success' : 'warning'} className="font-black text-[11px]">
+                          {fact.isPublished ? 'Active' : 'Draft'}
+                        </ActionBadge>
+                        <div className="flex gap-2">
+                           <motion.button
+                             whileHover={{ scale: 1.1 }}
+                             onClick={(e) => { e.stopPropagation(); handleEdit(fact); }}
+                             className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-brand-primary rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                           >
+                             <Edit3 size={16} />
+                           </motion.button>
+                           <motion.button
+                             whileHover={{ scale: 1.1 }}
+                             onClick={(e) => { e.stopPropagation(); handleDelete(fact.id); }}
+                             className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                           >
+                             <Trash2 size={16} />
+                           </motion.button>
+                        </div>
+                     </div>
                   </div>
 
+                  {/* Fact Context Segment */}
+                  <div className="space-y-3">
+                     <div className="flex items-center gap-3">
+                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-primary opacity-40">Fact Context • {fact.category}</p>
+                     </div>
+                     <p className="text-[14px] font-semibold leading-relaxed italic border-l-4 border-brand-primary/20 pl-5 text-sub/80 line-clamp-3">
+                        "{fact.fact}"
+                     </p>
+                  </div>
+
+                  {/* Challenge Logic Segment */}
                   <div className={cn(
-                    "flex-1 rounded-[2.5rem] p-8 border space-y-8 shadow-inner relative z-10",
-                    theme === 'dark' ? "bg-brand-bg/50 border-brand-sage/10" : "bg-brand-primary/5 border-brand-primary/5"
+                    "flex-1 rounded-[2rem] p-6 border space-y-6 shadow-inner relative overflow-hidden flex flex-col justify-center mt-2 border-t-brand-primary/10",
+                    theme === 'dark' ? "bg-black/30 border-brand-primary/10" : "bg-brand-primary/5 border-brand-primary/5"
                   )}>
-                     <div className="space-y-3">
-                        <p className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] flex items-center gap-2">
-                          <HelpCircle size={14} /> Critical Challenge Logic
+                     <div className="space-y-2">
+                        <p className="text-[11px] font-black text-brand-gold uppercase tracking-[0.2em] flex items-center gap-2 opacity-60">
+                          <BrainCircuit size={14} /> Challenge Prompt
                         </p>
-                        <p className="text-2xl font-black tracking-tight leading-tight">{quiz.question}</p>
+                        <p className="text-base font-bold tracking-tight leading-snug text-brand-white/90">{fact.quizQuestion}</p>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {quiz.options?.map((opt, i) => (
+                     <div className="grid grid-cols-1 gap-2.5">
+                        {fact.quizOptions?.map((opt, i) => (
                           <div
                             key={i}
                             className={cn(
-                              "p-5 rounded-2xl border flex items-center justify-between transition-all group/opt shadow-sm",
-                              quiz.correctAnswerIndex === i
+                              "p-3 px-5 rounded-xl border flex items-center justify-between transition-all group/opt shadow-sm",
+                              fact.correctAnswerIndex === i
                                 ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
-                                : theme === 'dark' ? "bg-brand-bg/40 border-brand-sage/5 text-sub opacity-60" : "bg-white border-brand-primary/5 text-sub opacity-60"
+                                : theme === 'dark' ? "bg-black/40 border-brand-sage/5 text-sub/60" : "bg-white border-brand-primary/5 text-sub/60"
                             )}
                           >
-                            <span className="text-sm font-bold">{opt}</span>
-                            {quiz.correctAnswerIndex === i && <CheckCircle2 size={18} className="text-brand-primary shadow-xl" />}
+                            <span className="text-[12px] font-medium">{opt}</span>
+                            {fact.correctAnswerIndex === i && <CheckCircle2 size={14} className="text-brand-primary" />}
                           </div>
                         ))}
                      </div>
                   </div>
-
-                  <div className="lg:w-48 flex flex-col justify-between items-end py-4 relative z-10">
-                     <div className="text-right space-y-1">
-                        <p className="text-[9px] font-black text-sub opacity-30 uppercase tracking-[0.2em]">Deployment Tier</p>
-                        <p className="text-sm font-black text-brand-primary tracking-tighter uppercase">{quiz.teaserType || 'Standard'}</p>
-                     </div>
-                     <div className="flex gap-3">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          onClick={() => handleEdit(quiz)}
-                          className="p-4 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-brand-primary rounded-[1.2rem] border border-brand-sage/10 transition-all shadow-xl"
-                        >
-                          <Edit3 size={20} />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          onClick={() => handleDelete(quiz.id)}
-                          className="p-4 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-[1.2rem] border border-brand-sage/10 transition-all shadow-xl"
-                        >
-                          <Trash2 size={20} />
-                        </motion.button>
-                     </div>
-                  </div>
-
-                  <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-gold/5 blur-[80px] rounded-full group-hover:opacity-10 transition-opacity" />
-                </motion.div>
+                </PremiumCard>
               );
             })}
           </AnimatePresence>
@@ -235,7 +309,8 @@ const QuizzesPage = () => {
       <AnimatePresence>
         {isEditorOpen && (
           <QuizEditorDrawer
-            quiz={selectedQuiz}
+            fact={selectedFact}
+            existingQuizzes={quizzes.map(q => q.factId)}
             onClose={() => setIsEditorOpen(false)}
             onSave={handleSave}
           />

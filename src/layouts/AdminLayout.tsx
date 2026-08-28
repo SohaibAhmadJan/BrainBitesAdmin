@@ -25,7 +25,7 @@ const AdminLayout = () => {
 
   return (
     <div className={cn(
-      "min-h-screen flex antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden transition-colors duration-1000",
+      "h-screen w-full flex antialiased selection:bg-brand-primary/30 selection:text-brand-secondary font-sans overflow-hidden transition-colors duration-1000",
       theme === 'dark' ? "bg-brand-bg text-brand-white" : "bg-[#F7FBF9] text-[#1A2B22]"
     )}>
       <Toaster
@@ -49,25 +49,28 @@ const AdminLayout = () => {
       <LivingEmeraldBackground />
 
       <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
-      <GlobalSearch isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
 
-      <div className={cn(
-        "flex-1 transition-all duration-700 cubic-bezier(0.22, 1, 0.36, 1) flex flex-col min-h-screen relative z-10",
-        isSidebarCollapsed ? "ml-20" : "ml-64"
-      )}>
-        <TopBar title={getPageTitle()} setIsSearchOpen={setIsSearchOpen} />
+      <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 overflow-hidden">
+        <TopBar
+          title={getPageTitle()}
+          setIsSearchOpen={setIsSearchOpen}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
 
-        <main className="flex-1 p-10 overflow-y-auto scrollbar-hide">
+        <main className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
               {...PAGE_TRANSITION}
+              className="py-4"
             >
               <Outlet />
             </motion.div>
           </AnimatePresence>
         </main>
       </div>
+
+      <GlobalSearch isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
     </div>
   );
 };

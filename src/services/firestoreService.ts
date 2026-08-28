@@ -12,17 +12,17 @@ import {
   FirestoreError,
   orderBy,
   CollectionReference,
-  Query
+  Query,
+  addDoc
 } from 'firebase/firestore';
 import { db } from './firebaseService';
-import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, QuizQuestion } from '../types';
+import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, UserReport } from '../types';
 
 // Helper to handle potentially null Firebase services
 const getColl = (path: string) => db ? collection(db, path) : null as any;
 
 const factsRef = getColl('facts') as CollectionReference;
 const collectionsRef = getColl('collections') as CollectionReference;
-const quizzesRef = getColl('quizzes') as CollectionReference;
 const notificationsRef = getColl('notifications') as CollectionReference;
 const usersRef = getColl('users') as CollectionReference;
 const analyticsRef = getColl('analytics_events') as CollectionReference;
@@ -32,6 +32,7 @@ const achievementsRef = getColl('achievements') as CollectionReference;
 const adminsRef = getColl('admins') as CollectionReference;
 const quotesRef = getColl('quotes') as CollectionReference;
 const categoriesRef = getColl('categories') as CollectionReference;
+const reportsRef = getColl('user_reports') as CollectionReference;
 
 /**
  * AUTHORITATIVE READS (Client-side enabled via Security Rules)
@@ -46,18 +47,6 @@ export const fetchBites = async (fetchLimit: number = 500): Promise<BiteItem[]> 
   } catch (err) {
     console.error('fetchBites failed', err);
     throw new Error(err instanceof Error ? err.message : String(err));
-  }
-};
-
-export const fetchQuizzes = async (fetchLimit: number = 200): Promise<QuizQuestion[]> => {
-  if (!quizzesRef) return [];
-  try {
-    const q = query(quizzesRef, limit(fetchLimit));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ ...(doc.data() as QuizQuestion), id: doc.id }));
-  } catch (err) {
-    console.error('fetchQuizzes failed', err);
-    return [];
   }
 };
 
@@ -191,6 +180,18 @@ export const fetchCategories = async (): Promise<Category[]> => {
   }
 };
 
+export const fetchReports = async (fetchLimit: number = 100): Promise<UserReport[]> => {
+  if (!reportsRef) return [];
+  try {
+    const q = query(reportsRef, orderBy('createdAt', 'desc'), limit(fetchLimit));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ ...(doc.data() as UserReport), id: doc.id }));
+  } catch (err) {
+    console.error('fetchReports failed', err);
+    return [];
+  }
+};
+
 /**
  * REAL-TIME LISTENERS
  */
@@ -234,4 +235,47 @@ export const subscribeToNotifications = (callback: (items: AppNotification[]) =>
         console.error('subscribeToNotifications listener error', error);
     }
   );
+};
+
+export const subscribeToReports = (callback: (items: UserReport[]) => void) => {
+  if (!reportsRef) return () => {};
+  const q = query(reportsRef, orderBy('createdAt', 'desc'), limit(50)) as Query<DocumentData>;
+  return onSnapshot(
+    q,
+    (snapshot) => {
+        callback(snapshot.docs.map((doc) => ({ ...(doc.data() as UserReport), id: doc.id })));
+    },
+    (error) => {
+        console.error('subscribeToReports listener error', error);
+    }
+  );
+};
+
+export const dispatchNotificationDirectly = async (notification: Omit<AppNotification, 'id'>): Promise<string> => {
+    if (!notificationsRef) throw new Error('Firestore Connectivity Incomplete');
+    try {
+        const docRef = await addDoc(notificationsRef, {
+            ...notification,
+            timestamp: Date.now()
+        });
+        return docRef.id;
+    } catch (err) {
+        console.error('dispatchNotificationDirectly failed', err);
+        throw new Error(err instanceof Error ? err.message : String(err));
+    }
+};
+
+export const dispatchTargetedNotification = async (uid: string, notification: Omit<AppNotification, 'id'>): Promise<string> => {
+    if (!db) throw new Error('Firestore Connectivity Incomplete');
+    try {
+        const subRef = collection(db, 'users', uid, 'notifications');
+        const docRef = await addDoc(subRef, {
+            ...notification,
+            timestamp: Date.now()
+        });
+        return docRef.id;
+    } catch (err) {
+        console.error('dispatchTargetedNotification failed', err);
+        throw new Error(err instanceof Error ? err.message : String(err));
+    }
 };

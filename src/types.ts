@@ -7,7 +7,7 @@ export interface Category {
   color: string;
   icon: string;
   vectorIcon: string;
-  isActive: boolean;
+  isPublished: boolean;
   sortOrder: number;
   createdAt: number;
 }
@@ -21,23 +21,12 @@ export interface BiteItem {
   snippet: string | null;
   fullFact: string | null;
   whyItMatters: string | null;
+  teaserType: string | null;
   imageUrl: string | null;
   keywords: string | null;
   readTimeMinutes: number;
   isPublished: boolean;
   isFeatured: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface QuizQuestion {
-  id: string;
-  factId: string;
-  question: string;
-  options: string[];
-  correctAnswerIndex: number;
-  teaserType: string;
-  isActive: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -63,6 +52,8 @@ export interface AppNotification {
   imageUrl?: string | null;
   deepLinkFactId?: string | null;
   isGlobal: boolean;
+  targetUserId?: string | null; // Added: For specific user targeting
+  scheduledAt?: number | null;  // Added: For future broadcasts
   timestamp: number;
 }
 
@@ -123,15 +114,6 @@ export interface CollectionProgress {
   readFactIds: string[];
 }
 
-export interface UserQuizResult {
-  id: string; // attemptId
-  factId: string;
-  isCorrect: boolean;
-  score: number;
-  attemptedAt: number;
-  answerIndex: number;
-}
-
 export interface AnalyticsEvent {
   id: string;
   name: string;
@@ -146,9 +128,10 @@ export interface AppSettings {
   latestVersion: string;
   minVersion: string;
   supportEmail: string;
-  quizzesEnabled: boolean;
-  achievementsEnabled: boolean;
-  dailyFactEnabled: boolean;
+  featureFlags: {
+    achievementsEnabled: boolean;
+    dailyFactEnabled: boolean;
+  };
   dailyTipTitle: string;
   dailyTipMessage: string;
   featuredFactId: string;
@@ -175,7 +158,7 @@ export interface Achievement {
   iconName: string;
   maxProgress: number;
   requirementType: string;
-  isActive: boolean;
+  isPublished: boolean;
   createdAt: number;
 }
 
@@ -199,4 +182,20 @@ export interface QuoteItem {
   category: BiteCategory;
   isActive: boolean;
   createdAt: number;
+}
+
+export type ReportType = 'BUG' | 'CONTENT' | 'FEEDBACK' | 'OTHER';
+export type ReportStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'DISMISSED';
+export type ReportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface UserReport {
+  id: string;
+  uid: string;
+  type: ReportType;
+  subject: string;
+  message: string;
+  status: ReportStatus;
+  priority: ReportPriority;
+  createdAt: number;
+  updatedAt: number;
 }

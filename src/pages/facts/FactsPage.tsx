@@ -83,12 +83,8 @@ const FactsPage = () => {
              animate={{ opacity: 1, y: 0 }}
              className="text-4xl font-black tracking-tighter uppercase"
            >
-             Sequence <span className="text-brand-primary">Repository</span>
+             Facts <span className="text-brand-primary">Database</span>
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="info" className="px-5 py-1.5">Node Matrix Active</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Global Insight Stream Control</p>
-           </div>
         </div>
         <div className="flex gap-4">
            <ElasticButton
@@ -104,13 +100,13 @@ const FactsPage = () => {
               ) : (
                 <>
                   <Download size={18} />
-                  Extract Snapshot
+                  Export Facts
                 </>
               )}
            </ElasticButton>
            <ElasticButton onClick={handleAddNew}>
               <Plus size={18} strokeWidth={3} />
-              Append Sequence
+              Add New Fact
            </ElasticButton>
         </div>
       </div>
@@ -122,7 +118,7 @@ const FactsPage = () => {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
             <input
               type="text"
-              placeholder="Query sequence identifiers or content..."
+              placeholder="Search facts by content or ID..."
               className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-base focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -161,45 +157,45 @@ const FactsPage = () => {
                   className="p-10 flex flex-col h-full border-transparent hover:border-brand-primary/20"
                 >
                   <div className="flex justify-between items-start mb-8">
-                     <ActionBadge variant="success">{fact.category}</ActionBadge>
-                     <span className="text-[10px] font-mono text-sub opacity-30 font-black tracking-widest uppercase">ID: {fact.id.slice(0, 6)}</span>
+                     <ActionBadge variant="success" className="font-black text-[11px]">{fact.category}</ActionBadge>
+                     <div className="flex flex-col items-end gap-3">
+                        <span className="text-[11px] font-mono text-sub opacity-50 font-bold tracking-[0.1em]">UID: {fact.id}</span>
+                        <ActionBadge variant={fact.isPublished ? 'success' : 'warning'} className="font-black text-[11px]">
+                            {fact.isPublished ? 'Live' : 'Draft'}
+                        </ActionBadge>
+                        <div className="flex gap-2">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              onClick={(e) => { e.stopPropagation(); handleEdit(fact); }}
+                              className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-brand-primary rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                            >
+                              <Edit3 size={16} />
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              onClick={(e) => { e.stopPropagation(); removeFact(fact.id); }}
+                              className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                            >
+                              <Trash2 size={16} />
+                            </motion.button>
+                        </div>
+                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-6">
+                  <div className="flex-1 space-y-5">
                      <div className="flex gap-5">
                         <div className="w-12 h-12 shrink-0 bg-brand-bg/5 dark:bg-brand-bg rounded-2xl flex items-center justify-center text-brand-primary/40 transition-colors border border-brand-sage/10">
                            <BookOpen size={24} />
                         </div>
-                        <p className="text-base font-bold leading-relaxed line-clamp-4 italic group-hover:text-brand-primary transition-colors">
-                          {fact.fact}
-                        </p>
+                        <div className="flex-1">
+                          <p className="text-[17px] font-bold leading-relaxed line-clamp-4 italic group-hover:text-brand-white transition-colors duration-500">
+                            {fact.fact}
+                          </p>
+                        </div>
                      </div>
-                     <p className="text-[11px] text-sub font-medium line-clamp-2 leading-relaxed border-l-2 border-brand-primary/20 pl-5 opacity-60">
+                     <p className="text-[13px] text-sub font-semibold line-clamp-2 leading-relaxed border-l-4 border-brand-primary/20 pl-6 opacity-80 mt-2">
                        {fact.fullFact || 'No supplementary data available...'}
                      </p>
-                  </div>
-
-                  <div className="mt-10 pt-8 border-t border-brand-sage/5 flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" />
-                        <span className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-60">{fact.readTimeMinutes || 2}m Stream</span>
-                     </div>
-                     <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                        <motion.button
-                          whileHover={{ scale: 1.1, rotate: 10 }}
-                          onClick={(e) => { e.stopPropagation(); handleEdit(fact); }}
-                          className="p-3 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-xl transition-all border border-brand-sage/10 shadow-lg"
-                        >
-                          <Edit3 size={18} />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1, rotate: -10 }}
-                          onClick={(e) => { e.stopPropagation(); removeFact(fact.id); }}
-                          className="p-3 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl transition-all border border-brand-sage/10 shadow-lg"
-                        >
-                          <Trash2 size={18} />
-                        </motion.button>
-                     </div>
                   </div>
                 </PremiumCard>
               </motion.div>
@@ -208,8 +204,8 @@ const FactsPage = () => {
         ) : (
           <EmptyBuffer
             icon={BookOpen}
-            title="Zero matches in sequence buffer"
-            message="The repository section is currently empty or your query returned no matches in the insight stream."
+            title="No matches found"
+            message="The facts database is currently empty or your search returned no results."
           />
         )}
       </div>
@@ -217,7 +213,7 @@ const FactsPage = () => {
       {/* Pagination Footer */}
       <div className="flex flex-col md:flex-row justify-between items-center glass p-10 rounded-[3.5rem] border border-brand-sage/10 gap-8 shadow-2xl relative overflow-hidden">
         <p className="text-sm font-black text-sub uppercase tracking-[0.4em] opacity-40 relative z-10">
-          Showing sequence <span className="text-brand-primary">{ (currentPage - 1) * itemsPerPage + 1 }</span> — <span className="text-brand-primary">{ Math.min(currentPage * itemsPerPage, facts.length) }</span> of <span className="text-brand-primary">{ facts.length }</span>
+          Showing facts <span className="text-brand-primary">{ (currentPage - 1) * itemsPerPage + 1 }</span> — <span className="text-brand-primary">{ Math.min(currentPage * itemsPerPage, facts.length) }</span> of <span className="text-brand-primary">{ facts.length }</span>
         </p>
         <div className="flex items-center gap-6 relative z-10">
           <motion.button
@@ -267,6 +263,7 @@ const FactsPage = () => {
         {isEditorOpen && (
           <FactEditorDrawer
             fact={selectedFact}
+            defaultCategory={categoryFilter === 'All' ? '' : categoryFilter}
             onClose={() => setIsEditorOpen(false)}
             onSave={async (fact) => {
               const success = await saveFact(fact);

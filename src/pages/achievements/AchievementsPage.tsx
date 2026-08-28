@@ -1,89 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Trophy,
-  Lock,
-  Unlock,
-  CheckCircle2,
   Search,
-  Settings2,
   Trash2,
   Edit3,
   Star,
-  Zap,
   Target
 } from 'lucide-react';
-import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import { Achievement } from '../../types';
-import { fetchAchievements } from '../../services/firestoreService';
-import { updateAchievement, deleteAchievement as deleteAchievementApi } from '../../services/adminApi';
-import toast from 'react-hot-toast';
+import { useAchievements } from '../../hooks/useAchievements';
+import { cn } from '../../utils/cn';
 import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
+import AchievementEditorDrawer from './AchievementEditorDrawer';
+
+const getRequirementLabel = (type: string, magnitude: number) => {
+  switch (type) {
+    case 'READ_COUNT': return `${magnitude} Psychology Reads`;
+    case 'FAVORITE_COUNT': return `${magnitude} Saved Insights`;
+    case 'SHARE_COUNT': return `${magnitude} Social Shares`;
+    case 'CATEGORY_COUNT': return `${magnitude} Knowledge Domains`;
+    case 'STREAK_DAYS': return `${magnitude} Day Streak`;
+    case 'NIGHT_OWL': return 'Condition: Late Night Reading';
+    case 'EARLY_BIRD': return 'Condition: Morning Insight';
+    default: return `${magnitude} Logic Units`;
+  }
+};
 
 const AchievementsPage = () => {
   const { theme } = useTheme();
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    achievements: filteredAchievements,
+    allAchievements,
+    loading,
+    searchTerm,
+    setSearchTerm,
+    saveAchievement,
+    removeAchievement
+  } = useAchievements();
 
-  useEffect(() => {
-    loadAchievements();
-  }, []);
+  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-  const loadAchievements = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAchievements();
-      setAchievements(data);
-    } catch (err) {
-      console.error('Load achievements failed', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddAchievement = async () => {
-    const newAch: Achievement = {
-      id: `ach-${Date.now()}`,
-      title: 'New Achievement',
-      description: 'Describe the milestone criteria...',
-      iconName: 'Trophy',
-      maxProgress: 1,
-      requirementType: 'READ_COUNT',
-      isActive: true,
-      createdAt: Date.now()
-    };
-    try {
-      await updateAchievement(newAch.id, newAch, 'Administrative achievement initialization');
-      toast.success('Milestone anchored (Atomic)');
-      loadAchievements();
-    } catch (err: any) {
-      toast.error(`Initialization failed: ${err.message}`);
-    }
-  };
-
-  const toggleStatus = async (ach: Achievement) => {
-    const updated = { ...ach, isActive: !ach.isActive };
-    try {
-      await updateAchievement(updated.id, updated, `State toggle: ${updated.isActive ? 'ACTIVATE' : 'ARCHIVE'}`);
-      toast.success(updated.isActive ? 'Achievement active' : 'Achievement archived');
-      loadAchievements();
-    } catch (err: any) {
-      toast.error(`State toggle failed: ${err.message}`);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Dissolve this achievement definition?')) return;
-    try {
-      await deleteAchievementApi(id, 'Manual achievement removal');
-      toast.success('Definition expunged');
-      loadAchievements();
-    } catch (err: any) {
-      toast.error(`Expunge failed: ${err.message}`);
-    }
+  const handleEdit = (ach: Achievement | null = null) => {
+    setSelectedAchievement(ach);
+    setIsEditorOpen(true);
   };
 
   return (
@@ -99,16 +63,32 @@ const AchievementsPage = () => {
            >
              Reward <span className="text-brand-primary">Architecture</span>
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="warning" className="px-5 py-1.5">Gamification Root</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Mechanics \u0026 Milestone Logic</p>
-           </div>
         </div>
         <div className="flex gap-4">
-           <ElasticButton onClick={handleAddAchievement}>
+           <ElasticButton onClick={() => handleEdit(null)}>
               <Plus size={18} strokeWidth={3} />
               Create Definition
            </ElasticButton>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+        <div className="relative flex-1 md:w-[32rem] group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
+          <input
+            type="text"
+            placeholder="Search milestones by title or logic..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="hidden md:flex items-center gap-6 pr-4">
+           <div className="text-right">
+              <p className="text-[11px] font-black text-sub uppercase tracking-[0.2em] opacity-60">Active Milestones</p>
+              <p className="text-3xl font-black text-brand-primary tabular-nums">{allAchievements.length}</p>
+           </div>
         </div>
       </div>
 
@@ -117,14 +97,14 @@ const AchievementsPage = () => {
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-80 glass rounded-[3rem] animate-pulse"></div>
           ))
-        ) : achievements.length === 0 ? (
+        ) : filteredAchievements.length === 0 ? (
           <div className="col-span-full py-40 glass rounded-[3rem] border border-dashed border-brand-sage/20 flex flex-col items-center justify-center text-sub opacity-40 gap-4">
             <Trophy size={64} />
             <p className="font-black uppercase tracking-[0.3em] text-lg">Zero milestone definitions</p>
           </div>
         ) : (
           <AnimatePresence>
-            {achievements.map((ach, idx) => (
+            {filteredAchievements.map((ach, idx) => (
               <motion.div
                 key={ach.id}
                 layout
@@ -134,76 +114,82 @@ const AchievementsPage = () => {
                 whileHover={{ y: -8 }}
                 className="glass rounded-[3rem] shadow-xl group border-transparent hover:border-brand-gold/20 transition-all flex flex-col overflow-hidden h-full"
               >
-                <div className="p-10 flex-1 space-y-8">
-                   <div className="flex justify-between items-start">
-                      <div className="w-20 h-20 bg-brand-bg/5 dark:bg-brand-bg rounded-[1.8rem] flex items-center justify-center text-4xl border border-brand-sage/10 shadow-inner group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(233,196,106,0.2)] transition-all duration-500">
-                        🏆
+                <div className={cn(
+                  "p-10 flex-1 space-y-6 relative overflow-hidden",
+                  (ach.requirementType === 'NIGHT_OWL' || ach.requirementType === 'EARLY_BIRD') && "bg-gradient-to-br from-brand-primary/5 to-transparent"
+                )}>
+                   {/* Special Logic Glow */}
+                   {(ach.requirementType === 'NIGHT_OWL' || ach.requirementType === 'EARLY_BIRD') && (
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+                   )}
+
+                   {/* Universal Header Block */}
+                   <div className="flex justify-between items-start mb-10 relative z-10">
+                      <div className="w-20 h-20 bg-brand-bg/5 dark:bg-brand-bg rounded-[1.8rem] flex items-center justify-center text-brand-primary border border-brand-sage/10 shadow-inner group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(45,106,79,0.2)] transition-all duration-500">
+                        <Trophy size={32} />
                       </div>
+
+                      <div className="flex flex-col items-end gap-3">
+                         <span className="text-[12px] font-mono text-sub opacity-50 font-bold tracking-[0.1em]">UID: {ach.id}</span>
+                         <ActionBadge variant={ach.isPublished ? 'success' : 'warning'} className="font-black text-[11px]">
+                            {ach.isPublished ? 'Live' : 'Draft'}
+                         </ActionBadge>
+                         <div className="flex gap-2">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              onClick={(e) => { e.stopPropagation(); handleEdit(ach); }}
+                              className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-brand-primary rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                            >
+                              <Edit3 size={16} />
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              onClick={(e) => { e.stopPropagation(); removeAchievement(ach.id, ach.title); }}
+                              className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-md"
+                            >
+                              <Trash2 size={16} />
+                            </motion.button>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="space-y-2 relative z-10">
+                      <h3 className="text-3xl font-black tracking-tighter group-hover:text-brand-primary transition-colors mb-1">{ach.title}</h3>
                       <div className="flex items-center gap-3">
-                        <span className={cn(
-                          "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border shadow-sm",
-                          "bg-brand-primary/10 border-brand-primary/20 text-brand-primary"
-                        )}>
-                          {ach.requirementType}
+                        <span className="text-[11px] font-black text-brand-primary uppercase tracking-[0.1em] opacity-80">
+                          {ach.requirementType.replace('_', ' ')}
                         </span>
-                        <motion.button
-                          whileTap={{ scale: 0.8 }}
-                          onClick={() => toggleStatus(ach)}
-                          className={cn(
-                            "p-2.5 rounded-xl transition-all border shadow-sm",
-                            ach.isActive ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-brand-bg/5 dark:bg-brand-bg border-brand-sage/10 text-sub opacity-40"
-                          )}
-                        >
-                          {ach.isActive ? <Unlock size={18} /> : <Lock size={18} />}
-                        </motion.button>
                       </div>
                    </div>
 
-                   <div className="space-y-2">
-                      <h3 className="text-2xl font-black tracking-tight">{ach.title}</h3>
-                      <p className="text-sub text-sm font-medium leading-relaxed italic line-clamp-2">"{ach.description}"</p>
-                   </div>
+                   <p className="text-sub text-[15px] font-bold leading-relaxed italic line-clamp-2 relative z-10 opacity-80 group-hover:text-brand-white transition-colors duration-500 border-l-4 border-brand-primary/10 pl-6">"{ach.description}"</p>
 
-                   <div className="pt-8 border-t border-brand-sage/5 grid grid-cols-2 gap-6 relative z-10">
+                   <div className="pt-6 border-t border-brand-sage/5 relative z-10">
                       <div className="space-y-1">
-                        <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
-                           <Target size={12} className="text-brand-primary" /> Goal
+                        <p className="text-[11px] font-black text-sub opacity-50 uppercase tracking-[0.2em] flex items-center gap-2">
+                           <Target size={14} className="text-brand-primary" /> Success Threshold
                         </p>
-                        <p className="text-base font-black">{ach.maxProgress} Multi-steps</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-[0.2em] flex items-center gap-2">
-                           <Star size={12} className="text-brand-gold" /> Established
+                        <p className="text-lg font-black text-brand-white">
+                          {getRequirementLabel(ach.requirementType, ach.maxProgress)}
                         </p>
-                        <p className="text-base font-black text-brand-gold">{new Date(ach.createdAt).toLocaleDateString()}</p>
                       </div>
                    </div>
-                </div>
-
-                <div className="px-10 py-6 bg-brand-primary/5 border-t border-brand-sage/5 flex justify-between items-center backdrop-blur-xl relative overflow-hidden">
-                   <span className="text-[9px] font-mono text-sub opacity-40 uppercase tracking-widest relative z-10">UID: {ach.id.slice(0, 14)}</span>
-                   <div className="flex gap-3 relative z-10">
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        className="p-3 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-brand-primary rounded-[1.2rem] border border-brand-sage/10 transition-all"
-                      >
-                        <Edit3 size={18} />
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        onClick={() => handleDelete(ach.id)}
-                        className="p-3 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-[1.2rem] border border-brand-sage/10 transition-all"
-                      >
-                        <Trash2 size={18} />
-                      </motion.button>
-                   </div>
-                   <div className="absolute inset-0 bg-gradient-to-tr from-brand-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         )}
       </div>
+
+      <AnimatePresence>
+        {isEditorOpen && (
+          <AchievementEditorDrawer
+            achievement={selectedAchievement}
+            onClose={() => setIsEditorOpen(false)}
+            onSave={saveAchievement}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

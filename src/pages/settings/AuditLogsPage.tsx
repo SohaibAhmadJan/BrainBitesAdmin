@@ -78,9 +78,6 @@ const AuditLogsPage = () => {
            >
              Administrative <span className="text-brand-primary">Audit</span>
            </motion.h1>
-           <div className="mt-3">
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Secure Immutability Trace Logs</p>
-           </div>
         </div>
       </div>
 

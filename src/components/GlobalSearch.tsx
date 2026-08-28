@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, Users, Layers, Command, X, ArrowRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, FileText, Users, Layers, Command, X, ArrowRight, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BiteItem, UserProfile, CollectionSet } from '../types';
@@ -68,13 +69,13 @@ const GlobalSearch = ({ isOpen, setIsOpen }: GlobalSearchProps) => {
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4">
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-[12vh] px-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-brand-bg/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-[#0F1F17]/90 backdrop-blur-2xl"
             onClick={() => setIsOpen(false)}
           />
 
@@ -83,97 +84,87 @@ const GlobalSearch = ({ isOpen, setIsOpen }: GlobalSearchProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="relative w-full max-w-2xl glass rounded-[2.5rem] overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.4)]"
+            className="relative w-full max-w-2xl glass rounded-[2.5rem] overflow-hidden shadow-[0_50px_150px_rgba(0,0,0,1)] border border-brand-sage/20"
           >
-            <div className="flex items-center px-8 py-6 border-b border-brand-sage/10">
-              <Search className="text-brand-primary mr-4" size={24} />
+            <div className="flex items-center px-8 py-8 border-b border-brand-sage/10">
+              <Search className="text-brand-primary mr-5" size={28} />
               <input
                 autoFocus
-                className="flex-1 bg-transparent border-none focus:ring-0 placeholder-sub text-xl outline-none font-medium"
-                placeholder="Search BrainBites..."
+                className="flex-1 bg-transparent border-none focus:ring-0 placeholder-brand-secondary/30 text-2xl outline-none font-bold tracking-tight text-brand-white"
+                placeholder="Synchronize Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-sub bg-brand-bg/5 dark:bg-brand-bg/50 px-2 py-1 rounded-lg border border-brand-sage/10">ESC</span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border-brand-sage/10"
+                >
+                   <X size={20} />
+                </button>
               </div>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto p-6 space-y-8 scrollbar-hide">
+            <div className="max-h-[60vh] overflow-y-auto p-10 space-y-12 scrollbar-thin pr-6">
               {query.length < 2 ? (
-                <div className="py-16 text-center space-y-4">
+                <div className="py-20 text-center space-y-6">
                   <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 5, repeat: Infinity }}
-                    className="w-20 h-20 bg-brand-primary/5 rounded-full flex items-center justify-center mx-auto"
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      opacity: [0.3, 0.6, 0.3]
+                    }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                    className="w-24 h-24 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto shadow-inner"
                   >
-                    <Command className="text-brand-primary opacity-30" size={40} />
+                    <Command className="text-brand-primary" size={48} />
                   </motion.div>
                   <div>
-                    <p className="font-bold text-lg opacity-60">System Intelligence Active</p>
-                    <p className="text-sub text-[10px] uppercase tracking-[0.4em] font-black mt-1">Global Query Protocol</p>
+                    <p className="font-black text-xl tracking-tight text-brand-white">Protocol: Global Query</p>
+                    <p className="text-brand-primary text-[10px] uppercase tracking-[0.5em] font-black mt-2">Input criteria to initiate scan</p>
                   </div>
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                   {results.facts.length > 0 && (
-                    <div className="space-y-3 mb-8">
-                      <h3 className="px-4 text-[10px] font-black text-sub uppercase tracking-[0.4em]">Insights</h3>
+                    <div className="space-y-4 mb-10">
+                      <h3 className="px-4 text-[10px] font-black text-brand-primary uppercase tracking-[0.5em] opacity-40">Insight Sequences</h3>
                       {results.facts.map(fact => (
                         <button
                           key={fact.id}
                           onClick={() => { navigate('/facts'); setIsOpen(false); }}
-                          className="w-full text-left p-4 rounded-[1.5rem] hover:bg-brand-primary/10 transition-all flex items-center gap-4 group"
+                          className="w-full text-left p-6 rounded-[2rem] bg-brand-bg/40 border border-brand-sage/5 hover:border-brand-primary/30 transition-all flex items-center gap-6 group"
                         >
-                          <div className="w-10 h-10 bg-brand-primary/10 rounded-xl flex items-center justify-center text-brand-primary group-hover:bg-brand-primary group-hover:text-brand-white transition-all shadow-sm">
-                            <FileText size={18} />
+                          <div className="w-12 h-12 bg-brand-primary/10 rounded-2xl flex items-center justify-center text-brand-primary group-hover:bg-brand-primary group-hover:text-brand-white transition-all shadow-xl">
+                            <FileText size={22} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold truncate block">{fact.fact}</span>
-                            <span className="text-[10px] text-sub uppercase font-black tracking-tighter">#{fact.id.slice(0, 8)} • {fact.category}</span>
+                            <span className="text-base font-bold text-brand-white truncate block italic group-hover:text-brand-primary transition-colors">"{fact.fact}"</span>
+                            <span className="text-[10px] text-sub uppercase font-black tracking-widest mt-1 block opacity-40 group-hover:opacity-100 transition-opacity">Trace: {fact.id.slice(0, 12)} • {fact.category}</span>
                           </div>
-                          <ArrowRight size={14} className="text-brand-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                          <ChevronRight size={18} className="text-brand-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-3 group-hover:translate-x-0" />
                         </button>
                       ))}
                     </div>
                   )}
 
                   {results.users.length > 0 && (
-                    <div className="space-y-3 mb-8">
-                      <h3 className="px-4 text-[10px] font-black text-sub uppercase tracking-[0.4em]">Users</h3>
+                    <div className="space-y-4 mb-10">
+                      <h3 className="px-4 text-[10px] font-black text-brand-secondary uppercase tracking-[0.5em] opacity-40">Agent Identities</h3>
                       {results.users.map(user => (
                         <button
                           key={user.id}
                           onClick={() => { navigate('/users'); setIsOpen(false); }}
-                          className="w-full text-left p-4 rounded-[1.5rem] hover:bg-brand-secondary/10 transition-all flex items-center gap-4 group"
+                          className="w-full text-left p-6 rounded-[2rem] bg-brand-bg/40 border border-brand-sage/5 hover:border-brand-secondary/30 transition-all flex items-center gap-6 group"
                         >
-                          <div className="w-10 h-10 bg-brand-secondary/10 rounded-xl flex items-center justify-center text-brand-secondary group-hover:bg-brand-secondary transition-all shadow-sm">
-                            <Users size={18} />
+                          <div className="w-12 h-12 bg-brand-secondary/10 rounded-2xl flex items-center justify-center text-brand-secondary group-hover:bg-brand-secondary group-hover:text-brand-white transition-all shadow-xl">
+                            <Users size={22} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold truncate block">{user.profile.email}</span>
-                            <span className="text-[10px] text-sub uppercase font-black tracking-tighter">{user.account.status}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {results.collections.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="px-4 text-[10px] font-black text-sub uppercase tracking-[0.4em]">Collections</h3>
-                      {results.collections.map(col => (
-                        <button
-                          key={col.id}
-                          onClick={() => { navigate('/collections'); setIsOpen(false); }}
-                          className="w-full text-left p-4 rounded-[1.5rem] hover:bg-brand-accent/10 transition-all flex items-center gap-4 group"
-                        >
-                          <div className="w-10 h-10 bg-brand-accent/10 rounded-xl flex items-center justify-center text-brand-accent group-hover:bg-brand-accent transition-all shadow-sm">
-                            <Layers size={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold truncate block">{col.title}</span>
-                            <span className="text-[10px] text-sub uppercase font-black tracking-tighter">{col.factIds.length} Linked Items</span>
+                            <span className="text-base font-black text-brand-white truncate block">{user.profile.email}</span>
+                            <div className="flex items-center gap-3 mt-1 opacity-40 group-hover:opacity-100">
+                               <div className={cn("w-1.5 h-1.5 rounded-full", user.account.status === 'ACTIVE' ? "bg-brand-primary" : "bg-red-500")} />
+                               <span className="text-[10px] text-sub uppercase font-black tracking-widest">{user.account.status} NODE</span>
+                            </div>
                           </div>
                         </button>
                       ))}
@@ -181,16 +172,17 @@ const GlobalSearch = ({ isOpen, setIsOpen }: GlobalSearchProps) => {
                   )}
 
                   {results.facts.length === 0 && results.users.length === 0 && results.collections.length === 0 && (
-                    <div className="py-20 text-center space-y-3 opacity-20">
-                      <Search size={64} className="mx-auto" />
-                      <p className="font-bold italic">No system matches for "{query}"</p>
+                    <div className="py-20 text-center space-y-6 opacity-30">
+                      <Search size={80} className="mx-auto text-brand-primary" strokeWidth={1} />
+                      <p className="font-black text-xl tracking-tight">Zero system matches for sequence: "{query}"</p>
                     </div>
                   )}
                 </div>
               )}
             </div>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </AnimatePresence>
   );

@@ -10,9 +10,10 @@ import { useTheme } from '../context/ThemeContext';
 interface TopBarProps {
   title: string;
   setIsSearchOpen: (open: boolean) => void;
+  isSidebarCollapsed: boolean;
 }
 
-const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen }) => {
+const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollapsed }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const { theme, toggleTheme } = useTheme();
@@ -35,7 +36,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen }) => {
 
   return (
     <header className={cn(
-      "sticky top-0 right-0 z-20 flex items-center justify-between px-8 py-6 transition-all duration-500",
+      "shrink-0 flex items-center justify-between px-8 h-24 transition-all duration-500 relative z-20",
       isScrolled
         ? theme === 'dark'
           ? "bg-brand-bg/40 backdrop-blur-2xl border-b border-brand-sage/20 shadow-2xl"
@@ -56,7 +57,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen }) => {
         </motion.h2>
       </div>
 
-      <div className="flex items-center gap-8 flex-1 justify-end">
+      <div className="flex items-center gap-8 justify-end">
         {/* Floating Glass Search Trigger */}
         <motion.button
           whileHover={{ scale: 1.02 }}

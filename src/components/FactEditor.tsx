@@ -120,12 +120,6 @@ const FactEditor: React.FC<FactEditorProps> = ({
 
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 blur-2xl rounded-full" />
               </div>
-
-              <div className="glass p-8 rounded-[2.5rem] space-y-6 shadow-xl relative overflow-hidden">
-                <h3 className="text-lg font-black tracking-tight border-b border-brand-sage/10 pb-4">Challenge Logic</h3>
-                <p className="text-xs italic opacity-40 text-center py-4">Quiz normalized to external collection. Handle via Transaction API.</p>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 blur-2xl rounded-full" />
-              </div>
             </div>
 
             {/* Live Preview Card */}

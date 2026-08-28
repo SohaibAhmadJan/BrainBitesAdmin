@@ -158,10 +158,6 @@ const QuotesPage = () => {
            >
              Insight <span className="text-brand-primary">Repository</span>
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="info" className="px-5 py-1.5">Wisdom Nexus</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Psychological Theoretical Snippets</p>
-           </div>
         </div>
         <div className="flex gap-4">
            <ElasticButton onClick={() => handleOpenModal()}>

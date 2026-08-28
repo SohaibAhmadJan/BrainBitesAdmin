@@ -34,9 +34,11 @@ const AppSettingsPage = () => {
     latestVersion: '3.4.8.7',
     minVersion: '3.0.0',
     supportEmail: 'support@brainbites.com',
-    quizzesEnabled: true,
-    achievementsEnabled: true,
-    dailyFactEnabled: true,
+    featureFlags: {
+      quizzesEnabled: true,
+      achievementsEnabled: true,
+      dailyFactEnabled: true,
+    },
     dailyTipTitle: 'The 2-Minute Rule',
     dailyTipMessage: 'If a task takes less than 2 minutes, do it now.',
     featuredFactId: '1',
@@ -54,7 +56,18 @@ const AppSettingsPage = () => {
   const loadSettings = async () => {
     setLoading(true);
     const data = await fetchAppSettings();
-    if (data) setSettings(data);
+    if (data) {
+      // Map legacy flat structure to nested if necessary
+      const normalized: AppSettings = {
+        ...data,
+        featureFlags: data.featureFlags || {
+          quizzesEnabled: (data as any).quizzesEnabled ?? true,
+          achievementsEnabled: (data as any).achievementsEnabled ?? true,
+          dailyFactEnabled: (data as any).dailyFactEnabled ?? true,
+        }
+      };
+      setSettings(normalized);
+    }
     setLoading(false);
   };
 
@@ -86,10 +99,6 @@ const AppSettingsPage = () => {
            <h1 className="text-4xl font-black tracking-tighter uppercase">
              Engine <span className="text-brand-primary">Config</span>
            </h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="info" className="px-5 py-1.5">System Hub</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Global Environment Variables & Controls</p>
-           </div>
         </div>
         <div className="flex gap-4">
            <ElasticButton
@@ -202,16 +211,19 @@ const AppSettingsPage = () => {
                       <button
                         onClick={() => setSettings({
                           ...settings,
-                          [flag.id]: !(settings as any)[flag.id]
+                          featureFlags: {
+                            ...settings.featureFlags,
+                            [flag.id]: !(settings.featureFlags as any)[flag.id]
+                          }
                         })}
                         className={cn(
                           "w-12 h-6 rounded-full relative transition-all duration-300",
-                          (settings as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
+                          (settings.featureFlags as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
                         )}
                       >
                         <div className={cn(
                           "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
-                          (settings as any)[flag.id] ? "left-7" : "left-1"
+                          (settings.featureFlags as any)[flag.id] ? "left-7" : "left-1"
                         )} />
                       </button>
                    </div>

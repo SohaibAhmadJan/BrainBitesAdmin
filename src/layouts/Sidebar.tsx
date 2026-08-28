@@ -53,7 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         { name: "Facts", icon: FileText, path: "/facts", permission: 'read.all' },
         { name: "Categories", icon: Layers, path: "/categories", permission: 'read.all' },
         { name: "Collections", icon: Library, path: "/collections", permission: 'read.all' },
-        { name: "Quizzes", icon: Lightbulb, path: "/quizzes", permission: 'read.all' },
         { name: "Achievements", icon: Trophy, path: "/achievements", permission: 'read.all' },
       ]
     },
@@ -73,9 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     {
       title: "Analytics",
       items: [
-        { name: "Overview", icon: BarChart3, path: "/analytics", permission: 'read.all' },
-        { name: "Engagement", icon: TrendingUp, path: "/analytics/engagement", permission: 'read.all' },
-        { name: "Content Stats", icon: PieChart, path: "/analytics/content", permission: 'read.all' },
+        { name: "Analytics Hub", icon: BarChart3, path: "/analytics", permission: 'read.all' },
       ]
     },
     {
@@ -98,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <aside
       className={cn(
-        "glass border-r flex flex-col h-screen fixed left-0 top-0 transition-all duration-500 ease-out z-30 backdrop-blur-3xl shadow-2xl",
+        "glass border-r flex flex-col h-full transition-all duration-500 ease-out z-30 backdrop-blur-3xl shadow-2xl shrink-0",
         isCollapsed ? "w-20" : "w-64",
         theme === 'dark' ? "border-brand-sage/20 shadow-[10px_0_40px_rgba(0,0,0,0.4)]" : "bg-white/80 border-brand-primary/10 shadow-[10px_0_40px_rgba(45,106,79,0.05)]"
       )}

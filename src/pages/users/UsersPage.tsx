@@ -19,6 +19,8 @@ import {
 import { UserProfile, Achievement } from '../../types';
 import { fetchUsers, fetchAchievements } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
+import { calculateMastery } from '../../utils/masteryUtils';
+import { getAvatarUrl } from '../../utils/avatarUtils';
 import UserSiteDrawer from './UserSiteDrawer';
 import { useTheme } from '../../context/ThemeContext';
 import ActionBadge from '../../components/ui/ActionBadge';
@@ -78,12 +80,8 @@ const UsersPage = () => {
              animate={{ opacity: 1, y: 0 }}
              className="text-4xl font-black tracking-tighter uppercase"
            >
-             User <span className="text-brand-primary">Directory</span>
+             Users
            </motion.h1>
-           <div className="flex items-center gap-4 mt-3">
-              <ActionBadge variant="info" className="px-5 py-1.5">Engagement Tracking</ActionBadge>
-              <p className="text-sub font-black uppercase tracking-[0.4em] text-[10px] opacity-40 italic">Identity Management \u0026 Intelligence</p>
-           </div>
         </div>
       </div>
 
@@ -92,7 +90,7 @@ const UsersPage = () => {
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
           <input
             type="text"
-            placeholder="Query identity identifiers or email profiles..."
+            placeholder="Search users by name or email..."
             className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -105,8 +103,8 @@ const UsersPage = () => {
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as any)}
             >
-                <option value="engagement">High Engagement</option>
-                <option value="newest">Recent Onboarding</option>
+                <option value="engagement">Top Engagement</option>
+                <option value="newest">Newest</option>
             </select>
 
             <select
@@ -115,8 +113,8 @@ const UsersPage = () => {
                 onChange={e => setStatusFilter(e.target.value as any)}
             >
                 <option value="All">All Status</option>
-                <option value="Active">Active Only</option>
-                <option value="Suspended">Disabled Only</option>
+                <option value="Active">Active</option>
+                <option value="Suspended">Suspended</option>
             </select>
         </div>
       </div>
@@ -127,10 +125,10 @@ const UsersPage = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[10px] font-black text-sub uppercase tracking-[0.3em]">
-                <th className="p-8">Participant Identity</th>
-                <th className="p-8">Security Status</th>
-                <th className="p-8">Engagement Profile</th>
-                <th className="p-8">Last Sequence</th>
+                <th className="p-8">User</th>
+                <th className="p-8">Status</th>
+                <th className="p-8">Mastery</th>
+                <th className="p-8">Created</th>
                 <th className="p-8 text-right">Actions</th>
               </tr>
             </thead>
@@ -169,7 +167,14 @@ const UsersPage = () => {
                       <td className="p-8">
                         <div className="flex items-center gap-5">
                           <div className="w-14 h-14 rounded-3xl bg-brand-bg/5 dark:bg-brand-bg/80 border border-brand-sage/10 flex items-center justify-center text-brand-primary font-black text-xl shadow-md group-hover:scale-110 group-hover:border-brand-primary/40 transition-all duration-500 overflow-hidden relative">
-                            {user.profile.displayName[0]?.toUpperCase() || 'U'}
+                            {(() => {
+                              const avatarUrl = getAvatarUrl(user.profile.photoUrl);
+                              return avatarUrl ? (
+                                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                user.profile.displayName[0]?.toUpperCase() || 'U'
+                              );
+                            })()}
                             <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div>
@@ -190,20 +195,19 @@ const UsersPage = () => {
                         </div>
                       </td>
                       <td className="p-8">
-                        <div className="flex items-center gap-8">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Read Facts</span>
-                            <span className="text-sm font-black opacity-80">{user.stats.factsReadCount}</span>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Streak</span>
-                            <span className="text-sm font-black text-brand-gold">{user.stats.streakCount}</span>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-sub uppercase tracking-widest opacity-60">Favs</span>
-                            <span className="text-sm font-black text-brand-primary">{user.stats.favoritesCount} \ud83d\udc99</span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const mastery = calculateMastery(user.stats.factsReadCount);
+                          return (
+                            <div className="flex flex-col gap-1.5">
+                              <div className={cn(
+                                "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border w-fit",
+                                mastery.level > 1 ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-brand-bg/5 border-brand-sage/10 text-sub"
+                              )}>
+                                LV. {mastery.level} • {mastery.title}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-8">
                         <div className="flex flex-col gap-1">
@@ -214,7 +218,7 @@ const UsersPage = () => {
                         </div>
                       </td>
                       <td className="p-8 text-right">
-                         <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                         <div className="flex justify-end gap-3 transition-all">
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
@@ -244,7 +248,7 @@ const UsersPage = () => {
       </div>
 
       <div className="flex justify-between items-center text-sub px-10 font-bold uppercase tracking-[0.2em] text-[10px]">
-         <p>Global Audience Index: {filteredUsers.length} Active Profiles</p>
+         <p>Total Users: {filteredUsers.length}</p>
          <div className="flex gap-4">
             <motion.button whileHover={{ x: -2 }} className="p-3 rounded-2xl glass hover:text-brand-primary transition-all"><ChevronLeft size={20} /></motion.button>
             <motion.button whileHover={{ x: 2 }} className="p-3 rounded-2xl glass hover:text-brand-primary transition-all"><ChevronRight size={20} /></motion.button>

@@ -27,3 +27,10 @@ dist-ssr
 .env
 .env.production
 .env.development
+
+# Vite/Dev logs
+dev_log.txt
+dev_log_final.txt
+vite_log.txt
+vite_error.log
+vite_output.log
