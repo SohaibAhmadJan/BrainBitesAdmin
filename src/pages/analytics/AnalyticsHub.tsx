@@ -546,28 +546,12 @@ const AnalyticsHub = () => {
         fetchUsers(500)             // Limit user registry fetch
       ]);
 
-      const intelligence = calculateIntelligence(rawEvents, users, initialFacts, range);
       const events = [...rawEvents].sort((a, b) => safeGetTime(b.timestamp) - safeGetTime(a.timestamp));
 
-      // 2. Deep Lookup for missing facts (Ensures 100% category accuracy)
-      const eventFactIds = [...new Set(events.map(e => String(e.params?.item_id || '')).filter(id => id && id !== 'undefined'))];
-      const cachedFactIds = new Set(initialFacts.map(f => f.id));
-      const missingFactIds = eventFactIds.filter(id => !cachedFactIds.has(id));
+      // 2. Off-thread Intelligence Calculation (Zero Redundancy)
+      const intelAggregated = calculateIntelligence(events, users, initialFacts, range);
 
-      let allFacts = [...initialFacts];
-      if (missingFactIds.length > 0) {
-        try {
-          const missingFacts = await fetchBitesByIds(missingFactIds);
-          allFacts = [...allFacts, ...missingFacts];
-        } catch (deepErr) {
-          console.warn('Deep Lookup partially failed:', deepErr);
-        }
-      }
-
-      // 3. Off-thread Intelligence Calculation (Zero Redundancy)
-      const intelligence = calculateIntelligence(events, users, allFacts, range);
-
-      console.log(`[Analytics] Fetched ${events.length} events and ${allFacts.length} facts.`);
+      console.log(`[Analytics] Fetched ${events.length} events and ${initialFacts.length} facts.`);
 
       const totalInstalls = events.filter(e => e.name === 'app_install').length;
       const deletedAccounts = users.filter(u => u.account?.status === 'DISABLED').length;
@@ -576,12 +560,12 @@ const AnalyticsHub = () => {
       const churnThreshold = Date.now() - (14 * 24 * 60 * 60 * 1000);
       const churnEstimate = users.filter(u =>
         u.account?.status !== 'DISABLED' &&
-        safeGetTime(u.stats?.lastActiveAt) < churnThreshold
+        safeGetTime(u.stats?.lastActiveAt || u.account?.lastLoginAt) < churnThreshold
       ).length;
 
       const netGrowth = totalInstalls - (churnEstimate + deletedAccounts);
 
-      const factMap = new Map(allFacts.filter(f => f && f.id).map(f => [f.id, f]));
+      const factMap = new Map(initialFacts.filter(f => f && f.id).map(f => [f.id, f]));
       const catMasterMap = new Map(categories.filter(c => c && c.id).map(c => [c.id, c.name]));
 
       // 1. Leaderboard & Engagement
@@ -610,31 +594,6 @@ const AnalyticsHub = () => {
       const leaderboard = Object.values(factStats)
         .sort((a, b) => (b.views + b.likes + b.shares) - (a.views + a.likes + a.shares))
         .slice(0, 10);
-
-      // 2. Category Intelligence (Filtered for Content Engagement + Browsing)
-      const contentEvents = events.filter(e => ['read_fact', 'like_fact', 'fact_like', 'share_fact', 'fact_share', 'category_view'].includes(e.name));
-      const catMap: Record<string, number> = {};
-
-      contentEvents.forEach(event => {
-          let catName = 'General';
-          if (event.name === 'category_view') {
-              const catId = event.params?.category_id;
-              catName = catMasterMap.get(catId) || catId || 'General';
-          } else {
-              const factId = event.params?.item_id;
-              const fact = factMap.get(factId);
-              catName = (fact?.categoryId ? catMasterMap.get(fact.categoryId) : fact?.category) || 'General';
-          }
-          const normalizedCat = toTitleCase(String(catName).trim());
-          catMap[normalizedCat] = (catMap[normalizedCat] || 0) + 1;
-      });
-
-      const categoryDistribution = Object.entries(catMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-      const totalContentInteractions = contentEvents.length;
-      console.log(`[Domain Bias] Processed ${totalContentInteractions} interactions across ${categoryDistribution.length} categories.`);
 
       // 3. Time Series & Growth Timeline (Chronological)
       const dailyMap: Record<string, { views: number, interactions: number, installs: number, uninstalls: number }> = {};
@@ -671,7 +630,7 @@ const AnalyticsHub = () => {
 
       const timeSeries = dateKeys.map(name => ({ name, ...dailyMap[name] }));
 
-      // 4. Net Growth Calculation (Running Total)
+      // 3. Net Growth Calculation (Running Total)
       const rangeStartTime = new Date();
       rangeStartTime.setDate(rangeStartTime.getDate() - (range - 1));
       rangeStartTime.setHours(0, 0, 0, 0);
@@ -711,7 +670,7 @@ const AnalyticsHub = () => {
 
       setAnalyticsData({
         popularFacts: leaderboard,
-        categoryData: categoryDistribution,
+        categoryData: [], // Removed Domain Bias
         timeSeriesData: timeSeries,
         userGrowthData: userGrowthTimeline,
         kpis: {
@@ -720,22 +679,22 @@ const AnalyticsHub = () => {
           deletedAccounts,
           netGrowth,
           totalInteractions: events.length,
-          totalContentInteractions,
+          totalContentInteractions: events.filter(e => ['read_fact', 'like_fact', 'fact_like', 'share_fact', 'fact_share', 'category_view'].includes(e.name)).length,
           retention: estimatedRetention || 0
         },
         contentPerformance: categories.filter(cat => cat && cat.name).map(cat => {
             const normalizedName = cat.name.trim();
             return {
                 name: normalizedName,
-                facts: allFacts.filter(f => f && (f.category === normalizedName || f.categoryId === cat.id)).length,
-                interactions: contentEvents.filter(e => {
+                facts: initialFacts.filter(f => f && (f.category === normalizedName || f.categoryId === cat.id)).length,
+                interactions: events.filter(e => {
                     if (e.name === 'category_view') return e.params?.category_id === cat.id || e.params?.category_id === normalizedName;
                     const f = factMap.get(e.params?.item_id);
                     return f && (f.category === normalizedName || f.categoryId === cat.id);
                 }).length
             };
         }).sort((a, b) => b.interactions - a.interactions),
-        intelligence
+        intelligence: intelAggregated
       });
 
     } catch (err) {
