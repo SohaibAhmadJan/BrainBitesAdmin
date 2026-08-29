@@ -57,12 +57,12 @@ const AdminLayout = () => {
           isSidebarCollapsed={isSidebarCollapsed}
         />
 
-        <main className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4">
+        <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
               {...PAGE_TRANSITION}
-              className="py-4"
+              className="max-w-[1600px] mx-auto"
             >
               <Outlet />
             </motion.div>

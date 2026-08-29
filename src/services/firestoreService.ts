@@ -13,7 +13,8 @@ import {
   orderBy,
   CollectionReference,
   Query,
-  addDoc
+  addDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from './firebaseService';
 import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, UserReport } from '../types';
@@ -103,7 +104,7 @@ export const fetchAnalyticsEvents = async (days: number, fetchLimit: number = 10
         const startTime = Date.now() - (days * 24 * 60 * 60 * 1000);
         const q = query(
             analyticsRef,
-            where('timestamp', '>=', startTime),
+            where('timestamp', '>=', Timestamp.fromMillis(startTime)),
             limit(fetchLimit)
         );
         const snapshot = await getDocs(q);
@@ -190,6 +191,91 @@ export const fetchReports = async (fetchLimit: number = 100): Promise<UserReport
     console.error('fetchReports failed', err);
     return [];
   }
+};
+
+/**
+ * INTELLIGENCE AGGREGATORS (New Decision Engine Logic)
+ */
+
+export const fetchIntelligenceData = async (rangeDays: number) => {
+    if (!analyticsRef) return null;
+    try {
+        const startTime = Date.now() - (rangeDays * 24 * 60 * 60 * 1000);
+        const q = query(
+            analyticsRef,
+            where('timestamp', '>=', Timestamp.fromMillis(startTime))
+        );
+        const snapshot = await getDocs(q);
+        const events = snapshot.docs.map(doc => doc.data() as AnalyticsEvent);
+
+        // 1. Funnel Calculation
+        const funnel = {
+            impressions: events.filter(e => e.name === 'app_open').length,
+            reads: events.filter(e => e.name === 'read_fact').length,
+            likes: events.filter(e => e.name === 'like_fact').length,
+            shares: events.filter(e => e.name === 'fact_share').length
+        };
+
+        // 2. Search Intelligence
+        const searchCounts: Record<string, number> = {};
+        events.filter(e => e.name === 'content_search').forEach(e => {
+            const q = e.params?.query || 'unknown';
+            searchCounts[q] = (searchCounts[q] || 0) + 1;
+        });
+        const searchCloud = Object.entries(searchCounts)
+            .map(([text, value]) => ({ text, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 20);
+
+        // 3. Hourly Heatmap
+        const hourlyMap: Record<number, number> = {};
+        for(let i=0; i<24; i++) hourlyMap[i] = 0;
+        events.forEach(e => {
+            const hour = new Date(e.timestamp).getHours();
+            hourlyMap[hour]++;
+        });
+        const heatmap = Object.entries(hourlyMap).map(([hour, count]) => ({ hour: parseInt(hour), count }));
+
+        // 4. Churn Risk (Mock logic based on activity)
+        const users = await fetchUsers();
+        const activeUids = new Set(events.map(e => e.uid));
+        const atRiskUsers = users.filter(u => {
+            const daysSinceActive = (Date.now() - (u.stats?.lastActiveAt || 0)) / (1000 * 60 * 60 * 24);
+            return daysSinceActive > 3 && daysSinceActive < 14;
+        }).slice(0, 5);
+
+        // 5. Stickiness Data (Interaction Rate vs Read Time)
+        // Note: Read time is often static in BiteItem, but we can track session duration if logged.
+        // For now, we use Views vs Likes as a proxy for "Stickiness".
+        const facts = await fetchBites();
+        const stickiness = facts.map(f => {
+            const views = events.filter(e => e.name === 'read_fact' && e.params?.item_id === f.id).length;
+            const interactions = events.filter(e => e.params?.item_id === f.id && e.name !== 'read_fact').length;
+            return {
+                name: f.fact.slice(0, 15),
+                views,
+                rate: views > 0 ? (interactions / views) * 100 : 0
+            };
+        }).filter(f => f.views > 0).slice(0, 20);
+
+        // 6. Achievement Velocity
+        const achEvents = events.filter(e => e.name === 'achievement_unlocked');
+        const velocity = achEvents.length / (rangeDays || 1);
+
+        // 7. Version Adoption
+        const versionMap: Record<string, number> = {};
+        users.forEach(u => {
+            // Mocking version if not present
+            const v = (u as any).device?.appVersion || '3.1.0';
+            versionMap[v] = (versionMap[v] || 0) + 1;
+        });
+        const versions = Object.entries(versionMap).map(([name, value]) => ({ name, value }));
+
+        return { funnel, searchCloud, heatmap, atRiskUsers, stickiness, velocity, versions };
+    } catch (err) {
+        console.error("Intelligence fetch failed:", err);
+        return null;
+    }
 };
 
 /**

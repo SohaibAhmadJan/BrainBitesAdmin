@@ -95,24 +95,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <aside
       className={cn(
-        "glass border-r flex flex-col h-full transition-all duration-500 ease-out z-30 backdrop-blur-3xl shadow-2xl shrink-0",
-        isCollapsed ? "w-20" : "w-64",
-        theme === 'dark' ? "border-brand-sage/20 shadow-[10px_0_40px_rgba(0,0,0,0.4)]" : "bg-white/80 border-brand-primary/10 shadow-[10px_0_40px_rgba(45,106,79,0.05)]"
+        "glass border-r flex flex-col h-full transition-all duration-300 ease-out z-30 backdrop-blur-3xl shadow-xl shrink-0",
+        isCollapsed ? "w-16" : "w-60",
+        theme === 'dark' ? "border-brand-sage/20" : "bg-white/80 border-brand-primary/10"
       )}
     >
-      <div className="p-6 flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between">
         {!isCollapsed && (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="animate-in fade-in duration-500"
+            className="flex flex-col"
           >
-            <h1 className="text-xl font-black text-brand-primary tracking-tighter flex items-center gap-2">
-               <div className="w-2 h-6 bg-brand-primary rounded-full shadow-[0_0_15px_rgba(45,106,79,0.6)]" />
+            <h1 className="text-lg font-bold text-brand-primary tracking-tight flex items-center gap-2">
+               <div className="w-1.5 h-5 bg-brand-primary rounded-full" />
                BrainBites
             </h1>
-            <span className="text-[10px] font-black text-brand-secondary uppercase tracking-[0.3em] block ml-4 opacity-50">
-              {adminUser?.role.replace('_', ' ') || 'Identity Loading'}
+            <span className="text-[9px] font-bold text-brand-secondary uppercase tracking-widest block ml-3.5 opacity-50">
+              {adminUser?.role.replace('_', ' ') || 'Admin'}
             </span>
           </motion.div>
         )}
@@ -127,13 +127,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-8 scrollbar-hide">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-hide">
         {filteredSections.map((section, idx) => (
-          <div key={idx} className="space-y-3">
+          <div key={idx} className="space-y-2">
             {!isCollapsed && (
               <h3 className={cn(
-                "px-4 text-[9px] font-black uppercase tracking-[0.4em]",
-                theme === 'dark' ? "text-brand-secondary/30" : "text-brand-primary/40"
+                "px-3 text-[8px] font-bold uppercase tracking-widest",
+                theme === 'dark' ? "text-brand-secondary/40" : "text-brand-primary/50"
               )}>{section.title}</h3>
             )}
             <div className="space-y-1">
@@ -142,20 +142,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                   key={item.path}
                   to={item.path}
                   className={({ isActive }) => cn(
-                    "flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                    "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group relative",
                     isActive
-                      ? "bg-brand-primary shadow-[0_10px_25px_rgba(45,106,79,0.3)] text-brand-white"
+                      ? "bg-brand-primary text-brand-white"
                       : theme === 'dark'
                         ? "text-brand-white/40 hover:bg-brand-white/5 hover:text-brand-white"
                         : "text-brand-surface/40 hover:bg-brand-primary/5 hover:text-brand-primary"
                   )}
                   title={isCollapsed ? item.name : ""}
                 >
-                  <item.icon size={isCollapsed ? 22 : 18} className={cn(
-                    "shrink-0 transition-transform duration-300 group-hover:scale-110",
+                  <item.icon size={isCollapsed ? 20 : 16} className={cn(
+                    "shrink-0 transition-transform duration-200",
                     isCollapsed && "mx-auto"
                   )} />
-                  {!isCollapsed && <span className="text-sm font-semibold tracking-tight">{item.name}</span>}
+                  {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
 
                   {isCollapsed && (
                     <div className={cn(

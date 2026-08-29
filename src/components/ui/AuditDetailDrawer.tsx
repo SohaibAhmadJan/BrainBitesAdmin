@@ -15,13 +15,13 @@ interface AuditDetailDrawerProps {
 const JsonBlock = ({ title, data, color }: { title: string, data: any, color: string }) => {
     const { theme } = useTheme();
     return (
-        <div className="space-y-3">
-            <div className="flex items-center gap-2 ml-2">
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 ml-1">
                 <div className={cn("w-1.5 h-1.5 rounded-full", color)} />
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">{title}</h4>
+                <h4 className="text-[9px] font-bold uppercase tracking-widest opacity-40">{title}</h4>
             </div>
             <div className={cn(
-                "p-6 rounded-3xl border font-mono text-[11px] overflow-x-auto leading-relaxed shadow-inner max-h-[300px] scrollbar-thin",
+                "p-4 rounded-xl border font-mono text-[10px] overflow-x-auto leading-relaxed shadow-inner max-h-[300px] scrollbar-thin",
                 theme === 'dark' ? "bg-black/40 border-brand-sage/10 text-brand-secondary/80" : "bg-brand-primary/5 border-brand-primary/10 text-brand-primary"
             )}>
                 {data ? JSON.stringify(data, null, 2) : "NULL_SNAPSHOT"}
@@ -52,26 +52,26 @@ const AuditDetailDrawer: React.FC<AuditDetailDrawerProps> = ({ log, onClose }) =
       >
         {/* Header */}
         <div className={cn(
-          "p-8 border-b flex justify-between items-start backdrop-blur-3xl sticky top-0 z-10",
+          "p-4 border-b flex justify-between items-center backdrop-blur-3xl sticky top-0 z-10",
           theme === 'dark' ? "bg-brand-surface/80 border-brand-sage/10" : "bg-white/80 border-brand-primary/5"
         )}>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <motion.button
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
-              className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border-brand-sage/10 shadow-lg"
+              className="p-2.5 glass rounded-xl text-sub hover:text-brand-primary transition-all border-brand-sage/10 shadow-md"
             >
-              <X size={24} />
+              <X size={20} />
             </motion.button>
             <div>
-              <h2 className="text-2xl font-black tracking-tighter uppercase">
+              <h2 className="text-xl font-bold tracking-tight uppercase">
                 Audit Inspection
               </h2>
-              <div className="flex items-center gap-2 mt-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse" />
-                 <p className="text-[10px] text-brand-primary font-black uppercase tracking-[0.2em]">
-                   Secure Immutable Entry
+              <div className="flex items-center gap-2 mt-0.5">
+                 <div className="w-1 h-1 rounded-full bg-brand-primary animate-pulse" />
+                 <p className="text-[9px] text-brand-primary font-bold uppercase tracking-widest">
+                   Secure Entry
                  </p>
               </div>
             </div>
@@ -82,16 +82,16 @@ const AuditDetailDrawer: React.FC<AuditDetailDrawerProps> = ({ log, onClose }) =
         <div className="flex-1 overflow-y-auto p-10 space-y-10 scrollbar-hide">
 
           {/* Action Overview */}
-          <section className="space-y-6">
-            <div className="glass p-8 rounded-[2.5rem] border-brand-sage/5 relative overflow-hidden">
-                <div className="flex justify-between items-start mb-6">
-                    <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase text-sub opacity-40 tracking-widest">Protocol Action</p>
-                        <h3 className="text-2xl font-black text-brand-primary tracking-tight uppercase">
+          <section className="space-y-4">
+            <div className="glass p-6 rounded-2xl border-brand-sage/5 relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-0.5">
+                        <p className="text-[8px] font-bold uppercase text-sub opacity-40 tracking-widest">Protocol Action</p>
+                        <h3 className="text-xl font-bold text-brand-primary tracking-tight uppercase">
                             {log?.action.replace(/_/g, ' ')}
                         </h3>
                     </div>
-                    <Clock size={20} className="text-sub opacity-20" />
+                    <Clock size={16} className="text-sub opacity-20" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-6 pt-6 border-t border-brand-sage/5">

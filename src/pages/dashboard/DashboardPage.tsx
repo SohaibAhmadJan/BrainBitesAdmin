@@ -50,7 +50,7 @@ import {
 } from '../../services/firestoreService';
 import { sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
-import { AuditLog, AnalyticsEvent, AppNotification, UserProfile, Category } from '../../types';
+import { AuditLog, AnalyticsEvent, AppNotification, UserProfile, Category, BiteItem } from '../../types';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
 import toast from 'react-hot-toast';
@@ -102,6 +102,9 @@ const Counter = ({ value }: { value: number | string }) => {
 
 const DashboardPage = () => {
   const { theme } = useTheme();
+  const [timeRange, setTimeRange] = useState<'7D' | '1M' | '3M' | '1Y' | 'ALL'>('7D');
+  const [allFacts, setAllFacts] = useState<BiteItem[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [counts, setCounts] = useState({
     facts: 0,
     collections: 0,
@@ -118,12 +121,15 @@ const DashboardPage = () => {
   const [lifecycleData, setLifecycleData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   const [quickMessage, setQuickMessage] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
   const navigate = useNavigate();
 
+  // 1. Initial Load: Core Stats and Global Lists
   useEffect(() => {
-    const loadStats = async () => {
+    const loadGlobalStats = async () => {
+      setLoading(true);
       try {
         const [facts = [], collections = [], notifications = [], auditLogs = [], categories = [], users = [], quotes = [], achievements = [], analytics = []] = await Promise.all([
           fetchBites(),
@@ -134,47 +140,13 @@ const DashboardPage = () => {
           fetchUsers(),
           fetchQuotes(),
           fetchAchievements(),
-          fetchAnalyticsEvents(7)
+          fetchAnalyticsEvents(30) // Fixed 30 days for leaderboard stability
         ]);
 
-        // --- Category De-duplication Logic ---
-        const uniqueMap = new Map<string, Category>();
-        categories.forEach(cat => {
-            const nameKey = cat.name.trim().toLowerCase();
-            if (!uniqueMap.has(nameKey) || (cat.description?.length || 0) > (uniqueMap.get(nameKey)?.description?.length || 0)) {
-                uniqueMap.set(nameKey, cat);
-            }
-        });
-        const uniqueCategories = Array.from(uniqueMap.values());
-        // -------------------------------------
+        setAllFacts(facts);
+        setAllUsers(users);
 
-        setCounts({
-          facts: facts.length,
-          collections: collections.length,
-          notifications: notifications.length,
-          categories: uniqueCategories.length,
-          users: users.length || 1284,
-          quotes: quotes.length,
-          achievements: achievements.length
-        });
-
-        // 0. Calculate Trends (Net Change in last 7 days)
-        const lastWeekTs = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        const calculateTrend = (items: any[]) => {
-            const recent = items.filter(i => (i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
-            return { delta: recent, isPositive: true };
-        };
-
-        setTrends({
-            Facts: calculateTrend(facts),
-            Users: calculateTrend(users),
-            Notifications: calculateTrend(notifications)
-        });
-
-        // 0.1 Set Recent Activity
-        setRecentLogs(auditLogs.slice(0, 8));
-
-        // 0.2 Calculate Top Insights (Last 7 Days)
+        // --- Calculate Top Insights (Static) ---
         const insightMap: Record<string, number> = {};
         analytics.filter(e => e.name === 'read_fact').forEach(e => {
             const id = e.params?.item_id;
@@ -187,70 +159,125 @@ const DashboardPage = () => {
                 return {
                     id,
                     count,
-                    title: fact?.fact.slice(0, 40) + '...' || 'Unknown Insight',
+                    title: (fact?.fact?.slice(0, 40) || 'Unknown Insight') + '...',
                     category: fact?.category || 'General'
                 };
             })
             .sort((a, b) => b.count - a.count)
             .slice(0, 5);
-
         setTopInsights(sortedInsights);
 
-        // 0.3 Calculate Top Scholars
+        // --- Category De-duplication Logic ---
+        const uniqueMap = new Map<string, Category>();
+        categories.forEach(cat => {
+            const nameKey = cat.name.trim().toLowerCase();
+            if (!uniqueMap.has(nameKey) || (cat.description?.length || 0) > (uniqueMap.get(nameKey)?.description?.length || 0)) {
+                uniqueMap.set(nameKey, cat);
+            }
+        });
+        const uniqueCategories = Array.from(uniqueMap.values());
+
+        setCounts({
+          facts: facts.length,
+          collections: collections.length,
+          notifications: notifications.length,
+          categories: uniqueCategories.length,
+          users: users.length || 1284,
+          quotes: quotes.length,
+          achievements: achievements.length
+        });
+
+        const lastWeekTs = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const calculateTrend = (items: any[]) => {
+            const recent = items.filter(i => (i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
+            return { delta: recent, isPositive: true };
+        };
+
+        setTrends({
+            Facts: calculateTrend(facts),
+            Users: calculateTrend(users),
+            Notifications: calculateTrend(notifications)
+        });
+
+        setRecentLogs(auditLogs.slice(0, 8));
+
         const sortedUsers = [...users]
             .sort((a, b) => b.stats.factsReadCount - a.stats.factsReadCount)
             .slice(0, 5);
-
         setTopScholars(sortedUsers);
 
-        // 1. Domain Inventory Aggregation (Strict Filtering)
         const distMap: Record<string, number> = {};
-
-        // Only initialize counts for unique categories
-        uniqueCategories.forEach(cat => {
-            distMap[cat.name] = 0;
-        });
-
+        uniqueCategories.forEach(cat => { distMap[cat.name] = 0; });
         facts.forEach(f => {
-            // Only count if it belongs to an official category
-            if (f.category && distMap[f.category] !== undefined) {
-                distMap[f.category]++;
-            }
+            if (f.category && distMap[f.category] !== undefined) distMap[f.category]++;
         });
 
         const distChart = uniqueCategories
             .filter(cat => distMap[cat.name] > 0)
-            .map((cat) => {
-                return {
-                    name: cat.name,
-                    value: distMap[cat.name],
-                    color: cat.color || '#2D6A4F' // Use the actual brand color
-                };
-            })
+            .map((cat) => ({
+                name: cat.name,
+                value: distMap[cat.name],
+                color: cat.color || '#2D6A4F'
+            }))
             .sort((a, b) => b.value - a.value);
-
         setCategoryData(distChart);
 
-        // 2. User Lifecycle Aggregation (Last 7 Days)
+      } catch (err) {
+        console.error('Global stats load failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadGlobalStats();
+  }, []);
+
+  // 2. Dynamic Load: Analytics based on Time Range (EXCLUSIVELY for Lifecycle Chart)
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      setIsAnalyticsLoading(true);
+      try {
+        const rangeInDays = {
+            '7D': 7,
+            '1M': 30,
+            '3M': 90,
+            '1Y': 365,
+            'ALL': 3650
+        }[timeRange];
+
+        const analytics = await fetchAnalyticsEvents(rangeInDays);
+
+        // 1. User Lifecycle Aggregation (Isolating this logic)
         const lifecycleMap: Record<string, { installs: number, uninstalls: number, active: number }> = {};
-        for (let i = 0; i < 7; i++) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
+        const isHighDensity = timeRange === '1Y' || timeRange === 'ALL';
+
+        if (isHighDensity) {
+            for (let i = 0; i < (timeRange === '1Y' ? 12 : 24); i++) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const dateStr = date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
+            }
+        } else {
+            const daysToPopulate = rangeInDays === 3650 ? 30 : rangeInDays;
+            for (let i = 0; i < daysToPopulate; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
+            }
         }
 
         analytics.forEach(event => {
             const ts = parseTimestamp(event.timestamp);
-            const dateStr = new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const date = new Date(ts);
+            const dateStr = isHighDensity
+                ? date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+                : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
             if (lifecycleMap[dateStr]) {
-                if (event.name === 'app_install') {
-                    lifecycleMap[dateStr].installs++;
-                } else if (event.name === 'app_remove' || event.name === 'app_uninstall') {
-                    lifecycleMap[dateStr].uninstalls++;
-                } else if (event.name === 'app_open' || event.name === 'session_start') {
-                    lifecycleMap[dateStr].active++;
-                }
+                if (event.name === 'app_install') lifecycleMap[dateStr].installs++;
+                else if (event.name === 'app_remove' || event.name === 'app_uninstall') lifecycleMap[dateStr].uninstalls++;
+                else if (event.name === 'app_open' || event.name === 'session_start') lifecycleMap[dateStr].active++;
             }
         });
 
@@ -260,16 +287,19 @@ const DashboardPage = () => {
             uninstalls: lifecycleMap[date].uninstalls,
             active: lifecycleMap[date].active
         })).reverse();
-
         setLifecycleData(chart);
+
       } catch (err) {
-        console.error('Dashboard synchronization failed:', err);
+        console.error('Analytics load failed:', err);
       } finally {
-        setLoading(false);
+        setIsAnalyticsLoading(false);
       }
     };
-    loadStats();
-  }, []);
+
+    if (allFacts.length > 0 || !loading) {
+        loadAnalytics();
+    }
+  }, [timeRange, allFacts, loading]);
 
   const handleQuickDispatch = async () => {
     if (!quickMessage.trim()) {
@@ -308,45 +338,45 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
+        <div className="flex items-center gap-4">
            <motion.h1
              initial={{ opacity: 0, y: 10 }}
              animate={{ opacity: 1, y: 0 }}
-             className="text-4xl font-black tracking-tighter uppercase"
+             className="text-3xl font-bold tracking-tight uppercase"
            >
-             Admin <span className="text-brand-primary">Dashboard</span>
+             Dashboard
            </motion.h1>
         </div>
       </div>
 
       {/* Stat Matrix */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
         {stats.map((stat, i) => (
           <PremiumCard
             key={i}
-            className="p-10"
+            className="p-6"
             onClick={() => navigate(stat.path)}
             glowColor={`${theme === 'dark' ? 'rgba(45, 106, 79, 0.2)' : 'rgba(149, 213, 178, 0.4)'}`}
           >
-            <div className="flex justify-between items-start mb-8">
-              <div className="p-4 bg-brand-primary/10 rounded-2xl shadow-inner text-brand-primary">
-                <stat.icon size={24} />
+            <div className="flex justify-between items-start mb-6">
+              <div className="p-3 bg-brand-primary/10 rounded-xl text-brand-primary">
+                <stat.icon size={20} />
               </div>
               {stat.trend && stat.trend.delta > 0 && (
                 <div className={cn(
-                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black tracking-tighter",
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-tighter",
                     stat.trend.isPositive ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
                 )}>
-                    {stat.trend.isPositive ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
-                    +{stat.trend.delta} THIS WEEK
+                    {stat.trend.isPositive ? <ArrowUpRight size={10} strokeWidth={3} /> : <ArrowDownRight size={10} strokeWidth={3} />}
+                    +{stat.trend.delta}
                 </div>
               )}
             </div>
-            <p className="text-sub text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{stat.label}</p>
-            <h3 className="text-5xl font-black mt-2 tracking-tighter tabular-nums group-hover:text-brand-primary transition-colors duration-500">
+            <p className="text-sub text-[9px] font-bold uppercase tracking-widest opacity-40">{stat.label}</p>
+            <h3 className="text-3xl font-bold mt-1 tracking-tight tabular-nums group-hover:text-brand-primary transition-colors duration-300">
               {loading ? '--' : <Counter value={stat.value} />}
             </h3>
           </PremiumCard>
@@ -356,19 +386,44 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
         {/* User Lifecycle Metrics */}
         <PremiumCard
-          className="xl:col-span-3 p-12 relative overflow-hidden"
+          className="xl:col-span-3 p-8 relative overflow-hidden"
           glowColor="rgba(45, 106, 79, 0.05)"
         >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 relative z-10">
             <div>
-              <h3 className="text-3xl font-black tracking-tighter flex items-center gap-4">
-                 <ActivityIcon size={28} className="text-brand-primary" /> User Lifecycle
+              <h3 className="text-xl font-bold tracking-tight flex items-center gap-3">
+                 <ActivityIcon size={22} className="text-brand-primary" /> User Lifecycle
               </h3>
-              <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 opacity-40">Growth, Retention & Churn Dynamics</p>
+              <p className="text-sub text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-40">Growth, Retention & Churn Dynamics</p>
+            </div>
+
+            <div className="flex bg-brand-bg/5 dark:bg-brand-bg/40 p-1 rounded-xl border border-brand-sage/10">
+              {(['7D', '1M', '3M', '1Y', 'ALL'] as const).map(range => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={cn(
+                    "px-3 py-1.5 text-[9px] font-bold rounded-lg transition-all uppercase tracking-widest",
+                    timeRange === range
+                      ? "bg-brand-primary text-brand-white shadow-lg"
+                      : "text-sub opacity-40 hover:opacity-100"
+                  )}
+                >
+                  {range === 'ALL' ? 'Lifetime' : range}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="h-[400px] w-full relative z-10">
+            {isAnalyticsLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-brand-bg/10 backdrop-blur-[2px] z-50 rounded-xl">
+                <div className="flex flex-col items-center gap-3">
+                   <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                   <p className="text-[9px] font-bold text-brand-primary uppercase tracking-widest">Syncing Range...</p>
+                </div>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lifecycleData}>
                 <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={theme === 'dark' ? '#274C3A' : '#E6F4EA'} opacity={0.2} />
@@ -441,166 +496,172 @@ const DashboardPage = () => {
         </PremiumCard>
 
         {/* Domain Inventory Chart */}
-        <PremiumCard
-          className="xl:col-span-2 p-12 relative overflow-hidden h-fit"
-          glowColor="rgba(45, 106, 79, 0.05)"
-        >
-          <div className="mb-12 relative z-10">
-            <h3 className="text-3xl font-black tracking-tighter flex items-center gap-4">
-               <LayoutGrid size={28} className="text-brand-primary" /> Facts by Category
-            </h3>
-            <p className="text-sub text-xs font-black uppercase tracking-[0.4em] mt-2 opacity-40">Category Distribution</p>
-          </div>
-
-          <div className="h-[320px] w-full relative z-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
-                  paddingAngle={8}
-                  dataKey="value"
-                  animationDuration={2000}
-                  label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
-                  labelLine={false}
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: theme === 'dark' ? 'rgba(26, 43, 34, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                    borderColor: 'var(--border-glass)',
-                    borderRadius: '20px',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-glass)',
-                    fontSize: '10px',
-                    fontWeight: 900,
-                    textTransform: 'uppercase'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="relative z-10 mt-10">
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
-              {categoryData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2.5 group/item transition-all duration-300">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full shadow-lg"
-                    style={{ backgroundColor: entry.color, boxShadow: `0 0 10px ${entry.color}44` }}
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-sub opacity-40 group-hover/item:opacity-100 transition-opacity">
-                    {entry.name}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-brand-primary opacity-30">
-                    {entry.value}
-                  </span>
-                </div>
-              ))}
+        {React.useMemo(() => (
+          <PremiumCard
+            className="xl:col-span-2 p-8 relative overflow-hidden h-fit"
+            glowColor="rgba(45, 106, 79, 0.05)"
+          >
+            <div className="mb-8 relative z-10">
+              <h3 className="text-xl font-bold tracking-tight flex items-center gap-3">
+                <LayoutGrid size={22} className="text-brand-primary" /> Content Mix
+              </h3>
+              <p className="text-sub text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-40">Category Distribution</p>
             </div>
-          </div>
-        </PremiumCard>
+
+            <div className="h-[320px] w-full relative z-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={120}
+                    paddingAngle={8}
+                    dataKey="value"
+                    animationDuration={1500}
+                    label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                    labelLine={false}
+                  >
+                    {categoryData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: theme === 'dark' ? 'rgba(26, 43, 34, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                      borderColor: 'var(--border-glass)',
+                      borderRadius: '20px',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                      border: '1px solid var(--border-glass)',
+                      fontSize: '10px',
+                      fontWeight: 900,
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="relative z-10 mt-10">
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
+                {categoryData.map((entry: any, index: number) => (
+                  <div key={index} className="flex items-center gap-2.5 group/item transition-all duration-300">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shadow-lg"
+                      style={{ backgroundColor: entry.color, boxShadow: `0 0 10px ${entry.color}44` }}
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-sub opacity-40 group-hover/item:opacity-100 transition-opacity">
+                      {entry.name}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-brand-primary opacity-30">
+                      {entry.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PremiumCard>
+        ), [categoryData, theme])}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
         {/* Top Insights Leaderboard */}
-        <PremiumCard className="p-10 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
-            <div className="flex items-center justify-between mb-8 relative z-10">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary shadow-lg">
-                        <Trophy size={18} />
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Leaderboard</h3>
-                        <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mt-1">Popular Insights</p>
-                    </div>
-                </div>
-            </div>
-            <div className="space-y-4 relative z-10">
-                {loading ? <LoadingNode /> : topInsights.length === 0 ? (
-                    <EmptyBuffer title="No Data" message="Insufficient analytics for leaderboard generation." />
-                ) : topInsights.map((insight, idx) => (
-                    <div key={insight.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
-                        <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-xs",
-                            idx === 0 ? "bg-brand-gold/20 text-brand-gold shadow-[0_0_15px_rgba(233,196,106,0.3)]" :
-                            idx === 1 ? "bg-slate-300/20 text-slate-400" :
-                            idx === 2 ? "bg-amber-700/20 text-amber-800" : "bg-brand-bg/50 text-sub/40"
-                        )}>
-                            #{idx + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors italic">"{insight.title}"</p>
-                            <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">{insight.category}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs font-black text-brand-primary tabular-nums">{insight.count}</p>
-                            <p className="text-[7px] font-black text-sub opacity-30 uppercase">Reads</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </PremiumCard>
+        {React.useMemo(() => (
+          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
+                          <Trophy size={18} />
+                      </div>
+                      <div>
+                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
+                          <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Popular Insights</p>
+                      </div>
+                  </div>
+              </div>
+              <div className="space-y-4 relative z-10">
+                  {loading ? <LoadingNode /> : topInsights.length === 0 ? (
+                      <EmptyBuffer title="No Data" message="Insufficient analytics for leaderboard generation." />
+                  ) : topInsights.map((insight, idx) => (
+                      <div key={insight.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
+                          <div className={cn(
+                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-xs",
+                              idx === 0 ? "bg-brand-gold/20 text-brand-gold shadow-[0_0_15px_rgba(233,196,106,0.3)]" :
+                              idx === 1 ? "bg-slate-300/20 text-slate-400" :
+                              idx === 2 ? "bg-amber-700/20 text-amber-800" : "bg-brand-bg/50 text-sub/40"
+                          )}>
+                              #{idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors italic">"{insight.title}"</p>
+                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">{insight.category}</p>
+                          </div>
+                          <div className="text-right">
+                              <p className="text-xs font-black text-brand-primary tabular-nums">{insight.count}</p>
+                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Reads</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </PremiumCard>
+        ), [topInsights, loading])}
 
         {/* Top Scholars Leaderboard */}
-        <PremiumCard className="p-10 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
-            <div className="flex items-center justify-between mb-8 relative z-10">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-brand-secondary/10 rounded-xl text-brand-secondary shadow-lg">
-                        <UserRound size={18} />
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Leaderboard</h3>
-                        <p className="text-[10px] font-black text-brand-secondary uppercase tracking-[0.2em] mt-1">Top Scholars</p>
-                    </div>
-                </div>
-            </div>
-            <div className="space-y-4 relative z-10">
-                {loading ? <LoadingNode /> : topScholars.length === 0 ? (
-                    <EmptyBuffer title="No Data" message="No user activity detected for ranking." />
-                ) : topScholars.map((user, idx) => (
-                    <div key={user.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-bg/50 border border-brand-sage/10 flex items-center justify-center shrink-0 text-brand-primary font-black text-sm">
-                            {user.profile.displayName[0]?.toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors">{user.profile.displayName}</p>
-                            <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">Level {Math.floor(user.stats.factsReadCount / 10) + 1} Participant</p>
-                        </div>
-                        <div className="text-right">
-                            <div className="flex items-center gap-2 justify-end">
-                                <span className="text-xs font-black text-brand-secondary tabular-nums">{user.stats.factsReadCount}</span>
-                                <BookOpen size={12} className="text-brand-primary opacity-40" />
-                            </div>
-                            <p className="text-[7px] font-black text-sub opacity-30 uppercase">Total Insights</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </PremiumCard>
+        {React.useMemo(() => (
+          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-brand-secondary/10 rounded-xl text-brand-secondary">
+                          <UserRound size={18} />
+                      </div>
+                      <div>
+                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
+                          <p className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest mt-0.5">Top Scholars</p>
+                      </div>
+                  </div>
+              </div>
+              <div className="space-y-4 relative z-10">
+                  {loading ? <LoadingNode /> : topScholars.length === 0 ? (
+                      <EmptyBuffer title="No Data" message="No user activity detected for ranking." />
+                  ) : topScholars.map((user, idx) => (
+                      <div key={user.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
+                          <div className="w-10 h-10 rounded-xl bg-brand-bg/50 border border-brand-sage/10 flex items-center justify-center shrink-0 text-brand-primary font-black text-sm">
+                              {user.profile.displayName[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors">{user.profile.displayName}</p>
+                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">Level {Math.floor(user.stats.factsReadCount / 10) + 1} Participant</p>
+                          </div>
+                          <div className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                  <span className="text-xs font-black text-brand-secondary tabular-nums">{user.stats.factsReadCount}</span>
+                                  <BookOpen size={12} className="text-brand-primary opacity-40" />
+                              </div>
+                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Total Insights</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </PremiumCard>
+        ), [topScholars, loading])}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
             {/* Recent Activity Feed */}
             <PremiumCard
-              className="p-10 xl:col-span-1 flex flex-col relative overflow-hidden"
+              className="p-8 xl:col-span-1 flex flex-col relative overflow-hidden"
               glowColor="rgba(45, 106, 79, 0.05)"
             >
-                <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="flex items-center justify-between mb-6 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-brand-secondary/10 rounded-xl text-brand-secondary shadow-lg">
+                        <div className="p-2 bg-brand-secondary/10 rounded-xl text-brand-secondary">
                             <HistoryIcon size={18} />
                         </div>
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Recent Activity</h3>
-                            <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mt-1">System Sequence</p>
+                            <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Recent Activity</h3>
+                            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">System Sequence</p>
                         </div>
                     </div>
                 </div>
@@ -632,17 +693,17 @@ const DashboardPage = () => {
 
             {/* Quick Dispatch Node */}
             <PremiumCard
-              className="p-10 xl:col-span-2 relative overflow-hidden flex flex-col justify-center"
+              className="p-8 xl:col-span-2 relative overflow-hidden flex flex-col justify-center"
               glowColor="rgba(45, 106, 79, 0.05)"
             >
-                <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="flex items-center justify-between mb-6 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary shadow-lg">
+                        <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
                             <Radio size={18} className="animate-pulse" />
                         </div>
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-[0.4em] text-sub opacity-40">Quick Dispatch</h3>
-                            <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mt-1">Live Global Broadcast</p>
+                            <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Quick Dispatch</h3>
+                            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Live Broadcast</p>
                         </div>
                     </div>
                 </div>

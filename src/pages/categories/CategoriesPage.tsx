@@ -205,15 +205,15 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
       <motion.div
         {...DRAWER_TRANSITION}
         className={cn(
-          "w-full h-full flex flex-col overflow-hidden border-[16px] relative rounded-[4.5rem] transition-colors duration-700",
+          "w-full h-full flex flex-col overflow-hidden border-[4px] relative rounded-2xl transition-colors duration-700",
           theme === 'dark'
-            ? "bg-brand-bg border-brand-primary/60 shadow-[inset_0_0_150px_rgba(45,106,79,0.5)]"
-            : "bg-[#F4F8F6] border-brand-primary/30 shadow-[0_40px_100px_rgba(0,0,0,0.1)]"
+            ? "bg-brand-bg border-brand-primary/40 shadow-2xl"
+            : "bg-[#F4F8F6] border-brand-primary/20 shadow-xl"
         )}
       >
         <div className={cn(
-          "p-6 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-50 transition-colors duration-500",
-          theme === 'dark' ? "bg-brand-surface/90" : "bg-white/95 shadow-sm"
+          "p-4 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-50 transition-colors duration-500 border-b",
+          theme === 'dark' ? "bg-brand-surface/90 border-brand-sage/20" : "bg-white/95 border-brand-primary/5"
         )}>
           <AnimatePresence>
             {isSyncing && (
@@ -224,35 +224,35 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
               />
             )}
           </AnimatePresence>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <motion.button
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
               className={cn(
-                "p-4 glass rounded-2xl transition-all shadow-xl",
+                "p-3 glass rounded-xl transition-all shadow-md",
                 theme === 'dark' ? "text-sub hover:text-brand-primary border-brand-sage/10" : "text-brand-primary hover:bg-brand-primary/10 border-brand-primary/20"
               )}
             >
-              <X size={28} />
+              <X size={20} />
             </motion.button>
             <div>
-              <h2 className={cn("text-4xl font-black tracking-tighter uppercase", theme === 'dark' ? "text-white" : "text-brand-primary")}>
+              <h2 className={cn("text-xl font-bold tracking-tight uppercase", theme === 'dark' ? "text-white" : "text-brand-primary")}>
                 {category ? 'Edit Category' : 'New Category'}
               </h2>
-              <div className="flex items-center gap-3 mt-1.5">
+              <div className="flex items-center gap-2 mt-0.5">
                  <StatusLight />
-                 <p className={cn("text-xs font-black uppercase tracking-[0.4em]", theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary")}>
+                 <p className={cn("text-[9px] font-bold uppercase tracking-widest", theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary")}>
                    Content Management System
                  </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
              <ElasticButton
                 onClick={handleSave}
                 disabled={isSyncing || isCheckingId || isIdInUse}
-                className="px-16 py-5 rounded-2xl text-base shadow-[0_0_30px_rgba(45,106,79,0.4)]"
+                className="px-10 py-3 rounded-xl text-xs shadow-lg"
              >
                Save Category
              </ElasticButton>
@@ -268,7 +268,7 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
                   <div className="p-2 bg-brand-primary/10 rounded-lg"><Info size={18} /></div>
                   <h3 className="text-xs font-black uppercase tracking-[0.4em] opacity-40">Category Basics</h3>
                 </div>
-                <div className={cn("p-6 rounded-[3.5rem] flex-1 flex flex-col justify-start space-y-4 border-4 relative overflow-hidden transition-all duration-500 group/tile", theme === 'dark' ? "bg-brand-surface/40 border-brand-primary/15 shadow-2xl backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-xl")}>
+                <div className={cn("p-6 rounded-2xl flex-1 flex flex-col justify-start space-y-4 border relative overflow-hidden transition-all duration-500", theme === 'dark' ? "bg-brand-surface/40 border-brand-sage/20 backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-sm")}>
 
                   {/* Category Name Input (Moved to Top) */}
                   <div className="space-y-2">
@@ -384,7 +384,7 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
                   <div className="p-2 bg-brand-gold/10 rounded-lg"><FileText size={18} /></div>
                   <h3 className="text-xs font-black uppercase tracking-[0.4em] opacity-40">Description</h3>
                 </div>
-                <div className={cn("p-6 rounded-[3.5rem] flex-1 flex flex-col border-4 transition-all duration-500 min-h-0 group/tile relative overflow-hidden", theme === 'dark' ? "bg-brand-surface/40 border-brand-primary/15 shadow-2xl backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-xl")}>
+                <div className={cn("p-6 rounded-2xl flex-1 flex flex-col border transition-all duration-500 min-h-0 relative overflow-hidden", theme === 'dark' ? "bg-brand-surface/40 border-brand-sage/20 backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-sm")}>
                   <textarea className={cn("w-full flex-1 border-2 rounded-[2rem] p-6 text-sm font-medium leading-relaxed italic resize-none focus:outline-none transition-all relative z-10", errors.description ? "border-red-500/50" : "focus:border-brand-primary/50", theme === 'dark' ? "bg-black/30 border-brand-primary/10" : "bg-brand-primary/5 border-brand-primary/20 text-brand-primary")} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Define the scope and mission of this category..." />
                   {errors.description && <p className="text-[10px] text-red-500 font-black uppercase flex items-center gap-2 ml-4 mt-2"><AlertCircle size={14} /> {errors.description}</p>}
 
@@ -439,59 +439,55 @@ const CategoriesPage = () => {
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
-
-      {/* High-Fidelity Header */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
            <motion.h1
              initial={{ opacity: 0, y: 10 }}
              animate={{ opacity: 1, y: 0 }}
-             className="text-4xl font-black tracking-tighter uppercase"
+             className="text-3xl font-bold tracking-tight uppercase"
            >
              Categories
            </motion.h1>
         </div>
         <div className="flex gap-4">
-           <ElasticButton onClick={() => handleEdit(null)}>
-              <Plus size={18} strokeWidth={3} />
+           <ElasticButton onClick={() => handleEdit(null)} className="px-6 py-2.5 rounded-xl text-xs">
+              <Plus size={16} />
               New Category
            </ElasticButton>
         </div>
       </div>
 
       {/* Search & Action Bar */}
-      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
-        <div className="relative flex-1 md:w-[32rem] group">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
+      <div className="glass p-4 rounded-2xl flex flex-col xl:flex-row justify-between items-center gap-4 backdrop-blur-xl">
+        <div className="relative flex-1 md:w-96 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={18} />
           <input
             type="text"
-            placeholder="Filter categories by name or description..."
-            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            placeholder="Filter categories..."
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-xl pl-12 pr-4 py-2 text-sm focus:outline-none focus:border-brand-primary/50 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="hidden md:flex items-center gap-6 pr-4">
+        <div className="hidden md:flex items-center gap-4 pr-4">
            <div className="text-right">
-              <p className="text-[9px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Active Categories</p>
-              <p className="text-2xl font-black text-brand-primary tabular-nums">{allCategories.length}</p>
+              <p className="text-[9px] font-bold text-sub uppercase tracking-widest opacity-40">Active Categories</p>
+              <p className="text-xl font-bold text-brand-primary tabular-nums">{allCategories.length}</p>
            </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-80 glass rounded-[3rem] animate-pulse relative overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-            </div>
+            <div key={i} className="h-64 glass rounded-2xl animate-pulse" />
           ))
         ) : filteredCategories.length === 0 ? (
           <EmptyBuffer
             icon={LayoutGrid}
             title="No Categories Found"
-            message="No categories were found matching your criteria."
+            message="No categories matching your criteria."
           />
         ) : (
           <AnimatePresence mode="popLayout">
@@ -517,50 +513,48 @@ const CategoriesPage = () => {
 
               return (
                 <motion.div key={cat.id} layout>
-                  <PremiumCard glowColor={`${cat.color}22`} className="p-10 flex flex-col" onClick={() => navigate(`/facts?category=${cat.name}`)}>
-                    <div className="flex justify-between items-start mb-10">
-                       <div className={cn("w-20 h-20 rounded-[2rem] flex flex-col items-center justify-center shadow-2xl transition-all duration-700 group-hover:scale-110 relative", theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10")}>
-                          <CategoryIcon size={32} style={{ color: cat.color }} />
-                          <span className="absolute -bottom-2 -right-2 text-xl bg-brand-surface rounded-lg p-1 border border-brand-sage/20 shadow-lg">{cat.icon}</span>
+                  <PremiumCard glowColor={`${cat.color}22`} className="p-6 flex flex-col rounded-2xl" onClick={() => navigate(`/facts?category=${cat.name}`)}>
+                    <div className="flex justify-between items-start mb-6">
+                       <div className={cn("w-16 h-16 rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all duration-500 relative", theme === 'dark' ? "bg-brand-bg/80 border border-brand-sage/20" : "bg-white border border-brand-primary/10")}>
+                          <CategoryIcon size={28} style={{ color: cat.color }} />
+                          <span className="absolute -bottom-1.5 -right-1.5 text-lg bg-brand-surface rounded-lg p-1 border border-brand-sage/20 shadow-md">{cat.icon}</span>
                        </div>
 
-                       <div className="flex flex-col items-end gap-3">
-                          <span className="text-[12px] font-mono text-sub opacity-50 font-bold tracking-[0.1em]">UID: {cat.id}</span>
-                          <ActionBadge variant={cat.isPublished ? 'success' : 'warning'} className="font-black text-[11px]">
+                       <div className="flex flex-col items-end gap-2">
+                          <span className="text-[10px] font-mono text-sub opacity-50 font-bold uppercase tracking-wider">ID: {cat.id}</span>
+                          <ActionBadge variant={cat.isPublished ? 'success' : 'warning'} className="font-bold text-[9px] uppercase">
                              {cat.isPublished ? 'Live' : 'Draft'}
                           </ActionBadge>
-                          <div className="flex gap-2">
-                             <motion.button
-                                whileHover={{ scale: 1.1 }}
+                          <div className="flex gap-1.5">
+                             <button
                                 onClick={(e) => { e.stopPropagation(); handleEdit(cat); }}
-                                className="p-2.5 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-xl transition-all border border-brand-sage/10 shadow-md"
+                                className="p-1.5 glass hover:bg-brand-primary/10 text-sub hover:text-brand-primary rounded-lg transition-all border border-brand-sage/10 shadow-sm"
                              >
-                                <Edit3 size={16} />
-                             </motion.button>
-                             <motion.button
-                                whileHover={{ scale: 1.1 }}
+                                <Edit3 size={14} />
+                             </button>
+                             <button
                                 onClick={(e) => { e.stopPropagation(); removeCategory(cat.id, cat.name); }}
-                                className="p-2.5 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl transition-all border border-brand-sage/10 shadow-md"
+                                className="p-1.5 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-lg transition-all border border-brand-sage/10 shadow-sm"
                              >
-                                <Trash2 size={16} />
-                             </motion.button>
+                                <Trash2 size={14} />
+                             </button>
                           </div>
                        </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl font-black mb-1 tracking-tighter group-hover:text-brand-primary transition-colors">{cat.name}</h3>
-                      <p className="text-sub text-[15px] font-bold leading-relaxed italic line-clamp-2 opacity-80 mb-10 group-hover:text-brand-white transition-colors duration-500">
+                      <h3 className="text-2xl font-bold mb-0.5 tracking-tight group-hover:text-brand-primary transition-colors">{cat.name}</h3>
+                      <p className="text-sub text-sm font-medium leading-relaxed italic line-clamp-2 opacity-80 mb-6 group-hover:text-brand-white transition-colors duration-500">
                         "{cat.description && cat.description !== '..' ? cat.description : 'No detailed description available for this sector.'}"
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 gap-8 relative z-10 mb-10">
-                       <div className="space-y-2">
-                          <p className="text-[9px] font-black text-sub uppercase flex items-center gap-2 opacity-40"><BookOpen size={12} className="text-brand-primary" /> Facts</p>
-                          <p className="text-2xl font-black tracking-tighter tabular-nums">{stats.facts}</p>
+                    <div className="grid grid-cols-1 gap-4 relative z-10 mb-6">
+                       <div className="space-y-1">
+                          <p className="text-[9px] font-bold text-sub uppercase flex items-center gap-2 opacity-40"><BookOpen size={10} className="text-brand-primary" /> Facts Count</p>
+                          <p className="text-xl font-bold tracking-tight tabular-nums">{stats.facts}</p>
                        </div>
                     </div>
-                    <div className="mt-auto pt-8 border-t border-brand-sage/10 flex justify-end items-center relative z-10">
-                       <motion.button whileHover={{ x: 5 }} className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] group-hover:opacity-100 transition-opacity">Facts <ArrowRight size={16} /></motion.button>
+                    <div className="mt-auto pt-4 border-t border-brand-sage/10 flex justify-end items-center relative z-10">
+                       <button className="flex items-center gap-1.5 text-[9px] font-bold text-brand-primary uppercase tracking-widest group-hover:opacity-100 transition-opacity">Facts <ArrowRight size={14} /></button>
                     </div>
                   </PremiumCard>
                 </motion.div>

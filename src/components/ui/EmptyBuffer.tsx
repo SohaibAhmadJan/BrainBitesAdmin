@@ -17,7 +17,7 @@ const EmptyBuffer: React.FC<EmptyBufferProps> = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="col-span-full py-32 glass rounded-[3.5rem] border-2 border-dashed border-brand-sage/10 text-center flex flex-col items-center gap-8 relative overflow-hidden group w-full"
+      className="col-span-full py-24 bg-brand-bg/5 dark:bg-brand-bg/20 backdrop-blur-xl rounded-2xl border-2 border-dashed border-brand-sage/10 text-center flex flex-col items-center gap-6 relative overflow-hidden group w-full"
     >
       <div className="p-10 bg-brand-primary/5 rounded-full relative">
          <Icon size={80} className="text-brand-primary opacity-20 group-hover:opacity-40 transition-opacity duration-700" />

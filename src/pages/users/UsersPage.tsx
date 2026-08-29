@@ -71,35 +71,22 @@ const UsersPage = () => {
     });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* High-Fidelity Header */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
-        <div>
-           <motion.h1
-             initial={{ opacity: 0, y: 10 }}
-             animate={{ opacity: 1, y: 0 }}
-             className="text-4xl font-black tracking-tighter uppercase"
-           >
-             Users
-           </motion.h1>
-        </div>
-      </div>
-
-      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="glass p-5 rounded-2xl flex flex-col xl:flex-row justify-between items-center gap-4 backdrop-blur-xl">
         <div className="relative flex-1 md:w-[32rem] group">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={24} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={18} />
           <input
             type="text"
             placeholder="Search users by name or email..."
-            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-xl pl-12 pr-4 py-2.5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="flex flex-col md:flex-row items-center gap-3">
             <select
-                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all shadow-sm"
+                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as any)}
             >
@@ -108,7 +95,7 @@ const UsersPage = () => {
             </select>
 
             <select
-                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all shadow-sm"
+                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all"
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value as any)}
             >
@@ -120,26 +107,24 @@ const UsersPage = () => {
       </div>
 
       {/* Users Table */}
-      <div className="glass rounded-[2rem] overflow-hidden shadow-2xl relative">
+      <div className="glass rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[10px] font-black text-sub uppercase tracking-[0.3em]">
-                <th className="p-8">User</th>
-                <th className="p-8">Status</th>
-                <th className="p-8">Mastery</th>
-                <th className="p-8">Created</th>
-                <th className="p-8 text-right">Actions</th>
+              <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[9px] font-bold text-sub uppercase tracking-widest">
+                <th className="p-4">User</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Mastery</th>
+                <th className="p-4">Created</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-sage/5">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="p-8">
-                       <div className="h-12 bg-brand-primary/5 rounded-2xl w-full relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                       </div>
+                    <td colSpan={5} className="p-4">
+                       <div className="h-10 bg-brand-primary/5 rounded-xl w-full" />
                     </td>
                   </tr>
                 ))
@@ -149,7 +134,7 @@ const UsersPage = () => {
                     <EmptyBuffer
                       icon={Users}
                       title="Zero Matches Found"
-                      message="No user profiles in the global audience index match your identity query sequence."
+                      message="No user profiles match your query."
                     />
                   </td>
                 </tr>
@@ -158,15 +143,15 @@ const UsersPage = () => {
                   {filteredUsers.map((user, idx) => (
                     <motion.tr
                       key={user.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.03 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: idx * 0.02 }}
                       className="hover:bg-brand-primary/5 transition-colors group cursor-pointer"
                       onClick={() => setSelectedUser(user)}
                     >
-                      <td className="p-8">
-                        <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 rounded-3xl bg-brand-bg/5 dark:bg-brand-bg/80 border border-brand-sage/10 flex items-center justify-center text-brand-primary font-black text-xl shadow-md group-hover:scale-110 group-hover:border-brand-primary/40 transition-all duration-500 overflow-hidden relative">
+                      <td className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-brand-bg/5 dark:bg-brand-bg/80 border border-brand-sage/10 flex items-center justify-center text-brand-primary font-black text-sm shadow-sm overflow-hidden">
                             {(() => {
                               const avatarUrl = getAvatarUrl(user.profile.photoUrl);
                               return avatarUrl ? (
@@ -175,66 +160,61 @@ const UsersPage = () => {
                                 user.profile.displayName[0]?.toUpperCase() || 'U'
                               );
                             })()}
-                            <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                           <div>
-                            <p className="text-base font-bold group-hover:text-brand-primary transition-colors">{user.profile.displayName}</p>
-                            <p className="text-[10px] text-sub font-mono mt-1 uppercase tracking-[0.2em]">{user.profile.email || user.id.slice(0, 16)}</p>
+                            <p className="text-sm font-bold">{user.profile.displayName}</p>
+                            <p className="text-[9px] text-sub font-mono uppercase tracking-widest">{user.profile.email || user.id.slice(0, 12)}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="p-8">
+                      <td className="p-4">
                         <div className={cn(
-                          "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-lg",
-                          user.account.status === 'ACTIVE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary shadow-brand-primary/5" :
-                          user.account.status === 'DISABLED' ? "bg-red-500/10 border-red-500/20 text-red-500 shadow-red-500/5" :
-                          "bg-brand-bg/5 text-sub border-brand-sage/10 shadow-inner"
+                          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest border",
+                          user.account.status === 'ACTIVE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" :
+                          user.account.status === 'DISABLED' ? "bg-red-500/10 border-red-500/20 text-red-500" :
+                          "bg-brand-bg/5 text-sub border-brand-sage/10"
                         )}>
-                          <div className={cn("w-1.5 h-1.5 rounded-full", user.account.status === 'ACTIVE' ? 'bg-brand-primary animate-pulse' : 'bg-red-500')} />
+                          <div className={cn("w-1 h-1 rounded-full", user.account.status === 'ACTIVE' ? 'bg-brand-primary' : 'bg-red-500')} />
                           {user.account.status}
                         </div>
                       </td>
-                      <td className="p-8">
+                      <td className="p-4">
                         {(() => {
                           const mastery = calculateMastery(user.stats.factsReadCount);
                           return (
-                            <div className="flex flex-col gap-1.5">
-                              <div className={cn(
-                                "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border w-fit",
-                                mastery.level > 1 ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-brand-bg/5 border-brand-sage/10 text-sub"
-                              )}>
-                                LV. {mastery.level} • {mastery.title}
-                              </div>
+                            <div className={cn(
+                              "inline-flex items-center gap-2 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border w-fit",
+                              mastery.level > 1 ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" : "bg-brand-bg/5 border-brand-sage/10 text-sub"
+                            )}>
+                              LV. {mastery.level} • {mastery.title}
                             </div>
                           );
                         })()}
                       </td>
-                      <td className="p-8">
-                        <div className="flex flex-col gap-1">
-                           <span className="text-sm font-bold opacity-70">{new Date(user.stats.lastActiveAt).toLocaleDateString()}</span>
-                           <span className="text-[9px] text-sub uppercase font-black tracking-widest flex items-center gap-1 opacity-60">
-                             <Calendar size={10} /> Joined {new Date(user.account.createdAt).toLocaleDateString()}
-                           </span>
+                      <td className="p-4">
+                        <div className="flex flex-col">
+                           <span className="text-xs font-medium">{new Date(user.account.createdAt).toLocaleDateString()}</span>
+                           <span className="text-[9px] text-sub uppercase font-bold tracking-widest opacity-60">Joined</span>
                         </div>
                       </td>
-                      <td className="p-8 text-right">
-                         <div className="flex justify-end gap-3 transition-all">
+                      <td className="p-4 text-right">
+                         <div className="flex justify-end gap-2">
                             <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                               onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
-                              className="p-3 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white rounded-2xl transition-all shadow-xl"
+                              className="p-2 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white rounded-lg transition-all"
                               title="Inspect Identity"
                             >
-                              <TrendingUp size={18} />
+                              <TrendingUp size={14} />
                             </motion.button>
                             <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-2xl transition-all shadow-xl"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-lg transition-all"
                               title="Restrict Access"
                             >
-                              <ShieldAlert size={18} />
+                              <ShieldAlert size={14} />
                             </motion.button>
                          </div>
                       </td>
@@ -247,11 +227,11 @@ const UsersPage = () => {
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-sub px-10 font-bold uppercase tracking-[0.2em] text-[10px]">
+      <div className="flex justify-between items-center text-sub px-6 font-bold uppercase tracking-widest text-[9px]">
          <p>Total Users: {filteredUsers.length}</p>
-         <div className="flex gap-4">
-            <motion.button whileHover={{ x: -2 }} className="p-3 rounded-2xl glass hover:text-brand-primary transition-all"><ChevronLeft size={20} /></motion.button>
-            <motion.button whileHover={{ x: 2 }} className="p-3 rounded-2xl glass hover:text-brand-primary transition-all"><ChevronRight size={20} /></motion.button>
+         <div className="flex gap-2">
+            <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronLeft size={16} /></button>
+            <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronRight size={16} /></button>
          </div>
       </div>
 

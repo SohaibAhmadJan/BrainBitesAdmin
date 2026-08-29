@@ -128,47 +128,47 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
       <motion.div
         {...DRAWER_TRANSITION}
         className={cn(
-          "w-full h-full flex flex-col overflow-hidden border-[16px] relative rounded-[4.5rem] transition-colors duration-700",
+          "w-full h-full flex flex-col overflow-hidden border-[4px] relative rounded-2xl transition-colors duration-700",
           theme === 'dark'
-            ? "bg-brand-bg border-brand-primary/60 shadow-[inset_0_0_150px_rgba(45,106,79,0.5)]"
-            : "bg-[#F4F8F6] border-brand-primary/30 shadow-[0_40px_100px_rgba(0,0,0,0.1)]"
+            ? "bg-brand-bg border-brand-primary/40 shadow-2xl"
+            : "bg-[#F4F8F6] border-brand-primary/20 shadow-xl"
         )}
       >
         {/* Header */}
         <div className={cn(
-          "p-6 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-50 transition-colors duration-500",
-          theme === 'dark' ? "bg-brand-surface/90" : "bg-white/95 shadow-sm"
+          "p-4 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-50 transition-colors duration-500 border-b",
+          theme === 'dark' ? "bg-brand-surface/90 border-brand-sage/20" : "bg-white/95 border-brand-primary/5"
         )}>
-           <div className="flex items-center gap-6">
+           <div className="flex items-center gap-4">
               <motion.button
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
                 className={cn(
-                  "p-4 glass rounded-2xl transition-all shadow-xl",
+                  "p-2.5 glass rounded-xl transition-all shadow-md",
                   theme === 'dark' ? "text-sub hover:text-brand-primary border-brand-sage/10" : "text-brand-primary hover:bg-brand-primary/10 border-brand-primary/20"
                 )}
               >
-                <X size={28} />
+                <X size={20} />
               </motion.button>
               <div>
-                <h2 className={cn("text-4xl font-black tracking-tighter uppercase", theme === 'dark' ? "text-white" : "text-brand-primary")}>
+                <h2 className={cn("text-xl font-bold tracking-tight uppercase", theme === 'dark' ? "text-white" : "text-brand-primary")}>
                    Inspect Identity
                 </h2>
-                <div className="flex items-center gap-3 mt-1.5">
+                <div className="flex items-center gap-2 mt-0.5">
                    <StatusLight />
-                   <p className={cn("text-xs font-black uppercase tracking-[0.4em]", theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary")}>
+                   <p className={cn("text-[9px] font-bold uppercase tracking-widest", theme === 'dark' ? "text-brand-primary/60" : "text-brand-primary")}>
                      Identity Management System
                    </p>
                 </div>
               </div>
            </div>
 
-           <div className="flex items-center gap-6">
+           <div className="flex items-center gap-4">
               <ElasticButton
                 onClick={handleToggleLock}
                 variant={user.account.status === 'ACTIVE' ? 'danger' : 'success'}
-                className="px-16 py-5 rounded-2xl text-base shadow-xl"
+                className="px-8 py-2.5 rounded-xl text-xs shadow-lg"
               >
                 {user.account.status === 'ACTIVE' ? 'Lock Identity' : 'Unlock Identity'}
               </ElasticButton>
@@ -187,12 +187,12 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                         <h3 className="text-xs font-black uppercase tracking-[0.4em] opacity-40">Core Identity</h3>
                       </div>
 
-                      <div className={cn("p-8 rounded-[4rem] flex-1 flex flex-col space-y-8 border-4 relative overflow-y-auto scrollbar-hide transition-all duration-500 group/tile", theme === 'dark' ? "bg-brand-surface/40 border-brand-primary/15 shadow-2xl backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-xl")}>
+                      <div className={cn("p-6 rounded-xl flex-1 flex-col space-y-6 border relative overflow-y-auto scrollbar-hide transition-all duration-500", theme === 'dark' ? "bg-brand-surface/40 border-brand-sage/20 backdrop-blur-2xl" : "bg-white/90 border-brand-primary/10 shadow-sm")}>
 
                          {/* High-End Profile Header */}
-                         <div className="flex gap-8 items-center">
+                         <div className="flex gap-6 items-center">
                             <div className={cn(
-                              "w-24 h-24 rounded-[2.5rem] border-4 flex items-center justify-center text-4xl font-black shadow-2xl relative overflow-hidden",
+                              "w-20 h-20 rounded-xl border-2 flex items-center justify-center text-3xl font-bold shadow-lg relative overflow-hidden",
                               theme === 'dark' ? "bg-brand-bg border-brand-sage/20 text-brand-primary" : "bg-brand-primary/5 border-brand-primary/10 text-brand-primary"
                             )}>
                               {(() => {
@@ -203,16 +203,16 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                                   user.profile.displayName[0]?.toUpperCase() || 'U'
                                 );
                               })()}
-                              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-brand-primary rounded-xl border-2 border-inherit flex items-center justify-center shadow-lg z-10">
-                                 <ShieldCheck size={16} className="text-white" />
+                              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand-primary rounded-lg border-2 border-inherit flex items-center justify-center shadow-md z-10">
+                                 <ShieldCheck size={12} className="text-white" />
                               </div>
                             </div>
-                            <div className="space-y-1.5">
-                               <h2 className={cn("text-3xl font-black tracking-tighter uppercase", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user.profile.displayName}</h2>
-                               <p className="text-brand-primary font-black text-xs uppercase tracking-[0.2em] opacity-60 flex items-center gap-2">
-                                  <Mail size={12} /> {user.profile.email}
+                            <div className="space-y-1">
+                               <h2 className={cn("text-2xl font-bold tracking-tight uppercase", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user.profile.displayName}</h2>
+                               <p className="text-brand-primary font-bold text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2">
+                                  <Mail size={10} /> {user.profile.email}
                                </p>
-                               <div className="flex gap-3 mt-4">
+                               <div className="flex gap-2 mt-2">
                                   <ActionBadge variant={user.account.status === 'ACTIVE' ? 'success' : 'error'}>{user.account.status}</ActionBadge>
                                   {(() => {
                                     const mastery = calculateMastery(user.stats.factsReadCount);
@@ -239,7 +239,7 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                                 { label: 'Favorites', val: user.stats.favoritesCount, icon: Target, color: 'text-brand-gold' },
                                 { label: 'Read Nodes', val: user.stats.factsReadCount, icon: BookOpen, color: 'text-brand-primary' },
                             ].map((item, i) => (
-                                <div key={i} className="glass p-6 rounded-[2.5rem] text-center space-y-2 border-brand-sage/5 hover:border-brand-primary/20 transition-all group">
+                                <div key={i} className="glass p-6 rounded-xl text-center space-y-2 border-brand-sage/5 hover:border-brand-primary/20 transition-all group">
                                     <item.icon className={cn("mx-auto mb-1 group-hover:scale-110 transition-transform", item.color)} size={28} />
                                     <p className="text-3xl font-black tracking-tighter">{item.val}</p>
                                     <p className="text-[9px] font-black text-sub uppercase tracking-widest opacity-40">{item.label}</p>

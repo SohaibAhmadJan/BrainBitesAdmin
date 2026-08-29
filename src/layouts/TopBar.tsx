@@ -36,20 +36,20 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
 
   return (
     <header className={cn(
-      "shrink-0 flex items-center justify-between px-8 h-24 transition-all duration-500 relative z-20",
+      "shrink-0 flex items-center justify-between px-8 h-16 transition-all duration-500 relative z-20 border-b",
       isScrolled
         ? theme === 'dark'
-          ? "bg-brand-bg/40 backdrop-blur-2xl border-b border-brand-sage/20 shadow-2xl"
-          : "bg-white/60 backdrop-blur-2xl border-b border-brand-primary/10 shadow-lg"
-        : "bg-transparent"
+          ? "bg-brand-bg/60 backdrop-blur-xl border-brand-sage/20 shadow-xl"
+          : "bg-white/60 backdrop-blur-xl border-brand-primary/10 shadow-md"
+        : theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5"
     )}>
       <div className="flex items-center gap-4">
         <motion.h2
           key={title}
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           className={cn(
-            "text-3xl font-black tracking-tighter capitalize",
+            "text-xl font-bold tracking-tight capitalize",
             theme === 'dark' ? "text-brand-white" : "text-brand-surface"
           )}
         >
@@ -64,20 +64,20 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsSearchOpen(true)}
           className={cn(
-            "flex items-center gap-3 backdrop-blur-md border px-5 py-3 rounded-2xl transition-all group w-full max-w-lg shadow-xl",
+            "flex items-center gap-3 backdrop-blur-md border px-4 py-1.5 rounded-xl transition-all group w-full max-w-md shadow-sm",
             theme === 'dark'
               ? "bg-brand-surface/40 border-brand-sage/20 text-brand-white/30 hover:border-brand-primary/50"
               : "bg-white/80 border-brand-primary/10 text-brand-surface/40 hover:border-brand-primary/30"
           )}
         >
-          <Search size={18} className="group-hover:text-brand-primary transition-colors duration-300" />
-          <span className="text-sm font-medium tracking-wide">Quick Command Palette...</span>
+          <Search size={16} className="group-hover:text-brand-primary transition-colors duration-300" />
+          <span className="text-xs font-medium tracking-wide">Search...</span>
           <div className={cn(
-            "ml-auto flex items-center gap-1 px-2 py-1 rounded-lg border",
+            "ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded border",
             theme === 'dark' ? "bg-brand-bg/50 border-brand-sage/30" : "bg-brand-primary/5 border-brand-primary/10"
           )}>
-            <Command size={12} className="opacity-50" />
-            <span className="text-[10px] font-black opacity-50">K</span>
+            <Command size={10} className="opacity-50" />
+            <span className="text-[9px] font-black opacity-50">K</span>
           </div>
         </motion.button>
 
@@ -118,18 +118,18 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
               className="flex items-center gap-3 pl-4"
             >
               <div className={cn(
-                "w-11 h-11 border-2 rounded-2xl flex items-center justify-center font-black text-sm transition-all",
+                "w-8 h-8 border rounded-xl flex items-center justify-center font-bold text-xs transition-all",
                 theme === 'dark'
-                  ? "bg-brand-primary/20 border-brand-primary/30 text-brand-primary shadow-[0_0_20px_rgba(45,106,79,0.2)]"
-                  : "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/20"
+                  ? "bg-brand-primary/20 border-brand-primary/30 text-brand-primary"
+                  : "bg-brand-primary border-brand-primary text-white"
               )}>
                 BB
               </div>
             </motion.button>
 
             <div className={cn(
-              "absolute right-0 mt-3 w-64 backdrop-blur-3xl border rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-300 transform origin-top-right scale-95 group-hover:scale-100 p-3 z-50",
-              theme === 'dark' ? "bg-brand-surface/90 border-brand-sage/30" : "bg-white/95 border-brand-primary/10 shadow-2xl shadow-brand-primary/10"
+              "absolute right-0 mt-3 w-64 backdrop-blur-3xl border rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100 p-2 z-50",
+              theme === 'dark' ? "bg-brand-surface/95 border-brand-sage/30" : "bg-white/95 border-brand-primary/10"
             )}>
                <div className={cn("px-5 py-4 border-b mb-2", theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5")}>
                  <p className="text-xs font-black tracking-widest uppercase opacity-40 mb-1">Authenticated As</p>

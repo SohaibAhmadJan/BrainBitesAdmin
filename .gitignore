@@ -34,3 +34,13 @@ dev_log_final.txt
 vite_log.txt
 vite_error.log
 vite_output.log
+
+# Private keys and sensitive files
+serviceAccountKey.json
+*.pem
+*.p12
+*.key
+credentials.json
+google-services.json
+firebase-key.json
+

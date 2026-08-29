@@ -31,19 +31,20 @@
 @layer utilities {
   .glass {
     background-color: var(--surface-glass);
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(12px);
     border: 1px solid var(--border-glass);
+    @apply rounded-2xl;
   }
   .glass-dark {
-    @apply dark:bg-brand-bg/40 bg-white/20 backdrop-blur-2xl border border-brand-sage/10;
+    @apply dark:bg-brand-bg/40 bg-white/20 backdrop-blur-xl border border-brand-sage/10 rounded-2xl;
   }
   .text-glow {
-    text-shadow: 0 0 15px rgba(149, 213, 178, 0.3);
+    text-shadow: 0 0 10px rgba(149, 213, 178, 0.2);
   }
 }
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Source Sans 3", "Inter", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
