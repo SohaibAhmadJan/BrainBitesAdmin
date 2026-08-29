@@ -14,7 +14,8 @@ import {
   CollectionReference,
   Query,
   addDoc,
-  Timestamp
+  Timestamp,
+  documentId
 } from 'firebase/firestore';
 import { db } from './firebaseService';
 import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, UserReport } from '../types';
@@ -48,6 +49,26 @@ export const fetchBites = async (fetchLimit: number = 500): Promise<BiteItem[]> 
   } catch (err) {
     console.error('fetchBites failed', err);
     throw new Error(err instanceof Error ? err.message : String(err));
+  }
+};
+
+export const fetchBitesByIds = async (ids: string[]): Promise<BiteItem[]> => {
+  if (!factsRef || ids.length === 0) return [];
+  try {
+    // Firestore 'in' query limit is 30 items
+    const batches = [];
+    for (let i = 0; i < ids.length; i += 30) {
+      const batch = ids.slice(i, i + 30);
+      const q = query(factsRef, where(documentId(), 'in', batch));
+      batches.push(getDocs(q));
+    }
+    const snapshots = await Promise.all(batches);
+    return snapshots.flatMap(snap =>
+      snap.docs.map(doc => ({ ...(doc.data() as BiteItem), id: doc.id }))
+    );
+  } catch (err) {
+    console.error('fetchBitesByIds failed', err);
+    return [];
   }
 };
 
@@ -98,13 +119,14 @@ export const fetchUserSubcollection = async (uid: string, sub: string, fetchLimi
     }
 };
 
-export const fetchAnalyticsEvents = async (days: number, fetchLimit: number = 1000): Promise<AnalyticsEvent[]> => {
+export const fetchAnalyticsEvents = async (days: number, fetchLimit: number = 5000): Promise<AnalyticsEvent[]> => {
     if (!analyticsRef) return [];
     try {
         const startTime = Date.now() - (days * 24 * 60 * 60 * 1000);
         const q = query(
             analyticsRef,
             where('timestamp', '>=', Timestamp.fromMillis(startTime)),
+            orderBy('timestamp', 'desc'),
             limit(fetchLimit)
         );
         const snapshot = await getDocs(q);

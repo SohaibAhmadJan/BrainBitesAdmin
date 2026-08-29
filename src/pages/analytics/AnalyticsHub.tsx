@@ -20,7 +20,10 @@ import {
   Users,
   Search,
   ChevronRight,
-  Zap
+  Zap,
+  DownloadCloud,
+  Trash2,
+  UserX
 } from 'lucide-react';
 import {
   BarChart,
@@ -43,6 +46,7 @@ import {
 } from 'recharts';
 import {
   fetchBites,
+  fetchBitesByIds,
   fetchAnalyticsEvents,
   fetchCategories,
   fetchUsers
@@ -56,6 +60,19 @@ import ActionBadge from '../../components/ui/ActionBadge';
 import SystemPulse from '../../components/ui/SystemPulse';
 
 const COLORS = ['#2D6A4F', '#95D5B2', '#E9C46A', '#3b82f6', '#ec4899', '#6C5CE7', '#FD79A8'];
+
+const safeGetTime = (val: any) => {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (val.toMillis) return val.toMillis();
+  if (val.seconds) return val.seconds * 1000;
+  return new Date(val).getTime() || 0;
+};
+
+const toTitleCase = (str: string) => {
+    if (!str) return 'General';
+    return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
 
 const chartConfig = (theme: string) => ({
     tooltipStyle: {
@@ -96,15 +113,16 @@ const calculateIntelligence = (events: any[], users: any[], facts: any[], range:
   const hourlyMap: Record<number, number> = {};
   for(let i=0; i<24; i++) hourlyMap[i] = 0;
   events.forEach(e => {
-      const hour = new Date(e.timestamp).getHours();
+      const ts = safeGetTime(e.timestamp);
+      const hour = new Date(ts).getHours();
       hourlyMap[hour]++;
   });
   const heatmap = Object.entries(hourlyMap).map(([hour, count]) => ({ hour: parseInt(hour), count }));
 
   // 3. Churn Risk
   const atRiskUsers = users.filter(u => {
-      const lastActive = u.stats?.lastActiveAt || u.account?.updatedAt || 0;
-      const daysSinceActive = (Date.now() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24);
+      const lastActive = safeGetTime(u.stats?.lastActiveAt || u.account?.updatedAt);
+      const daysSinceActive = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
       return daysSinceActive > 3 && daysSinceActive < 14;
   }).slice(0, 5);
 
@@ -119,14 +137,14 @@ type TabType = 'OVERVIEW' | 'ENGAGEMENT' | 'INTELLIGENCE';
 
 /* --- Sub-Modules --- */
 
-const OverviewModule = ({ data, theme, activeWindow, setWindow }: { data: any, theme: string, activeWindow: number, setWindow: (m: number) => void }) => (
+const OverviewModule = ({ data, theme }: { data: any, theme: string }) => (
   <div className="space-y-8">
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
        {[
-         { label: 'Total User Nodes', value: data.kpis.totalUsers, icon: Users, color: 'text-blue-500', trend: '+12.5%', status: 'Stable' },
-         { label: 'Active Sessions', value: data.kpis.activeNow, icon: Activity, color: 'text-brand-primary', trend: '+3', status: 'Peak', isSession: true },
-         { label: 'Total Interactions', value: data.kpis.totalInteractions, icon: Zap, color: 'text-brand-gold', trend: '+240', status: 'High' },
-         { label: 'Avg. Retention', value: `${data.kpis.retention}%`, icon: Award, color: 'text-pink-500', trend: '+0.4%', status: 'Optimal' }
+         { label: 'Installed Apps', value: data.kpis.totalInstalls, icon: DownloadCloud, color: 'text-blue-500', trend: '+12.5%', status: 'Growth' },
+         { label: 'Uninstalled Apps', value: data.kpis.churnEstimate, icon: Trash2, color: 'text-brand-secondary', trend: '-2.1%', status: 'Churn' },
+         { label: 'Deleted Accounts', value: data.kpis.deletedAccounts, icon: UserX, color: 'text-red-500', trend: '+1', status: 'Final' },
+         { label: 'Net Node Growth', value: data.kpis.netGrowth, icon: TrendingUp, color: 'text-brand-primary', trend: '+0.4%', status: 'Net' }
        ].map((kpi, i) => (
          <PremiumCard key={i} className="p-6 group hover:scale-[1.02] transition-transform duration-500">
             <div className="flex justify-between items-start mb-6">
@@ -134,25 +152,7 @@ const OverviewModule = ({ data, theme, activeWindow, setWindow }: { data: any, t
                   <kpi.icon size={20} />
                </div>
                <div className="flex flex-col items-end gap-1.5">
-                  <ActionBadge variant={i % 2 === 0 ? 'success' : 'info'} className="text-[7px]">{kpi.status}</ActionBadge>
-                  {kpi.isSession && (
-                    <div className="flex gap-1 bg-brand-bg/10 p-1 rounded-lg border border-brand-sage/10 mt-1">
-                      {[15, 30, 60, 720, 1440].map(m => (
-                        <button
-                          key={m}
-                          onClick={(e) => { e.stopPropagation(); setWindow(m); }}
-                          className={cn(
-                            "px-2 py-0.5 text-[7px] font-black rounded-md transition-all uppercase border border-transparent",
-                            activeWindow === m
-                              ? "bg-brand-primary text-white border-brand-primary/20 shadow-sm"
-                              : "text-sub opacity-30 hover:opacity-100 hover:bg-brand-primary/5"
-                          )}
-                        >
-                          {m >= 60 ? `${m/60}H` : `${m}M`}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <ActionBadge variant={i === 2 ? 'error' : (i === 1 ? 'warning' : 'success')} className="text-[7px]">{kpi.status}</ActionBadge>
                   <span className="text-[8px] font-black text-brand-primary opacity-0 group-hover:opacity-100 transition-opacity">{kpi.trend}</span>
                </div>
             </div>
@@ -200,7 +200,7 @@ const OverviewModule = ({ data, theme, activeWindow, setWindow }: { data: any, t
                    contentStyle={chartConfig(theme).tooltipStyle}
                    cursor={{ stroke: '#2D6A4F', strokeWidth: 1, strokeDasharray: '5 5' }}
                 />
-                <Area type="monotone" dataKey="users" stroke="#2D6A4F" strokeWidth={5} fillOpacity={1} fill="url(#colorUsers)" animationDuration={2000} />
+                <Area type="monotone" dataKey="net" stroke="#2D6A4F" strokeWidth={5} fillOpacity={1} fill="url(#colorUsers)" animationDuration={2000} />
              </AreaChart>
           </ResponsiveContainer>
        </div>
@@ -232,15 +232,15 @@ const EngagementModule = ({ data, theme }: { data: any, theme: string }) => {
                 </ResponsiveContainer>
                 <div className="absolute flex flex-col items-center text-center px-4">
                     <p className="text-3xl font-black text-brand-primary leading-none">
-                      {data.kpis.totalInteractions > 0 ? ((data.categoryData[0]?.value || 0) / data.kpis.totalInteractions * 100).toFixed(0) : '0'}%
+                      {data.kpis.totalContentInteractions > 0 ? ((data.categoryData[0]?.value || 0) / data.kpis.totalContentInteractions * 100).toFixed(0) : '0'}%
                     </p>
                     <p className="text-[9px] font-black opacity-30 uppercase tracking-[0.2em] mt-2 truncate w-full">
                       {data.categoryData[0]?.name?.split(' ')[0] || 'N/A'}
                     </p>
                 </div>
              </div>
-             <div className="w-full mt-8 grid grid-cols-2 gap-3">
-                {(data.categoryData || []).slice(0, 4).map((cat:any, i:number) => (
+             <div className="w-full mt-8 grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {(data.categoryData || []).slice(0, 6).map((cat:any, i:number) => (
                   <div key={i} className="flex flex-col gap-1 p-3 rounded-xl bg-brand-bg/5 dark:bg-brand-bg/30 border border-brand-sage/10 group/item hover:border-brand-primary/40 transition-all">
                      <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
@@ -504,8 +504,6 @@ const AnalyticsHub = () => {
   const [range, setRange] = useState<7 | 30 | 90>(7);
   const [loading, setLoading] = useState(true);
 
-  const [activeSessionWindow, setActiveSessionWindow] = useState<number>(15);
-
   // Data States
   const [analyticsData, setAnalyticsData] = useState<{
     popularFacts: any[];
@@ -521,9 +519,12 @@ const AnalyticsHub = () => {
     timeSeriesData: [],
     userGrowthData: [],
     kpis: {
-        totalUsers: 0,
+        totalInstalls: 0,
+        churnEstimate: 0,
+        deletedAccounts: 0,
+        netGrowth: 0,
         totalInteractions: 0,
-        activeNow: 0,
+        totalContentInteractions: 0,
         retention: 0
     },
     contentPerformance: [],
@@ -532,33 +533,56 @@ const AnalyticsHub = () => {
 
   useEffect(() => {
     loadAllAnalytics();
-  }, [range, activeSessionWindow]);
+  }, [range]);
 
   const loadAllAnalytics = async () => {
     setLoading(true);
     try {
       // 1. Unified Primary Fetch (High Performance)
-      const [facts, events, categories, users] = await Promise.all([
-        fetchBites(1000),           // Limit facts to top 1000
-        fetchAnalyticsEvents(range, 2000), // Limit events to 2000 for dash performance
+      const [initialFacts, rawEvents, categories, users] = await Promise.all([
+        fetchBites(1000),           // Limit facts to top 1000 for initial cache
+        fetchAnalyticsEvents(range, 5000), // Analyze up to 5,000 events for deep history
         fetchCategories(),
         fetchUsers(500)             // Limit user registry fetch
       ]);
 
-      // 2. Off-thread Intelligence Calculation (Zero Redundancy)
-      const intelligence = calculateIntelligence(events, users, facts, range);
+      const intelligence = calculateIntelligence(rawEvents, users, initialFacts, range);
+      const events = [...rawEvents].sort((a, b) => safeGetTime(b.timestamp) - safeGetTime(a.timestamp));
 
-      const installsCount = events.filter(e => e.name === 'app_install').length;
-      const uninstallsCount = users.filter(u => u.account?.status === 'DISABLED').length;
+      // 2. Deep Lookup for missing facts (Ensures 100% category accuracy)
+      const eventFactIds = [...new Set(events.map(e => String(e.params?.item_id || '')).filter(id => id && id !== 'undefined'))];
+      const cachedFactIds = new Set(initialFacts.map(f => f.id));
+      const missingFactIds = eventFactIds.filter(id => !cachedFactIds.has(id));
 
-      const activeWindowMs = activeSessionWindow * 60 * 1000;
-      const activeNow = new Set(
-        events
-          .filter(e => (Date.now() - new Date(e.timestamp).getTime()) < activeWindowMs)
-          .map(e => e.uid)
-      ).size;
+      let allFacts = [...initialFacts];
+      if (missingFactIds.length > 0) {
+        try {
+          const missingFacts = await fetchBitesByIds(missingFactIds);
+          allFacts = [...allFacts, ...missingFacts];
+        } catch (deepErr) {
+          console.warn('Deep Lookup partially failed:', deepErr);
+        }
+      }
 
-      const factMap = new Map(facts.map(f => [f.id, f]));
+      // 3. Off-thread Intelligence Calculation (Zero Redundancy)
+      const intelligence = calculateIntelligence(events, users, allFacts, range);
+
+      console.log(`[Analytics] Fetched ${events.length} events and ${allFacts.length} facts.`);
+
+      const totalInstalls = events.filter(e => e.name === 'app_install').length;
+      const deletedAccounts = users.filter(u => u.account?.status === 'DISABLED').length;
+
+      // Churn Estimate: Users inactive for 14+ days (excluding deleted ones)
+      const churnThreshold = Date.now() - (14 * 24 * 60 * 60 * 1000);
+      const churnEstimate = users.filter(u =>
+        u.account?.status !== 'DISABLED' &&
+        safeGetTime(u.stats?.lastActiveAt) < churnThreshold
+      ).length;
+
+      const netGrowth = totalInstalls - (churnEstimate + deletedAccounts);
+
+      const factMap = new Map(allFacts.filter(f => f && f.id).map(f => [f.id, f]));
+      const catMasterMap = new Map(categories.filter(c => c && c.id).map(c => [c.id, c.name]));
 
       // 1. Leaderboard & Engagement
       const factStats: Record<string, any> = {};
@@ -567,33 +591,50 @@ const AnalyticsHub = () => {
           if (!id) return;
           if (!factStats[id]) {
               const fact = factMap.get(id);
+              const masterCatName = fact?.categoryId ? catMasterMap.get(fact.categoryId) : fact?.category;
+
               factStats[id] = {
                   id,
                   name: (fact?.fact?.slice(0, 30) || 'Unknown') + '...',
                   views: 0,
                   likes: 0,
                   shares: 0,
-                  category: fact?.category || 'General'
+                  category: (masterCatName || 'General').trim()
               };
           }
           if (event.name === 'read_fact') factStats[id].views++;
-          else if (event.name === 'like_fact') factStats[id].likes++;
-          else if (event.name === 'share_fact') factStats[id].shares++;
+          else if (['like_fact', 'fact_like'].includes(event.name)) factStats[id].likes++;
+          else if (['share_fact', 'fact_share'].includes(event.name)) factStats[id].shares++;
       });
 
       const leaderboard = Object.values(factStats)
         .sort((a, b) => (b.views + b.likes + b.shares) - (a.views + a.likes + a.shares))
         .slice(0, 10);
 
-      // 2. Category Intelligence
+      // 2. Category Intelligence (Filtered for Content Engagement + Browsing)
+      const contentEvents = events.filter(e => ['read_fact', 'like_fact', 'fact_like', 'share_fact', 'fact_share', 'category_view'].includes(e.name));
       const catMap: Record<string, number> = {};
-      events.forEach(event => {
-          const id = event.params?.item_id;
-          const fact = factMap.get(id);
-          const cat = fact?.category || 'General';
-          catMap[cat] = (catMap[cat] || 0) + 1;
+
+      contentEvents.forEach(event => {
+          let catName = 'General';
+          if (event.name === 'category_view') {
+              const catId = event.params?.category_id;
+              catName = catMasterMap.get(catId) || catId || 'General';
+          } else {
+              const factId = event.params?.item_id;
+              const fact = factMap.get(factId);
+              catName = (fact?.categoryId ? catMasterMap.get(fact.categoryId) : fact?.category) || 'General';
+          }
+          const normalizedCat = toTitleCase(String(catName).trim());
+          catMap[normalizedCat] = (catMap[normalizedCat] || 0) + 1;
       });
-      const categoryDistribution = Object.entries(catMap).map(([name, value]) => ({ name, value }));
+
+      const categoryDistribution = Object.entries(catMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      const totalContentInteractions = contentEvents.length;
+      console.log(`[Domain Bias] Processed ${totalContentInteractions} interactions across ${categoryDistribution.length} categories.`);
 
       // 3. Time Series & Growth Timeline (Chronological)
       const dailyMap: Record<string, { views: number, interactions: number, installs: number, uninstalls: number }> = {};
@@ -610,18 +651,20 @@ const AnalyticsHub = () => {
       // Populate counts from events
       events.forEach(event => {
           if (!event.timestamp) return;
-          const str = new Date(event.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const ts = safeGetTime(event.timestamp);
+          const str = new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
           if (dailyMap[str]) {
               if (event.name === 'read_fact') dailyMap[str].views++;
               else if (event.name === 'app_install') dailyMap[str].installs++;
-              else dailyMap[str].interactions++;
+              else if (['like_fact', 'fact_like', 'share_fact', 'fact_share', 'category_view'].includes(event.name)) dailyMap[str].interactions++;
           }
       });
 
       // Populate uninstalls from user status
       users.forEach(u => {
           if (u.account?.status === 'DISABLED' && u.account?.updatedAt) {
-              const str = new Date(u.account.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+              const ts = safeGetTime(u.account.updatedAt);
+              const str = new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               if (dailyMap[str]) dailyMap[str].uninstalls++;
           }
       });
@@ -636,7 +679,7 @@ const AnalyticsHub = () => {
       // Baseline: Active users before the current range started
       let cumulativeNet = users.filter(u =>
           u.account?.status === 'ACTIVE' &&
-          new Date(u.account.createdAt).getTime() < rangeStartTime.getTime()
+          safeGetTime(u.account.createdAt) < rangeStartTime.getTime()
       ).length;
 
       const userGrowthTimeline = dateKeys.map(name => {
@@ -645,7 +688,8 @@ const AnalyticsHub = () => {
           // Use account creation as the source of truth for joins
           const dayJoins = users.filter(u => {
             if (!u.account?.createdAt) return false;
-            return new Date(u.account.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) === name;
+            const ts = safeGetTime(u.account.createdAt);
+            return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) === name;
           }).length;
 
           // If we have actual registered users for this day, prioritize that over raw install events
@@ -671,18 +715,26 @@ const AnalyticsHub = () => {
         timeSeriesData: timeSeries,
         userGrowthData: userGrowthTimeline,
         kpis: {
-          totalUsers: users.length,
-          totalInstalls: installsCount,
-          totalUninstalls: uninstallsCount,
+          totalInstalls,
+          churnEstimate,
+          deletedAccounts,
+          netGrowth,
           totalInteractions: events.length,
-          activeNow,
+          totalContentInteractions,
           retention: estimatedRetention || 0
         },
-        contentPerformance: categories.map(cat => ({
-            name: cat.name,
-            facts: facts.filter(f => f.category === cat.name).length,
-            interactions: events.filter(e => factMap.get(e.params?.item_id)?.category === cat.name).length
-        })).sort((a, b) => b.interactions - a.interactions),
+        contentPerformance: categories.filter(cat => cat && cat.name).map(cat => {
+            const normalizedName = cat.name.trim();
+            return {
+                name: normalizedName,
+                facts: allFacts.filter(f => f && (f.category === normalizedName || f.categoryId === cat.id)).length,
+                interactions: contentEvents.filter(e => {
+                    if (e.name === 'category_view') return e.params?.category_id === cat.id || e.params?.category_id === normalizedName;
+                    const f = factMap.get(e.params?.item_id);
+                    return f && (f.category === normalizedName || f.categoryId === cat.id);
+                }).length
+            };
+        }).sort((a, b) => b.interactions - a.interactions),
         intelligence
       });
 
@@ -724,12 +776,7 @@ const AnalyticsHub = () => {
         <div className="space-y-8">
           {/* Section 1: Overview */}
           <section className="animate-in slide-in-from-bottom-4 duration-700">
-            <OverviewModule
-                data={analyticsData}
-                theme={theme}
-                activeWindow={activeSessionWindow}
-                setWindow={setActiveSessionWindow}
-            />
+            <OverviewModule data={analyticsData} theme={theme} />
           </section>
 
           {/* Section 2: Engagement */}
