@@ -15,7 +15,8 @@ import {
   Query,
   addDoc,
   Timestamp,
-  documentId
+  documentId,
+  collectionGroup
 } from 'firebase/firestore';
 import { db } from './firebaseService';
 import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, UserReport } from '../types';
@@ -201,6 +202,22 @@ export const fetchCategories = async (): Promise<Category[]> => {
     console.error('fetchCategories failed', err);
     return [];
   }
+};
+
+export const fetchAllDevices = async (): Promise<any[]> => {
+    if (!db) return [];
+    try {
+        const devicesQuery = query(collectionGroup(db, 'devices'));
+        const snapshot = await getDocs(devicesQuery);
+        return snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            userId: doc.ref.parent.parent?.id
+        }));
+    } catch (err) {
+        console.error("fetchAllDevices failed:", err);
+        return [];
+    }
 };
 
 export const fetchReports = async (fetchLimit: number = 100): Promise<UserReport[]> => {

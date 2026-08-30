@@ -16,8 +16,8 @@ import {
   ShieldAlert,
   SearchX
 } from 'lucide-react';
-import { UserProfile, Achievement } from '../../types';
-import { fetchUsers, fetchAchievements } from '../../services/firestoreService';
+import { UserProfile, Achievement, AdminUser } from '../../types';
+import { fetchUsers, fetchAchievements, fetchAdmins } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import { calculateMastery } from '../../utils/masteryUtils';
 import { getAvatarUrl } from '../../utils/avatarUtils';
@@ -32,6 +32,7 @@ const UsersPage = () => {
   const { theme } = useTheme();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Suspended'>('All');
@@ -45,12 +46,14 @@ const UsersPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [userData, achData] = await Promise.all([
+      const [userData, achData, adminData] = await Promise.all([
         fetchUsers(),
-        fetchAchievements()
+        fetchAchievements(),
+        fetchAdmins()
       ]);
       setUsers(userData);
       setAchievements(achData);
+      setAdminIds(new Set(adminData.map(a => a.id)));
     } catch (err) {
       console.error('Load data failed', err);
     } finally {
@@ -60,6 +63,8 @@ const UsersPage = () => {
 
   const filteredUsers = users
     .filter(user =>
+        !adminIds.has(user.id) &&
+        user.profile.email && // Exclude guest users (no email)
         (user.profile.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
          user.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
          user.profile.displayName?.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -113,6 +118,7 @@ const UsersPage = () => {
             <thead>
               <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[9px] font-bold text-sub uppercase tracking-widest">
                 <th className="p-4">User</th>
+                <th className="p-4">Email</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Mastery</th>
                 <th className="p-4">Created</th>
@@ -163,9 +169,12 @@ const UsersPage = () => {
                           </div>
                           <div>
                             <p className="text-sm font-bold">{user.profile.displayName}</p>
-                            <p className="text-[9px] text-sub font-mono uppercase tracking-widest">{user.profile.email || user.id.slice(0, 12)}</p>
+                            <p className="text-[8px] text-sub font-mono uppercase tracking-tighter opacity-40">UID: {user.id.slice(0, 8)}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-[10px] font-mono font-bold text-sub lowercase">{user.profile.email || '—'}</span>
                       </td>
                       <td className="p-4">
                         <div className={cn(
