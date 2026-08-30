@@ -220,6 +220,19 @@ export const fetchAllDevices = async (): Promise<any[]> => {
     }
 };
 
+export const fetchTotalInstallations = async (): Promise<number> => {
+    if (!db) return 0;
+    try {
+        const installationsRef = collection(db, 'installations');
+        const snapshot = await getDocs(installationsRef);
+        console.log(`[FirestoreService] Total Installations Found: ${snapshot.size}`);
+        return snapshot.size;
+    } catch (err) {
+        console.error("[FirestoreService] fetchTotalInstallations FAILED:", err);
+        return 0;
+    }
+};
+
 export const fetchReports = async (fetchLimit: number = 100): Promise<UserReport[]> => {
   if (!reportsRef) return [];
   try {
@@ -360,6 +373,16 @@ export const subscribeToNotifications = (callback: (items: AppNotification[]) =>
         console.error('subscribeToNotifications listener error', error);
     }
   );
+};
+
+export const subscribeToInstallationCount = (callback: (count: number) => void) => {
+    if (!db) return () => {};
+    const installationsRef = collection(db, 'installations');
+    return onSnapshot(installationsRef, (snapshot) => {
+        callback(snapshot.size);
+    }, (err) => {
+        console.error("[FirestoreService] subscribeToInstallationCount FAILED:", err);
+    });
 };
 
 export const subscribeToReports = (callback: (items: UserReport[]) => void) => {

@@ -35,7 +35,9 @@ import {
   fetchCategories,
   fetchUsers,
   fetchAdmins,
-  fetchAllDevices
+  fetchAllDevices,
+  fetchTotalInstallations,
+  subscribeToInstallationCount
 } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
@@ -127,13 +129,11 @@ const calculateIntelligence = (events: any[], users: any[], facts: any[], range:
 
 /* --- Sub-Modules --- */
 
-function OverviewModule({ data, theme, metricView, setMetricView }: { data: any, theme: string, metricView: 'activity' | 'device', setMetricView: (m: 'activity' | 'device') => void }) {
-  const isDevice = metricView === 'device';
-
+function OverviewModule({ data, theme }: { data: any, theme: string }) {
   const kpis = [
      {
-       label: 'Installed',
-       value: isDevice ? data.kpis.deviceInstalls : data.kpis.totalInstalls,
+       label: 'Lifetime Installs',
+       value: data.kpis.deviceInstalls,
        icon: DownloadCloud,
        color: 'text-blue-500'
      },
@@ -147,26 +147,6 @@ function OverviewModule({ data, theme, metricView, setMetricView }: { data: any,
     <div className="space-y-8">
       <div className="flex justify-between items-center mb-2">
          <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40">Performance Overview</h2>
-         <div className="flex bg-brand-bg/5 dark:bg-brand-bg/40 p-1 rounded-xl border border-brand-sage/10">
-            <button
-              onClick={() => setMetricView('activity')}
-              className={cn(
-                  "px-3 py-1 text-[8px] font-black rounded-lg transition-all uppercase tracking-widest",
-                  metricView === 'activity' ? "bg-brand-primary text-brand-white" : "text-sub opacity-40"
-              )}
-            >
-                Activity View
-            </button>
-            <button
-              onClick={() => setMetricView('device')}
-              className={cn(
-                  "px-3 py-1 text-[8px] font-black rounded-lg transition-all uppercase tracking-widest",
-                  metricView === 'device' ? "bg-brand-primary text-brand-white" : "text-sub opacity-40"
-              )}
-            >
-                Device View
-            </button>
-         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
@@ -235,6 +215,7 @@ function EngagementModule({ data, theme }: { data: any, theme: string }) {
   const intel = data.intelligence;
   return (
     <div className="space-y-8">
+      <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40 mb-2">User Engagement Pulse</h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <PremiumCard className="lg:col-span-7 p-8 flex flex-col justify-between h-[450px]">
              <div className="flex justify-between items-center mb-8">
@@ -311,6 +292,7 @@ function IntelligenceModule({ data, theme }: { data: any, theme: string }) {
 
   return (
     <div className="space-y-8">
+      <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40 mb-2">Engagement Intelligence</h2>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <PremiumCard className="p-8 group">
              <div className="flex items-center gap-3 mb-8">
@@ -425,6 +407,7 @@ function IntelligenceModule({ data, theme }: { data: any, theme: string }) {
 function ContentModule({ data, theme }: { data: any, theme: string }) {
   return (
     <div className="space-y-8">
+      <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40 mb-2">Content Performance Matrix</h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
          <PremiumCard className="lg:col-span-5 p-8 flex flex-col justify-between h-[500px]">
             <div>
@@ -504,8 +487,6 @@ function ContentModule({ data, theme }: { data: any, theme: string }) {
 const AnalyticsHub = () => {
   const { theme } = useTheme();
   const [range, setRange] = useState<7 | 30 | 90>(7);
-  const [metricView, setMetricView] = useState<'activity' | 'device'>('activity');
-  const [activeTab, setActiveTab] = useState<'Overview' | 'Engagement' | 'Intelligence' | 'Content'>('Overview');
   const [loading, setLoading] = useState(true);
 
   const [analyticsData, setAnalyticsData] = useState<{
@@ -537,18 +518,31 @@ const AnalyticsHub = () => {
 
   useEffect(() => {
     loadAllAnalytics();
+
+    // Real-time listener for Lifetime Installs (Updates existing state)
+    const unsubscribe = subscribeToInstallationCount((count) => {
+        setAnalyticsData(prev => ({
+            ...prev,
+            kpis: {
+                ...prev.kpis,
+                deviceInstalls: count
+            }
+        }));
+    });
+    return () => unsubscribe();
   }, [range]);
 
   const loadAllAnalytics = async () => {
     setLoading(true);
     try {
       // 1. Core Data Fetch (Guaranteed success or throw)
-      const [initialFacts, rawEvents, categories, allUsers, admins] = await Promise.all([
+      const [initialFacts, rawEvents, categories, allUsers, admins, lifetimeInstalls] = await Promise.all([
         fetchBites(1000),
         fetchAnalyticsEvents(range, 5000),
         fetchCategories(),
         fetchUsers(500),
-        fetchAdmins()
+        fetchAdmins(),
+        fetchTotalInstallations()
       ]);
 
       // 2. Optional Data Fetch (Device Registry might fail due to missing indexes)
@@ -561,7 +555,7 @@ const AnalyticsHub = () => {
 
       const adminIds = new Set(admins.map(a => a.id));
       const users = allUsers.filter(u => !adminIds.has(u.id));
-      const devices = allDevices.filter(d => !adminIds.has(d.userId));
+      const devices = allDevices;
 
       const events = [...rawEvents].sort((a, b) => safeGetTime(b.timestamp) - safeGetTime(a.timestamp));
       const intelAggregated = calculateIntelligence(events, users, initialFacts, range);
@@ -572,11 +566,7 @@ const AnalyticsHub = () => {
       // Formula: Installs - Unique Devices = Uninstalls (Proxy for reinstalls)
       const totalUninstalls = Math.max(0, totalInstalls - uniqueDevicesWithInstallEvent);
 
-      // Option 2: Device Inventory Logic
-      const deviceInstalls = devices.length;
       const churnThreshold = Date.now() - (14 * 24 * 60 * 60 * 1000);
-      const deviceUninstalls = devices.filter(d => safeGetTime(d.lastSeenAt) < churnThreshold).length;
-
       const deletedAccounts = users.filter(u => u.account?.status === 'DISABLED').length;
       const churnEstimate = users.filter(u =>
         u.account?.status !== 'DISABLED' &&
@@ -642,14 +632,17 @@ const AnalyticsHub = () => {
       const returningUsers = new Set(events.map(e => e.uid)).size;
       const estimatedRetention = distinctUsersCount > 0 ? Math.round((returningUsers / distinctUsersCount) * 100) : 0;
 
+      // Ensure the lifetimeInstalls value is actually a number and present
+      const finalLifetimeCount = typeof lifetimeInstalls === 'number' ? lifetimeInstalls : 0;
+
       setAnalyticsData({
         timeSeriesData: timeSeries,
         userGrowthData: userGrowthTimeline,
         kpis: {
           totalInstalls,
-          totalUninstalls,
-          deviceInstalls,
-          deviceUninstalls,
+          totalUninstalls: Math.max(0, totalInstalls - uniqueDevicesWithInstallEvent),
+          deviceInstalls: finalLifetimeCount,
+          deviceUninstalls: devices.filter(d => safeGetTime(d.lastSeenAt) < churnThreshold).length,
           churnEstimate,
           deletedAccounts,
           registeredUsers,
@@ -681,23 +674,8 @@ const AnalyticsHub = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="glass p-4 rounded-2xl flex justify-between items-center gap-4 relative overflow-hidden backdrop-blur-xl border border-brand-sage/5">
-        <div className="flex bg-brand-bg/5 dark:bg-brand-bg/40 p-1 rounded-xl border border-brand-sage/10 ml-4">
-           {['Overview', 'Engagement', 'Intelligence', 'Content'].map(t => (
-               <button
-                 key={t}
-                 onClick={() => setActiveTab(t as any)}
-                 className={cn(
-                     "px-6 py-1.5 text-[9px] font-black rounded-lg transition-all uppercase tracking-widest",
-                     activeTab === t ? "bg-brand-primary text-brand-white shadow-lg" : "text-sub opacity-40 hover:opacity-100"
-                 )}
-               >
-                   {t}
-               </button>
-           ))}
-        </div>
-
+    <div className="space-y-12 animate-in fade-in duration-500 pb-20">
+      <div className="glass p-4 rounded-2xl flex justify-end items-center gap-4 relative overflow-hidden backdrop-blur-xl border border-brand-sage/5">
         <div className="flex bg-brand-bg/5 dark:bg-brand-bg/40 p-1 rounded-xl border border-brand-sage/10 mr-4">
            {[7, 30, 90].map(d => (
                <button
@@ -717,19 +695,11 @@ const AnalyticsHub = () => {
       {loading ? (
         <LoadingNode message="Synchronizing global analytics matrix..." />
       ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {activeTab === 'Overview' && (
-            <OverviewModule data={analyticsData} theme={theme} metricView={metricView} setMetricView={setMetricView} />
-          )}
-          {activeTab === 'Engagement' && (
-            <EngagementModule data={analyticsData} theme={theme} />
-          )}
-          {activeTab === 'Intelligence' && (
-            <IntelligenceModule data={analyticsData} theme={theme} />
-          )}
-          {activeTab === 'Content' && (
-            <ContentModule data={analyticsData} theme={theme} />
-          )}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-20">
+          <OverviewModule data={analyticsData} theme={theme} />
+          <EngagementModule data={analyticsData} theme={theme} />
+          <IntelligenceModule data={analyticsData} theme={theme} />
+          <ContentModule data={analyticsData} theme={theme} />
         </div>
       )}
     </div>
