@@ -49,6 +49,7 @@ export interface AppNotification {
   title: string;
   message: string;
   type: NotificationType;
+  audience?: string | null; // Added: For segment labeling (e.g., 3+ DAYS)
   imageUrl?: string | null;
   deepLinkFactId?: string | null;
   isGlobal: boolean;

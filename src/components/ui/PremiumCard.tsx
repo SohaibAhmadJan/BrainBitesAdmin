@@ -10,6 +10,7 @@ interface PremiumCardProps {
   layoutId?: string;
   onClick?: () => void;
   glowColor?: string;
+  disableHover?: boolean;
 }
 
 const PremiumCard: React.FC<PremiumCardProps> = ({
@@ -17,7 +18,8 @@ const PremiumCard: React.FC<PremiumCardProps> = ({
   className,
   layoutId,
   onClick,
-  glowColor = 'rgba(45, 106, 79, 0.15)'
+  glowColor = 'rgba(45, 106, 79, 0.15)',
+  disableHover = false
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const mouse = useMousePosition(cardRef);
@@ -28,21 +30,24 @@ const PremiumCard: React.FC<PremiumCardProps> = ({
       ref={cardRef}
       layoutId={layoutId}
       onClick={onClick}
-      whileHover={shouldReduceMotion ? { borderColor: 'rgba(45, 106, 79, 0.3)' } : { y: -8, scale: 1.01 }}
-      whileTap={shouldReduceMotion ? { opacity: 0.9 } : { scale: 0.98 }}
+      whileHover={disableHover ? {} : (shouldReduceMotion ? { borderColor: 'rgba(45, 106, 79, 0.3)' } : { y: -8, scale: 1.01 })}
+      whileTap={disableHover ? {} : (shouldReduceMotion ? { opacity: 0.9 } : { scale: 0.98 })}
       transition={SPRING_SMOOTH}
       className={cn(
-        "glass p-6 shadow-xl relative overflow-hidden group cursor-pointer",
+        "glass p-6 shadow-xl relative overflow-hidden group",
+        !disableHover && "cursor-pointer",
         className
       )}
     >
       {/* Dynamic Radial Glow */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{
-          background: `radial-gradient(circle 300px at ${mouse.x}px ${mouse.y}px, ${glowColor}, transparent)`
-        }}
-      />
+      {!disableHover && (
+        <div
+          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{
+            background: `radial-gradient(circle 300px at ${mouse.x}px ${mouse.y}px, ${glowColor}, transparent)`
+          }}
+        />
+      )}
 
       <div className="relative z-10">
         {children}

@@ -353,6 +353,11 @@ const NotificationsPage = () => {
                           )}>
                              {n.type}
                           </span>
+                          {n.audience && (
+                            <span className="text-[6px] font-black px-1.5 py-0.5 rounded-md mt-1 inline-block uppercase tracking-widest border border-brand-sage/20 bg-brand-bg/50 text-sub ml-1">
+                               {n.audience}
+                            </span>
+                          )}
                        </div>
                        <span className="text-[7px] font-black text-brand-secondary/30 tabular-nums">{new Date(n.timestamp).toLocaleDateString()}</span>
                     </div>
