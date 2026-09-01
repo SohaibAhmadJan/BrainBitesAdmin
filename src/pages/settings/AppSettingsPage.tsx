@@ -16,7 +16,10 @@ import {
   Monitor,
   Lightbulb,
   LayoutGrid,
-  ChevronRight
+  ChevronRight,
+  BellRing,
+  Radio,
+  Clock
 } from 'lucide-react';
 import { AppSettings } from '../../types';
 import { fetchAppSettings } from '../../services/firestoreService';
@@ -28,7 +31,7 @@ import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
 
 const AppSettingsPage = () => {
-  const [settings, setSettings] = useState<AppSettings>({
+  const defaultSettings: AppSettings = {
     maintenanceMode: false,
     maintenanceMessage: 'BrainBites is currently undergoing scheduled maintenance. Please check back soon!',
     latestVersion: '3.4.8.7',
@@ -42,9 +45,14 @@ const AppSettingsPage = () => {
     dailyTipTitle: 'The 2-Minute Rule',
     dailyTipMessage: 'If a task takes less than 2 minutes, do it now.',
     featuredFactId: '1',
+    automationEnabled: false,
+    dailyNotificationTime: '09:00',
+    notificationFrequency: 'DAILY',
     homeSectionsOrder: ['HERO', 'CATEGORIES', 'QUICK_ACTIONS', 'MOOD', 'RECENT', 'DISCOVER', 'ACHIEVEMENTS', 'TIP', 'TRENDING'],
     updatedAt: Date.now()
-  });
+  };
+
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -57,16 +65,16 @@ const AppSettingsPage = () => {
     setLoading(true);
     const data = await fetchAppSettings();
     if (data) {
-      // Map legacy flat structure to nested if necessary
-      const normalized: AppSettings = {
+      // Robust Merge: Firestore data overwrites defaults, but missing keys use defaults (Prevents 'undefined')
+      const merged: AppSettings = {
+        ...defaultSettings,
         ...data,
-        featureFlags: data.featureFlags || {
-          quizzesEnabled: (data as any).quizzesEnabled ?? true,
-          achievementsEnabled: (data as any).achievementsEnabled ?? true,
-          dailyFactEnabled: (data as any).dailyFactEnabled ?? true,
+        featureFlags: {
+          ...defaultSettings.featureFlags,
+          ...(data.featureFlags || {})
         }
       };
-      setSettings(normalized);
+      setSettings(merged);
     }
     setLoading(false);
   };
@@ -74,10 +82,33 @@ const AppSettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateConfig(settings, `Manual update of system state: Version ${settings.latestVersion}`);
-      toast.success('System configuration updated successfully (Atomic).');
+      // Explicit Sanitization: Ensure only valid fields are sent
+      const payload: AppSettings = {
+        maintenanceMode: settings.maintenanceMode,
+        maintenanceMessage: settings.maintenanceMessage,
+        latestVersion: settings.latestVersion,
+        minVersion: settings.minVersion,
+        supportEmail: settings.supportEmail,
+        featureFlags: {
+          quizzesEnabled: settings.featureFlags.quizzesEnabled,
+          achievementsEnabled: settings.featureFlags.achievementsEnabled,
+          dailyFactEnabled: settings.featureFlags.dailyFactEnabled,
+        },
+        dailyTipTitle: settings.dailyTipTitle,
+        dailyTipMessage: settings.dailyTipMessage,
+        featuredFactId: settings.featuredFactId,
+        automationEnabled: settings.automationEnabled,
+        dailyNotificationTime: settings.dailyNotificationTime,
+        notificationFrequency: settings.notificationFrequency,
+        homeSectionsOrder: settings.homeSectionsOrder,
+        updatedAt: Date.now()
+      };
+
+      await updateConfig(payload, `System synchronization: Version ${payload.latestVersion}`);
+      toast.success('System configuration synchronized successfully.');
     } catch (err: any) {
-      toast.error(`System update failed: ${err.message}`);
+      console.error('Master Sync Protocol Failure:', err);
+      toast.error(`Sync Failed: ${err.message || 'Check connection'}`);
     } finally {
       setSaving(false);
     }
@@ -125,180 +156,167 @@ const AppSettingsPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
-        {/* Left: Engine & Flags */}
-        <div className="space-y-10">
-          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black flex items-center gap-3">
-               <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Server size={24} /></div>
-               Engine Configuration
-            </h2>
+        <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-10">
+          <h2 className="text-2xl font-black flex items-center gap-4">
+             <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary shadow-lg"><Server size={24} /></div>
+             Engine Config
+          </h2>
 
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-brand-bg/50 rounded-2xl border border-brand-sage/20">
-                <div className="space-y-1">
-                   <p className="text-sm font-bold uppercase tracking-tight">Maintenance Mode</p>
-                   <p className="text-[10px] text-brand-secondary/40 uppercase font-black tracking-widest">Emergency System Access</p>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between p-6 bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
+              <div className="flex gap-4 items-center">
+                <div className="p-2.5 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10 shadow-lg">
+                  <ShieldAlert size={18} className={cn(settings.maintenanceMode && "animate-pulse text-red-500")} />
                 </div>
-                <button
-                  onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
-                  className={cn(
-                    "w-14 h-8 rounded-full relative transition-all duration-300",
-                    settings.maintenanceMode ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]" : "bg-brand-sage"
-                  )}
-                >
-                  <div className={cn(
-                    "absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 shadow-md",
-                    settings.maintenanceMode ? "left-7" : "left-1"
-                  )} />
-                </button>
+                <div>
+                   <p className="text-sm font-black tracking-tight">Maintenance</p>
+                   <p className="text-[9px] text-brand-secondary/40 font-medium uppercase tracking-widest">Global Lockdown</p>
+                </div>
               </div>
+              <button
+                onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
+                className={cn(
+                  "w-12 h-6 rounded-full relative transition-all duration-300",
+                  settings.maintenanceMode ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]" : "bg-brand-sage"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
+                  settings.maintenanceMode ? "left-7" : "left-1"
+                )} />
+              </button>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Lockdown Message</label>
-                <textarea
-                  className="w-full bg-brand-bg/5 border border-brand-sage/20 rounded-2xl p-4 text-sm focus:outline-none focus:border-red-500/50 transition-all shadow-inner"
-                  rows={3}
-                  value={settings.maintenanceMessage}
-                  onChange={e => setSettings({...settings, maintenanceMessage: e.target.value})}
-                />
-              </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Lockdown Message</label>
+              <textarea
+                className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] p-5 text-sm focus:outline-none focus:border-red-500/50 transition-all shadow-inner leading-relaxed"
+                rows={3}
+                value={settings.maintenanceMessage}
+                onChange={e => setSettings({...settings, maintenanceMessage: e.target.value})}
+              />
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Latest Version</label>
-                   <input
-                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-brand-primary shadow-inner"
-                    value={settings.latestVersion}
-                    onChange={e => setSettings({...settings, latestVersion: e.target.value})}
-                   />
-                 </div>
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Support Endpoint</label>
-                   <input
-                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-brand-primary shadow-inner"
-                    value={settings.supportEmail}
-                    onChange={e => setSettings({...settings, supportEmail: e.target.value})}
-                   />
-                 </div>
-              </div>
+            <div className="grid grid-cols-1 gap-5">
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">System Version</label>
+                 <input
+                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary shadow-inner font-bold"
+                  value={settings.latestVersion}
+                  onChange={e => setSettings({...settings, latestVersion: e.target.value})}
+                 />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Support Endpoint</label>
+                 <input
+                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary shadow-inner"
+                  value={settings.supportEmail}
+                  onChange={e => setSettings({...settings, supportEmail: e.target.value})}
+                 />
+               </div>
             </div>
           </div>
-
-          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-              <h2 className="text-2xl font-black flex items-center gap-3">
-                 <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><Flag size={24} /></div>
-                 Feature Manifest
-              </h2>
-
-              <div className="space-y-4">
-                 {[
-                   { id: 'quizzesEnabled', label: 'Psychometric Challenges', desc: 'Enable quiz repository & point system' },
-                   { id: 'achievementsEnabled', label: 'Reward Milestones', desc: 'Active achievement tracking & notifications' },
-                   { id: 'dailyFactEnabled', label: 'Smart Daily Insights', desc: 'Automated "Fact of the Day" delivery' },
-                 ].map((flag) => (
-                   <div key={flag.id} className="flex items-center justify-between p-5 bg-brand-bg/50 border border-brand-sage/20 rounded-3xl group hover:border-brand-primary/30 transition-all">
-                      <div className="flex gap-4 items-center">
-                         <div className="p-2 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10">
-                           <Info size={16} />
-                         </div>
-                         <div>
-                            <p className="text-sm font-black tracking-tight">{flag.label}</p>
-                            <p className="text-[10px] text-brand-secondary/40 font-medium uppercase tracking-tighter">{flag.desc}</p>
-                         </div>
-                      </div>
-                      <button
-                        onClick={() => setSettings({
-                          ...settings,
-                          featureFlags: {
-                            ...settings.featureFlags,
-                            [flag.id]: !(settings.featureFlags as any)[flag.id]
-                          }
-                        })}
-                        className={cn(
-                          "w-12 h-6 rounded-full relative transition-all duration-300",
-                          (settings.featureFlags as any)[flag.id] ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
-                        )}
-                      >
-                        <div className={cn(
-                          "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
-                          (settings.featureFlags as any)[flag.id] ? "left-7" : "left-1"
-                        )} />
-                      </button>
-                   </div>
-                 ))}
-              </div>
-           </div>
         </div>
 
-        {/* Right: Tip & Reordering */}
-        <div className="space-y-10">
-          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black flex items-center gap-3">
-               <div className="p-2 bg-brand-gold/10 rounded-xl text-brand-gold"><Lightbulb size={24} /></div>
-               Daily Wisdom Pulse
+        <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-10">
+            <h2 className="text-2xl font-black flex items-center gap-4">
+               <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary shadow-lg"><BellRing size={24} /></div>
+               Automation Pulse
             </h2>
-            <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Tip Title Headline</label>
-                  <input
-                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-6 py-4 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner font-bold"
-                    value={settings.dailyTipTitle}
-                    onChange={e => setSettings({...settings, dailyTipTitle: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-widest ml-1">Tip Message Payload</label>
-                  <textarea
-                    className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-2xl p-6 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner italic leading-relaxed"
-                    rows={4}
-                    value={settings.dailyTipMessage}
-                    onChange={e => setSettings({...settings, dailyTipMessage: e.target.value})}
-                  />
-                </div>
-            </div>
-          </div>
 
-          <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black flex items-center gap-3">
-               <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary"><LayoutGrid size={24} /></div>
-               Hub Section Priority
-            </h2>
-            <div className="space-y-3">
-              {settings.homeSectionsOrder.map((section, idx) => (
-                <div key={section} className="flex items-center justify-between p-4 bg-brand-bg/50 border border-brand-sage/10 rounded-2xl group hover:border-brand-primary/30 transition-all">
-                  <div className="flex items-center gap-4">
-                    <span className="w-6 h-6 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
-                    <p className="text-xs font-black uppercase tracking-widest">{section.replace(/_/g, ' ')}</p>
+            <div className="space-y-8">
+               <div className="flex items-center justify-between p-6 bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
+                  <div className="flex gap-4 items-center">
+                     <div className="p-2.5 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10 shadow-lg">
+                       <Radio size={18} className={cn(settings.automationEnabled && "animate-pulse text-brand-primary")} />
+                     </div>
+                     <div>
+                        <p className="text-sm font-black tracking-tight">Heartbeat</p>
+                        <p className="text-[9px] text-brand-secondary/40 font-medium uppercase tracking-widest">Auto Dispatch Sync</p>
+                     </div>
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => {
-                        if (idx === 0) return;
-                        const newOrder = [...settings.homeSectionsOrder];
-                        [newOrder[idx], newOrder[idx-1]] = [newOrder[idx-1], newOrder[idx]];
-                        setSettings({...settings, homeSectionsOrder: newOrder});
-                      }}
-                      className="p-2 hover:bg-brand-primary/10 rounded-lg text-sub hover:text-brand-primary transition-all"
-                    >
-                      <ChevronRight className="-rotate-90" size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (idx === settings.homeSectionsOrder.length - 1) return;
-                        const newOrder = [...settings.homeSectionsOrder];
-                        [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
-                        setSettings({...settings, homeSectionsOrder: newOrder});
-                      }}
-                      className="p-2 hover:bg-brand-primary/10 rounded-lg text-sub hover:text-brand-primary transition-all"
-                    >
-                      <ChevronRight className="rotate-90" size={16} />
-                    </button>
+                  <button
+                    onClick={() => setSettings({...settings, automationEnabled: !settings.automationEnabled})}
+                    className={cn(
+                      "w-12 h-6 rounded-full relative transition-all duration-300",
+                      settings.automationEnabled ? "bg-brand-primary shadow-[0_0_10px_rgba(45,106,79,0.3)]" : "bg-brand-sage"
+                    )}
+                  >
+                    <div className={cn(
+                      "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md",
+                      settings.automationEnabled ? "left-7" : "left-1"
+                    )} />
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-1 gap-5">
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Dispatch Time</label>
+                     <input
+                       type="time"
+                       className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary shadow-inner text-brand-white"
+                       value={settings.dailyNotificationTime}
+                       onChange={e => setSettings({...settings, dailyNotificationTime: e.target.value})}
+                     />
+                     <button
+                        type="button"
+                        onClick={() => {
+                           const now = new Date();
+                           const hours = String(now.getHours()).padStart(2, '0');
+                           const minutes = String(now.getMinutes()).padStart(2, '0');
+                           setSettings({...settings, dailyNotificationTime: `${hours}:${minutes}`});
+                        }}
+                        className="text-[9px] font-black text-brand-primary uppercase tracking-widest ml-1 hover:opacity-70 transition-opacity flex items-center gap-1.5 mt-1"
+                     >
+                        <Clock size={10} /> Use Current Time
+                     </button>
                   </div>
-                </div>
-              ))}
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Cycle Frequency</label>
+                     <select
+                       className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary shadow-inner text-brand-white cursor-pointer"
+                       value={settings.notificationFrequency}
+                       onChange={e => setSettings({...settings, notificationFrequency: e.target.value as any})}
+                     >
+                        <option value="DAILY">Once a Day</option>
+                        <option value="2_TIMES_DAILY">2 Times a Day (Every 12h)</option>
+                        <option value="3_TIMES_DAILY">3 Times a Day (Every 8h)</option>
+                        <option value="4_TIMES_DAILY">4 Times a Day (Every 6h)</option>
+                        <option value="6_TIMES_DAILY">6 Times a Day (Every 4h)</option>
+                        <option value="8_TIMES_DAILY">8 Times a Day (Every 3h)</option>
+                        <option value="EVERY_2_DAYS">Every 2 Days</option>
+                        <option value="WEEKLY">Once a Week</option>
+                     </select>
+                  </div>
+               </div>
             </div>
+         </div>
+
+        <div className="glass p-8 rounded-[2.5rem] shadow-2xl space-y-10">
+          <h2 className="text-2xl font-black flex items-center gap-4">
+             <div className="p-3 bg-brand-gold/10 rounded-2xl text-brand-gold shadow-lg"><Lightbulb size={24} /></div>
+             Wisdom Pulse
+          </h2>
+          <div className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Tip Headline</label>
+                <input
+                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-6 py-4 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner font-bold"
+                  value={settings.dailyTipTitle}
+                  onChange={e => setSettings({...settings, dailyTipTitle: e.target.value})}
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Tip Payload</label>
+                <textarea
+                  className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[2.5rem] p-8 text-sm focus:outline-none focus:border-brand-gold/50 transition-all shadow-inner italic leading-relaxed"
+                  rows={6}
+                  value={settings.dailyTipMessage}
+                  onChange={e => setSettings({...settings, dailyTipMessage: e.target.value})}
+                />
+              </div>
           </div>
         </div>
 

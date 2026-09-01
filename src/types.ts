@@ -130,12 +130,16 @@ export interface AppSettings {
   minVersion: string;
   supportEmail: string;
   featureFlags: {
+    quizzesEnabled: boolean;
     achievementsEnabled: boolean;
     dailyFactEnabled: boolean;
   };
   dailyTipTitle: string;
   dailyTipMessage: string;
   featuredFactId: string;
+  automationEnabled: boolean; // Added: For automated notifications
+  dailyNotificationTime: string; // Added: e.g., "09:00"
+  notificationFrequency: 'DAILY' | 'EVERY_2_DAYS' | 'WEEKLY' | '2_TIMES_DAILY' | '3_TIMES_DAILY' | '4_TIMES_DAILY' | '6_TIMES_DAILY' | '8_TIMES_DAILY'; // Added: Scheduling
   homeSectionsOrder: string[];
   updatedAt: number;
 }

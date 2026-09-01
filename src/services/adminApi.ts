@@ -1,5 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { firebaseApp } from './firebaseService';
+import { firebaseApp, db, auth } from './firebaseService';
+import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { BiteItem, Category, AppSettings, AdminUser, AppNotification, CollectionSet, Achievement, QuoteItem } from '../types';
 
 // Helper to get functions safely
@@ -91,10 +92,33 @@ export const bulkImportFacts = async (items: BiteItem[], reason: string) => {
 };
 
 export const updateConfig = async (data: AppSettings, reason: string) => {
-    const functions = getFunctionsInstance();
-    if (!functions) throw new Error('Cloud Connectivity Not Initialized');
-    const fn = httpsCallable(functions, 'updateAppConfigAtomic');
-    return fn({ data, reason });
+    if (!db || !auth?.currentUser) throw new Error('Administrative clearance required.');
+
+    // Safety Sanitization: Strip 'undefined' values which cause Firestore Admin SDK to crash
+    const sanitizedData = JSON.parse(JSON.stringify(data));
+
+    try {
+        // 1. Direct Write to app_settings/global_config
+        const configRef = doc(db, 'app_settings', 'global_config');
+        await setDoc(configRef, { ...sanitizedData, updatedAt: Date.now() }, { merge: true });
+
+        // 2. Manual Audit Log Entry
+        const auditRef = collection(db, 'audit_logs');
+        await addDoc(auditRef, {
+            adminUid: auth.currentUser.uid,
+            action: 'UPDATE_CONFIG_DIRECT',
+            targetType: 'CONFIG',
+            targetId: 'global_config',
+            after: sanitizedData,
+            reason: reason || 'Direct system synchronization',
+            createdAt: Date.now()
+        });
+
+        return { status: "success" };
+    } catch (err) {
+        console.error('Direct Config Sync ERROR:', err);
+        throw err;
+    }
 };
 
 export const updateAdmin = async (uid: string, data: Partial<AdminUser>, reason: string) => {
