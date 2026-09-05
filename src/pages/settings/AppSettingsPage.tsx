@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../../types';
 import { fetchAppSettings } from '../../services/firestoreService';
-import { updateConfig } from '../../services/adminApi';
+import { updateConfig, sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import toast from 'react-hot-toast';
@@ -55,11 +55,48 @@ const AppSettingsPage = () => {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [utcTime, setUtcTime] = useState('');
+  const lastPulseRef = React.useRef<string | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    // Live UTC Heartbeat Engine
+    const timer = setInterval(() => {
+        const now = new Date();
+        const h = now.getUTCHours();
+        const m = now.getUTCMinutes();
+        const s = now.getUTCSeconds();
+        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        setUtcTime(`${timeStr}:${String(s).padStart(2, '0')}`);
+
+        // Precision Heartbeat Trigger
+        // When enabled, dispatches the current Wisdom Pulse data via Broadcasting Hub at exactly 00 seconds.
+        if (settings.automationEnabled && timeStr === settings.dailyNotificationTime && !loading) {
+            if (lastPulseRef.current !== timeStr) {
+                lastPulseRef.current = timeStr;
+
+                sendGlobalNotification({
+                    title: settings.dailyTipTitle,
+                    message: settings.dailyTipMessage,
+                    type: 'NEW_FACT',
+                    imageUrl: null,
+                    deepLinkFactId: settings.featuredFactId,
+                    isGlobal: true
+                }, 'Heartbeat automated dispatch').then(() => {
+                    toast.success('Heartbeat Pulse: Broadcast Dispatched via Hub!', { icon: '💓' });
+                }).catch(err => {
+                    console.error('Heartbeat Protocol Failure:', err);
+                });
+            }
+        }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [settings.automationEnabled, settings.dailyNotificationTime, settings.dailyTipTitle, settings.dailyTipMessage, settings.featuredFactId, loading]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -82,7 +119,7 @@ const AppSettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Explicit Sanitization: Ensure only valid fields are sent
+      // Engine Configuration Synchronization
       const payload: AppSettings = {
         maintenanceMode: settings.maintenanceMode,
         maintenanceMessage: settings.maintenanceMessage,
@@ -105,7 +142,7 @@ const AppSettingsPage = () => {
       };
 
       await updateConfig(payload, `System synchronization: Version ${payload.latestVersion}`);
-      toast.success('System configuration synchronized successfully.');
+      toast.success('Engine Configuration Synchronized.');
     } catch (err: any) {
       console.error('Master Sync Protocol Failure:', err);
       toast.error(`Sync Failed: ${err.message || 'Check connection'}`);
@@ -253,25 +290,48 @@ const AppSettingsPage = () => {
 
                <div className="grid grid-cols-1 gap-5">
                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Dispatch Time</label>
-                     <input
-                       type="time"
-                       className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-[1.5rem] px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary shadow-inner text-brand-white"
-                       value={settings.dailyNotificationTime}
-                       onChange={e => setSettings({...settings, dailyNotificationTime: e.target.value})}
-                     />
-                     <button
-                        type="button"
-                        onClick={() => {
-                           const now = new Date();
-                           const hours = String(now.getHours()).padStart(2, '0');
-                           const minutes = String(now.getMinutes()).padStart(2, '0');
-                           setSettings({...settings, dailyNotificationTime: `${hours}:${minutes}`});
-                        }}
-                        className="text-[9px] font-black text-brand-primary uppercase tracking-widest ml-1 hover:opacity-70 transition-opacity flex items-center gap-1.5 mt-1"
-                     >
-                        <Clock size={10} /> Use Current Time
-                     </button>
+                     <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Dispatch Time (24h Scroll)</label>
+                     <div className="flex gap-2">
+                        {/* Hour Picker */}
+                        <div className="relative flex-1 group">
+                           <select
+                              className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary appearance-none shadow-inner text-brand-white font-mono cursor-pointer"
+                              value={settings.dailyNotificationTime.split(':')[0] || '09'}
+                              onChange={e => {
+                                 const mins = settings.dailyNotificationTime.split(':')[1] || '00';
+                                 setSettings({...settings, dailyNotificationTime: `${e.target.value}:${mins}`});
+                              }}
+                           >
+                              {Array.from({ length: 24 }).map((_, i) => (
+                                 <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
+                              ))}
+                           </select>
+                           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-hover:opacity-100 transition-opacity">
+                              <ChevronRight size={14} className="rotate-90" />
+                           </div>
+                           <span className="absolute left-1.5 top-1 text-[7px] font-black text-brand-primary/40 uppercase">HH</span>
+                        </div>
+
+                        {/* Minute Picker */}
+                        <div className="relative flex-1 group">
+                           <select
+                              className="w-full bg-brand-bg/50 border border-brand-sage/20 rounded-xl px-5 py-3.5 text-sm focus:outline-none focus:border-brand-primary appearance-none shadow-inner text-brand-white font-mono cursor-pointer"
+                              value={settings.dailyNotificationTime.split(':')[1] || '00'}
+                              onChange={e => {
+                                 const hours = settings.dailyNotificationTime.split(':')[0] || '09';
+                                 setSettings({...settings, dailyNotificationTime: `${hours}:${e.target.value}`});
+                              }}
+                           >
+                              {Array.from({ length: 60 }).map((_, i) => (
+                                 <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
+                              ))}
+                           </select>
+                           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-hover:opacity-100 transition-opacity">
+                              <ChevronRight size={14} className="rotate-90" />
+                           </div>
+                           <span className="absolute left-1.5 top-1 text-[7px] font-black text-brand-primary/40 uppercase">MM</span>
+                        </div>
+                     </div>
                   </div>
                   <div className="space-y-2">
                      <label className="text-[10px] font-black text-brand-secondary/40 uppercase tracking-[0.2em] ml-1">Cycle Frequency</label>
@@ -289,6 +349,14 @@ const AppSettingsPage = () => {
                         <option value="EVERY_2_DAYS">Every 2 Days</option>
                         <option value="WEEKLY">Once a Week</option>
                      </select>
+                  </div>
+               </div>
+
+               <div className="pt-6 border-t border-brand-sage/10 text-center space-y-4">
+                  <div className="bg-brand-bg/30 p-4 rounded-2xl border border-brand-sage/5">
+                     <p className="text-2xl font-black text-brand-primary tabular-nums tracking-tighter">
+                        {utcTime} <span className="text-[10px] opacity-40 ml-1">UTC</span>
+                     </p>
                   </div>
                </div>
             </div>

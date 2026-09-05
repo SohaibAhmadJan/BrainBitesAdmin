@@ -149,7 +149,7 @@ const AdminsPage = () => {
       case 'SUPER_ADMIN': return 'Administrator';
       case 'ADMIN': return 'Editor';
       case 'CONTENT_MANAGER': return 'Author';
-      case 'ANALYST': return 'Subscriber';
+      case 'ANALYST': return 'Analyst';
       default: return role;
     }
   };
@@ -199,7 +199,7 @@ const AdminsPage = () => {
               <option value="SUPER_ADMIN">Administrator</option>
               <option value="ADMIN">Editor</option>
               <option value="CONTENT_MANAGER">Author</option>
-              <option value="ANALYST">Subscriber</option>
+              <option value="ANALYST">Analyst</option>
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={16} />
           </div>

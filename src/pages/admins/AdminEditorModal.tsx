@@ -138,7 +138,7 @@ const AdminEditorModal: React.FC<AdminEditorModalProps> = ({ admin, onClose, onS
                 <option value="SUPER_ADMIN">Administrator</option>
                 <option value="ADMIN">Editor</option>
                 <option value="CONTENT_MANAGER">Author</option>
-                <option value="ANALYST">Subscriber</option>
+                <option value="ANALYST">Analyst</option>
               </select>
            </div>
 

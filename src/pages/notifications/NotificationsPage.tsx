@@ -18,8 +18,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { AppNotification, NotificationType, BiteItem, UserProfile } from '../../types';
-import { fetchNotifications, fetchBites, dispatchNotificationDirectly, fetchUsers, dispatchTargetedNotification } from '../../services/firestoreService';
-import { deleteNotification } from '../../services/adminApi';
+import { fetchNotifications, fetchBites, fetchUsers, dispatchTargetedNotification } from '../../services/firestoreService';
+import { deleteNotification, sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import ImagePicker from '../../components/ui/ImagePicker';
@@ -96,10 +96,11 @@ const NotificationsPage = () => {
       if (form.targetType === 'USER') {
         newId = await dispatchTargetedNotification(form.targetUserId, newNotifBase);
       } else {
-        newId = await dispatchNotificationDirectly(newNotifBase);
+        const result = await sendGlobalNotification(newNotifBase, 'Manual broadcast hub dispatch');
+        newId = (result as any).data?.notificationId;
       }
 
-      const newNotif = { ...newNotifBase, id: newId, timestamp: Date.now() } as AppNotification;
+      const newNotif = { ...newNotifBase, id: newId || `n-${Date.now()}`, timestamp: Date.now() } as AppNotification;
       setNotifications([newNotif, ...notifications]);
       setForm({ ...form, title: '', message: '', imageUrl: '', deepLinkFactId: '', isScheduled: false, scheduledAt: '' });
       toast.success(form.isScheduled ? 'Transmission Scheduled (Local Alarm)' : 'Broadcast Dispatched Successfully');

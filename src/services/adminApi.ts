@@ -2,6 +2,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseApp, db, auth } from './firebaseService';
 import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { BiteItem, Category, AppSettings, AdminUser, AppNotification, CollectionSet, Achievement, QuoteItem } from '../types';
+import { dispatchNotificationDirectly } from './firestoreService';
 
 // Helper to get functions safely
 const getFunctionsInstance = () => {
@@ -136,10 +137,35 @@ export const deleteAdmin = async (uid: string, reason: string) => {
 };
 
 export const sendGlobalNotification = async (data: Partial<AppNotification>, reason: string) => {
-    const functions = getFunctionsInstance();
-    if (!functions) throw new Error('Cloud Connectivity Not Initialized');
-    const fn = httpsCallable(functions, 'sendGlobalNotificationAtomic');
-    return fn({ data, reason });
+    // Safety Sanitization: Strip 'undefined' values
+    const sanitizedData = JSON.parse(JSON.stringify(data));
+
+    try {
+        // Direct Firestore dispatch to bypass Cloud Function (Free Plan Compatibility)
+        const newId = await dispatchNotificationDirectly({
+            ...sanitizedData,
+            timestamp: Date.now()
+        } as any);
+
+        // Optional: Manual Audit Log Entry
+        if (db && auth?.currentUser) {
+            const auditRef = collection(db, 'audit_logs');
+            await addDoc(auditRef, {
+                adminUid: auth.currentUser.uid,
+                action: 'SEND_NOTIFICATION_DIRECT',
+                targetType: 'NOTIFICATION',
+                targetId: newId,
+                after: sanitizedData,
+                reason: reason || 'Broadcast dispatch (direct)',
+                createdAt: Date.now()
+            });
+        }
+
+        return { status: "success", data: { notificationId: newId } };
+    } catch (err) {
+        console.error('sendGlobalNotification ERROR:', err);
+        throw err;
+    }
 };
 
 export const deleteNotification = async (id: string, reason: string) => {
