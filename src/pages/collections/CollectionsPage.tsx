@@ -16,8 +16,10 @@ import EmptyBuffer from '../../components/ui/EmptyBuffer';
 import { useCollections } from '../../hooks/useCollections';
 import CollectionEditorDrawer from './CollectionEditorDrawer';
 import PremiumCard from '../../components/ui/PremiumCard';
+import { useAdmin } from '../../context/AdminContext';
 
 const CollectionsPage = () => {
+  const { isAtLeast } = useAdmin();
   const {
     collections: filteredCollections,
     allCollections,
@@ -34,6 +36,14 @@ const CollectionsPage = () => {
   const handleEdit = (col: CollectionSet | null = null) => {
     setSelectedCollection(col);
     setIsEditorOpen(true);
+  };
+
+  const executeCollectionRemoval = async (id: string, title: string) => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Deletion restricted for this clearance level.');
+      return;
+    }
+    await removeCollection(id, title);
   };
 
   return (
@@ -121,7 +131,7 @@ const CollectionsPage = () => {
                              </motion.button>
                              <motion.button
                                 whileHover={{ scale: 1.1 }}
-                                onClick={(e) => { e.stopPropagation(); removeCollection(col.id, col.title); }}
+                                onClick={(e) => { e.stopPropagation(); executeCollectionRemoval(col.id, col.title); }}
                                 className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-md"
                              >
                                 <Trash2 size={16} />
@@ -184,7 +194,14 @@ const CollectionsPage = () => {
           <CollectionEditorDrawer
             collection={selectedCollection}
             onClose={() => setIsEditorOpen(false)}
-            onSave={saveCollection}
+            onSave={async (col) => {
+              if (!isAtLeast('CONTENT_MANAGER')) {
+                toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+                return;
+              }
+              await saveCollection(col);
+              setIsEditorOpen(false);
+            }}
           />
         )}
       </AnimatePresence>

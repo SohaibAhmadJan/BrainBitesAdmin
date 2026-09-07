@@ -85,13 +85,6 @@ export const deleteQuote = async (id: string, reason: string) => {
     return fn({ id, reason });
 };
 
-export const bulkImportFacts = async (items: BiteItem[], reason: string) => {
-    const functions = getFunctionsInstance();
-    if (!functions) throw new Error('Cloud Connectivity Not Initialized');
-    const fn = httpsCallable(functions, 'bulkImportFactsAtomic');
-    return fn({ items, reason });
-};
-
 export const updateConfig = async (data: AppSettings, reason: string) => {
     if (!db || !auth?.currentUser) throw new Error('Administrative clearance required.');
 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, observeAuthState } from '../services/firebaseService';
+import { setDoc, doc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { AdminUser, AdminRole } from '../types';
 
 interface AdminContextType {
@@ -11,7 +11,15 @@ interface AdminContextType {
   isAuthorized: boolean;
   hasPermission: (permission: string) => boolean;
   isRole: (role: AdminRole | AdminRole[]) => boolean;
+  isAtLeast: (role: AdminRole) => boolean;
 }
+
+const ROLE_LEVELS: Record<AdminRole, number> = {
+  'ANALYST': 1,        // Viewer
+  'CONTENT_MANAGER': 2, // Author
+  'ADMIN': 3,          // Administrator
+  'SUPER_ADMIN': 4     // Super Administrator
+};
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
@@ -19,6 +27,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPerformingHandshake, setIsPerformingHandshake] = useState(false);
 
   useEffect(() => {
     const unsubscribeAuth = observeAuthState((user) => {
@@ -26,6 +35,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (!user) {
         setAdminUser(null);
         setIsLoading(false);
+        setIsPerformingHandshake(false);
       }
     });
 
@@ -35,10 +45,60 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     if (!firebaseUser || !db) return;
 
-    setIsLoading(true);
+    const executeHandshakeProtocol = async () => {
+      setIsLoading(true);
+      setIsPerformingHandshake(true);
+
+      const uidRef = doc(db, 'admins', firebaseUser.uid);
+
+      try {
+        const uidSnap = await getDoc(uidRef);
+
+        // If real UID record already exists, we are done with pre-flight
+        if (uidSnap.exists()) {
+          console.log("[Identity] Registry match confirmed via UID.");
+          setIsPerformingHandshake(false);
+          return;
+        }
+
+        // If not, check for email-based invitation
+        if (firebaseUser.email) {
+          const emailId = firebaseUser.email.toLowerCase().replace(/[@.]/g, '_');
+          const emailRef = doc(db, 'admins', emailId);
+          const emailSnap = await getDoc(emailRef);
+
+          if (emailSnap.exists()) {
+            const inviteData = emailSnap.data();
+            console.log(`[Handshake] Pre-assigned invitation discovered for ${firebaseUser.email}. Executing migration...`);
+
+            // Perform Atomic Migration
+            await setDoc(uidRef, {
+              ...inviteData,
+              uid: firebaseUser.uid,
+              updatedAt: Date.now()
+            });
+            await deleteDoc(emailRef);
+            console.log("[Handshake] Migration SUCCESS.");
+          } else {
+            console.log("[Identity] No pre-assigned invitation found.");
+          }
+        }
+      } catch (err) {
+        console.error("[Handshake] Protocol Exception:", err);
+      } finally {
+        setIsPerformingHandshake(false);
+      }
+    };
+
+    executeHandshakeProtocol();
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    // Wait for the handshake to finish before starting the real-time listener
+    if (!firebaseUser || !db || isPerformingHandshake) return;
+
     const adminDocRef = doc(db, 'admins', firebaseUser.uid);
 
-    // Use onSnapshot for real-time status/role updates (e.g. if access is revoked while logged in)
     const unsubscribeAdmin = onSnapshot(adminDocRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as AdminUser;
@@ -48,13 +108,13 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       setIsLoading(false);
     }, (error) => {
-      console.error("Admin verification failed:", error);
+      console.error("Administrative Registry Listener Error:", error);
       setAdminUser(null);
       setIsLoading(false);
     });
 
     return () => unsubscribeAdmin();
-  }, [firebaseUser]);
+  }, [firebaseUser, isPerformingHandshake]);
 
   const hasPermission = (permission: string): boolean => {
     if (!adminUser || !adminUser.isActive) return false;
@@ -68,6 +128,11 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return roles.includes(adminUser.role);
   };
 
+  const isAtLeast = (role: AdminRole): boolean => {
+    if (!adminUser || !adminUser.isActive) return false;
+    return ROLE_LEVELS[adminUser.role] >= ROLE_LEVELS[role];
+  };
+
   const isAuthorized = !!adminUser && adminUser.isActive;
 
   return (
@@ -77,7 +142,8 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       isLoading,
       isAuthorized,
       hasPermission,
-      isRole
+      isRole,
+      isAtLeast
     }}>
       {children}
     </AdminContext.Provider>

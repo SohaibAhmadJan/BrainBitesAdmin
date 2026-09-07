@@ -40,57 +40,63 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { theme } = useTheme();
   const { adminUser, hasPermission } = useAdmin();
 
+  const getDisplayRole = (role: string | undefined) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrator';
+      case 'ADMIN': return 'Administrator';
+      case 'CONTENT_MANAGER': return 'Author';
+      case 'ANALYST': return 'Viewer';
+      default: return role || 'Admin';
+    }
+  };
+
   const sections = [
     {
       title: "Main",
       items: [
-        { name: "Dashboard", icon: LayoutDashboard, path: "/", permission: 'read.all' },
+        { name: "Dashboard", icon: LayoutDashboard, path: "/" },
       ]
     },
     {
       title: "Content",
       items: [
-        { name: "Facts", icon: FileText, path: "/facts", permission: 'read.all' },
-        { name: "Categories", icon: Layers, path: "/categories", permission: 'read.all' },
-        { name: "Collections", icon: Library, path: "/collections", permission: 'read.all' },
-        { name: "Achievements", icon: Trophy, path: "/achievements", permission: 'read.all' },
+        { name: "Facts", icon: FileText, path: "/facts" },
+        { name: "Categories", icon: Layers, path: "/categories" },
+        { name: "Collections", icon: Library, path: "/collections" },
+        { name: "Achievements", icon: Trophy, path: "/achievements" },
       ]
     },
     {
       title: "Users",
       items: [
-        { name: "Users", icon: Users, path: "/users", permission: 'read.all' },
-        { name: "Reports", icon: AlertCircle, path: "/reports", permission: 'read.all' },
+        { name: "Users", icon: Users, path: "/users" },
+        { name: "Reports", icon: AlertCircle, path: "/reports" },
       ]
     },
     {
       title: "Communication",
       items: [
-        { name: "Broadcast Hub", icon: Radio, path: "/notifications", permission: 'read.all' },
+        { name: "Broadcast Hub", icon: Radio, path: "/notifications" },
       ]
     },
     {
       title: "Analytics",
       items: [
-        { name: "Analytics Hub", icon: BarChart3, path: "/analytics", permission: 'read.all' },
+        { name: "Analytics Hub", icon: BarChart3, path: "/analytics" },
       ]
     },
     {
       title: "System",
       items: [
-        { name: "App Settings", icon: Settings, path: "/settings", permission: 'manage.config' },
-        { name: "Admins & Roles", icon: ShieldCheck, path: "/admins", permission: 'manage.admins' },
-        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs", permission: 'audit.view' },
-        { name: "Import / Export", icon: Download, path: "/import-export", permission: 'manage.admins' },
+        { name: "App Settings", icon: Settings, path: "/settings" },
+        { name: "Admins & Roles", icon: ShieldCheck, path: "/admins" },
+        { name: "Audit Logs", icon: HistoryIcon, path: "/audit-logs" },
+        { name: "Export Repository", icon: Download, path: "/export" },
       ]
     }
   ];
 
-  // Filter sections and items based on permissions
-  const filteredSections = sections.map(section => ({
-    ...section,
-    items: section.items.filter(item => hasPermission(item.permission))
-  })).filter(section => section.items.length > 0);
+  const filteredSections = sections;
 
   return (
     <aside
@@ -112,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                BrainBites
             </h1>
             <span className="text-[9px] font-bold text-brand-secondary uppercase tracking-widest block ml-3.5 opacity-50">
-              {adminUser?.role.replace('_', ' ') || 'Admin'}
+              {getDisplayRole(adminUser?.role)}
             </span>
           </motion.div>
         )}

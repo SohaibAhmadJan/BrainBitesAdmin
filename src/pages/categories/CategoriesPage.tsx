@@ -66,6 +66,7 @@ import { useCategories } from '../../hooks/useCategories';
 import { useFacts } from '../../hooks/useFacts';
 import { useMousePosition } from '../../hooks/useMousePosition';
 import { useTheme } from '../../context/ThemeContext';
+import { useAdmin } from '../../context/AdminContext';
 import { Category } from '../../types';
 import { cn } from '../../utils/cn';
 import { DRAWER_TRANSITION } from '../../utils/animations';
@@ -412,6 +413,7 @@ const CategoryEditorDrawer: React.FC<CategoryEditorDrawerProps> = ({ category, o
 
 const CategoriesPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const navigate = useNavigate();
   const {
     categories: filteredCategories,
@@ -436,6 +438,14 @@ const CategoriesPage = () => {
   const handleEdit = (cat: Category | null = null) => {
     setSelectedCategory(cat);
     setIsEditorOpen(true);
+  };
+
+  const executeCategoryRemoval = async (id: string, name: string) => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Deletion restricted for this clearance level.');
+      return;
+    }
+    await removeCategory(id, name);
   };
 
   return (
@@ -533,7 +543,7 @@ const CategoriesPage = () => {
                                 <Edit3 size={14} />
                              </button>
                              <button
-                                onClick={(e) => { e.stopPropagation(); removeCategory(cat.id, cat.name); }}
+                                onClick={(e) => { e.stopPropagation(); executeCategoryRemoval(cat.id, cat.name); }}
                                 className="p-1.5 glass hover:bg-red-500/10 text-sub hover:text-red-500 rounded-lg transition-all border border-brand-sage/10 shadow-sm"
                              >
                                 <Trash2 size={14} />
@@ -570,6 +580,10 @@ const CategoriesPage = () => {
             onClose={() => setIsEditorOpen(false)}
             stats={selectedCategory ? getCategoryStats(selectedCategory.name) : { facts: 0 }}
             onSave={async (cat) => {
+              if (!isAtLeast('CONTENT_MANAGER')) {
+                toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+                return;
+              }
               const success = await saveCategory(cat);
               if (success) setIsEditorOpen(false);
             }}

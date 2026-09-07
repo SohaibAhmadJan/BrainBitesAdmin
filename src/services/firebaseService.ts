@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -82,6 +83,11 @@ export const getFirebaseConfigIssues = (): string[] => {
 export const signInAdmin = (email: string, password: string) => {
   if (!auth) throw new Error('Firebase Auth not initialized');
   return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signUpAdmin = (email: string, password: string) => {
+  if (!auth) throw new Error('Firebase Auth not initialized');
+  return createUserWithEmailAndPassword(auth, email, password);
 };
 
 export const triggerPasswordReset = (email: string) => {

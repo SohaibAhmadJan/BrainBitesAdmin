@@ -15,8 +15,8 @@ import {
   Cpu,
   Fingerprint
 } from 'lucide-react';
-import { AuditLog } from '../../types';
-import { fetchAuditLogs } from '../../services/firestoreService';
+import { AuditLog, AdminUser } from '../../types';
+import { fetchAuditLogs, fetchAdmins } from '../../services/firestoreService';
 import { cn } from '../../utils/cn';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
@@ -28,6 +28,7 @@ import AuditDetailDrawer from '../../components/ui/AuditDetailDrawer';
 const AuditLogsPage = () => {
   const { theme } = useTheme();
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('All');
@@ -36,19 +37,28 @@ const AuditLogsPage = () => {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   useEffect(() => {
-    loadLogs();
+    loadData();
   }, [dateRange]);
 
-  const loadLogs = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchAuditLogs(300); // Increased limit for better filtering
-      setLogs(data.sort((a, b) => b.createdAt - a.createdAt));
+      const [logsData, adminsData] = await Promise.all([
+        fetchAuditLogs(300),
+        fetchAdmins()
+      ]);
+      setLogs(logsData.sort((a, b) => b.createdAt - a.createdAt));
+      setAdmins(adminsData);
     } catch (err) {
       console.error('Load logs failed', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAdminName = (uid: string) => {
+    const admin = admins.find(a => a.uid === uid);
+    return admin?.displayName || uid;
   };
 
   const targetTypes = ['All', ...new Set(logs.map(l => l.targetType))];
@@ -66,7 +76,7 @@ const AuditLogsPage = () => {
   });
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700">
 
       {/* High-Fidelity Header */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
@@ -81,53 +91,68 @@ const AuditLogsPage = () => {
         </div>
       </div>
 
-      {/* Search \u0026 Action Bar */}
-      <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
-        <div className="flex flex-col md:flex-row items-center gap-6 w-full xl:w-auto">
+      {/* Search & Action Bar */}
+      <div className="glass p-5 rounded-2xl shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-4 relative overflow-hidden backdrop-blur-3xl">
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto">
           <div className="relative flex-1 md:w-[30rem] group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={20} />
             <input
               type="text"
               placeholder="Search log sequence..."
-              className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+              className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-xl pl-12 pr-6 py-3 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="relative w-full md:w-56 group">
-             <Filter className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={20} />
-             <select
-                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value)}
-              >
-                {targetTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+          <div className="flex flex-col w-full md:w-56 group">
+             <div className="bg-brand-primary/10 border border-b-0 border-brand-sage/20 rounded-t-xl py-1 text-center">
+                <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em]">Target Entity</span>
+             </div>
+             <div className="relative">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={16} />
+                <select
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-b-xl pl-10 pr-8 py-2 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
+                    value={typeFilter}
+                    onChange={e => setTypeFilter(e.target.value)}
+                >
+                    {targetTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+             </div>
           </div>
 
-          <div className="relative w-full md:w-56 group">
-             <Filter className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={20} />
-             <select
-                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
-                value={actionFilter}
-                onChange={e => setActionFilter(e.target.value)}
-              >
-                {actions.map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
-              </select>
+          <div className="flex flex-col w-full md:w-56 group">
+             <div className="bg-brand-primary/10 border border-b-0 border-brand-sage/20 rounded-t-xl py-1 text-center">
+                <span className="text-[11px] font-black text-brand-primary uppercase tracking-[0.2em]">Operation Type</span>
+             </div>
+             <div className="relative">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={16} />
+                <select
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-b-xl pl-10 pr-8 py-2 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
+                    value={actionFilter}
+                    onChange={e => setActionFilter(e.target.value)}
+                >
+                    {actions.map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
+                </select>
+             </div>
           </div>
 
-          <div className="relative w-full md:w-48 group">
-             <Clock className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={20} />
-             <select
-                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
-                value={dateRange}
-                onChange={e => setDateRange(parseInt(e.target.value))}
-              >
-                <option value={7}>Last 7 Days</option>
-                <option value={30}>Last 30 Days</option>
-                <option value={90}>Last 90 Days</option>
-              </select>
+          <div className="flex flex-col w-full md:w-48 group">
+             <div className="bg-brand-primary/10 border border-b-0 border-brand-sage/20 rounded-t-xl py-1 text-center">
+                <span className="text-[11px] font-black text-brand-primary uppercase tracking-[0.2em]">Time Horizon</span>
+             </div>
+             <div className="relative">
+                <Clock className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={16} />
+                <select
+                    className="w-full bg-brand-bg/5 dark:bg-brand-bg/40 border border-brand-sage/20 rounded-b-xl pl-12 pr-10 py-2 text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:border-brand-primary/50 transition-all appearance-none cursor-pointer"
+                    value={dateRange}
+                    onChange={e => setDateRange(parseInt(e.target.value))}
+                >
+                    <option value={7}>Last 7 Days</option>
+                    <option value={30}>Last 30 Days</option>
+                    <option value={90}>Last 90 Days</option>
+                </select>
+             </div>
           </div>
         </div>
 
@@ -139,26 +164,20 @@ const AuditLogsPage = () => {
         </div>
       </div>
 
-      <div className="glass rounded-[3rem] overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.3)] relative">
-        <div className="p-8 bg-brand-primary/5 border-b border-brand-sage/10 flex items-center justify-between">
+      <div className="glass rounded-2xl overflow-hidden shadow-2xl relative border border-brand-sage/10">
+        <div className="p-6 bg-brand-primary/5 border-b border-brand-sage/10 flex items-center justify-between">
            <div className="flex items-center gap-4">
               <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary shadow-inner">
                 <ShieldCheck size={20} />
               </div>
               <div className="space-y-0.5">
                  <p className="text-[10px] font-black text-sub uppercase tracking-[0.3em] opacity-40">Chain Integrity</p>
-                 <p className="text-xs font-mono text-brand-primary font-black uppercase tracking-widest">SEQ-882-VERIFIED-NODE</p>
               </div>
            </div>
            <div className="hidden md:flex items-center gap-8">
               <div className="flex flex-col items-end">
                  <p className="text-[8px] font-black text-sub uppercase opacity-40">Global Events</p>
                  <p className="text-sm font-black text-brand-primary">{logs.length.toLocaleString()}</p>
-              </div>
-              <div className="w-[1px] h-8 bg-brand-sage/10" />
-              <div className="flex flex-col items-end">
-                 <p className="text-[8px] font-black text-sub uppercase opacity-40">Agent Identity</p>
-                 <p className="text-sm font-black text-brand-primary">ROOT</p>
               </div>
            </div>
         </div>
@@ -181,31 +200,26 @@ const AuditLogsPage = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.02 }}
                   onClick={() => setSelectedLog(log)}
-                  className="p-8 hover:bg-brand-white/5 transition-all group flex gap-8 relative overflow-hidden cursor-pointer"
+                  className="p-5 hover:bg-brand-white/5 transition-all group flex gap-6 relative overflow-hidden cursor-pointer"
                 >
-                  <div className="shrink-0 w-14 h-14 bg-brand-bg/5 dark:bg-brand-bg rounded-2xl flex items-center justify-center text-sub group-hover:text-brand-primary group-hover:border-brand-primary/40 border border-brand-sage/10 transition-all duration-500 shadow-inner group-hover:shadow-[0_0_20px_rgba(45,106,79,0.2)]">
-                    <Clock size={22} />
+                  <div className="shrink-0 w-12 h-12 bg-brand-bg/5 dark:bg-brand-bg rounded-xl flex items-center justify-center text-sub group-hover:text-brand-primary group-hover:border-brand-primary/40 border border-brand-sage/10 transition-all duration-500 shadow-inner group-hover:shadow-[0_0_20px_rgba(45,106,79,0.2)]">
+                    <Clock size={20} />
                   </div>
-                  <div className="flex-1 space-y-3 relative z-10">
+                  <div className="flex-1 space-y-2 relative z-10">
                     <div className="flex justify-between items-start">
                        <div className="flex items-center gap-4">
                           <span className="text-sm font-black tracking-tight group-hover:text-brand-primary transition-colors uppercase">{log.action.replace(/_/g, ' ')}</span>
-                          <span className="px-3 py-1 rounded-lg bg-brand-bg/5 dark:bg-brand-bg border border-brand-sage/10 text-[9px] font-black text-sub uppercase tracking-widest shadow-sm">{log.adminUid}</span>
+                          <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest opacity-60">BY {getAdminName(log.adminUid)}</span>
                        </div>
                        <span className="text-[10px] font-black text-sub opacity-40 bg-brand-bg/5 dark:bg-brand-bg px-2 py-0.5 rounded-md border border-brand-sage/10 tabular-nums">{new Date(log.createdAt).toLocaleString()}</span>
                     </div>
                     <div className={cn(
-                      "p-5 rounded-2xl border text-sm font-medium leading-relaxed relative",
+                      "p-4 rounded-xl border text-sm font-medium leading-relaxed relative",
                       theme === 'dark' ? "bg-brand-bg/30 border-brand-sage/10 text-brand-white/70" : "bg-brand-primary/5 border-brand-primary/5 text-brand-surface/80"
                     )}>
-                       <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary/20 rounded-l-2xl" />
+                       <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary/20 rounded-l-xl" />
                        <span className="italic">{log.reason || 'No reason provided'}</span>
                     </div>
-                    {log.targetId && (
-                      <div className="flex items-center gap-2 text-[9px] font-black text-sub uppercase tracking-[0.2em] opacity-30">
-                         <Cpu size={10} /> Target Hash: <span className="text-brand-primary">#{log.targetId.slice(0, 16)}</span>
-                      </div>
-                    )}
                   </div>
                   <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-brand-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </motion.div>
@@ -214,7 +228,7 @@ const AuditLogsPage = () => {
           )}
         </div>
 
-        <div className="p-10 border-t border-brand-sage/5 flex justify-center gap-4 bg-brand-primary/5">
+        <div className="p-6 border-t border-brand-sage/5 flex justify-center gap-4 bg-brand-primary/5">
            <motion.button
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
@@ -237,6 +251,7 @@ const AuditLogsPage = () => {
           <AuditDetailDrawer
             log={selectedLog}
             onClose={() => setSelectedLog(null)}
+            adminName={getAdminName(selectedLog.adminUid)}
           />
         )}
       </AnimatePresence>

@@ -49,10 +49,10 @@ const AdminEditorDrawer: React.FC<AdminEditorDrawerProps> = ({ admin, onClose, o
   ];
 
   const ROLES: { id: AdminRole; label: string; desc: string }[] = [
-    { id: 'ANALYST', label: 'Analyst', desc: 'Read-only access to system telemetry' },
-    { id: 'CONTENT_MANAGER', label: 'Content Lead', desc: 'Authoritative control over facts & logic' },
+    { id: 'ANALYST', label: 'Viewer', desc: 'Read-only access to system telemetry' },
+    { id: 'CONTENT_MANAGER', label: 'Author', desc: 'Authoritative control over facts & logic' },
     { id: 'ADMIN', label: 'Administrator', desc: 'Full system & user management' },
-    { id: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Root-level authoritative override' }
+    { id: 'SUPER_ADMIN', label: 'Super Administrator', desc: 'Root-level authoritative override' }
   ];
 
   const [errors, setErrors] = useState<Record<string, string>>({});

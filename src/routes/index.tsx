@@ -12,20 +12,20 @@ import ReportsPage from '../pages/users/ReportsPage';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import AppSettingsPage from '../pages/settings/AppSettingsPage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
-import ImportExportPage from '../pages/settings/ImportExportPage';
+import ExportPage from '../pages/settings/ExportPage';
 import MediaPage from '../pages/media/MediaPage';
 import AnalyticsHub from '../pages/analytics/AnalyticsHub';
 import AdminsPage from '../pages/admins/AdminsPage';
 import QuotesPage from '../pages/quotes/QuotesPage';
 import PermissionGate from '../components/ui/PermissionGate';
 import { useAdmin } from '../context/AdminContext';
+import { AdminRole } from '../types';
 
-const Guard = ({ children, permission }: { children: React.ReactNode, permission?: string }) => {
-  const { isAuthorized, hasPermission, isLoading } = useAdmin();
+const Guard = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthorized, isLoading } = useAdmin();
 
   if (isLoading) return null;
   if (!isAuthorized) return <Navigate to="/" replace />;
-  if (permission && !hasPermission(permission)) return <PermissionGate />;
 
   return <>{children}</>;
 };
@@ -36,20 +36,20 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'facts', element: <Guard permission="read.all"><FactsPage /></Guard> },
-      { path: 'categories', element: <Guard permission="read.all"><CategoriesPage /></Guard> },
-      { path: 'collections', element: <Guard permission="read.all"><CollectionsPage /></Guard> },
-      { path: 'achievements', element: <Guard permission="read.all"><AchievementsPage /></Guard> },
-      { path: 'quotes', element: <Guard permission="read.all"><QuotesPage /></Guard> },
-      { path: 'users', element: <Guard permission="read.all"><UsersPage /></Guard> },
-      { path: 'user-activity', element: <Guard permission="read.all"><UserActivityPage /></Guard> },
-      { path: 'reports', element: <Guard permission="read.all"><ReportsPage /></Guard> },
-      { path: 'notifications', element: <Guard permission="read.all"><NotificationsPage /></Guard> },
-      { path: 'analytics', element: <Guard permission="read.all"><AnalyticsHub /></Guard> },
-      { path: 'settings', element: <Guard permission="manage.config"><AppSettingsPage /></Guard> },
-      { path: 'admins', element: <Guard permission="manage.admins"><AdminsPage /></Guard> },
-      { path: 'audit-logs', element: <Guard permission="audit.view"><AuditLogsPage /></Guard> },
-      { path: 'import-export', element: <Guard permission="manage.admins"><ImportExportPage /></Guard> },
+      { path: 'facts', element: <Guard><FactsPage /></Guard> },
+      { path: 'categories', element: <Guard><CategoriesPage /></Guard> },
+      { path: 'collections', element: <Guard><CollectionsPage /></Guard> },
+      { path: 'achievements', element: <Guard><AchievementsPage /></Guard> },
+      { path: 'quotes', element: <Guard><QuotesPage /></Guard> },
+      { path: 'users', element: <Guard><UsersPage /></Guard> },
+      { path: 'user-activity', element: <Guard><UserActivityPage /></Guard> },
+      { path: 'reports', element: <Guard><ReportsPage /></Guard> },
+      { path: 'notifications', element: <Guard><NotificationsPage /></Guard> },
+      { path: 'analytics', element: <Guard><AnalyticsHub /></Guard> },
+      { path: 'settings', element: <Guard><AppSettingsPage /></Guard> },
+      { path: 'admins', element: <Guard><AdminsPage /></Guard> },
+      { path: 'audit-logs', element: <Guard><AuditLogsPage /></Guard> },
+      { path: 'export', element: <Guard><ExportPage /></Guard> },
       { path: '*', element: <Navigate to='/' replace /> }
     ]
   }

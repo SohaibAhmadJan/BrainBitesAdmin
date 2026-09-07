@@ -26,11 +26,13 @@ import { fetchAppSettings } from '../../services/firestoreService';
 import { updateConfig, sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
+import { useAdmin } from '../../context/AdminContext';
 import toast from 'react-hot-toast';
 import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
 
 const AppSettingsPage = () => {
+  const { isAtLeast } = useAdmin();
   const defaultSettings: AppSettings = {
     maintenanceMode: false,
     maintenanceMessage: 'BrainBites is currently undergoing scheduled maintenance. Please check back soon!',
@@ -117,6 +119,10 @@ const AppSettingsPage = () => {
   };
 
   const handleSave = async () => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+      return;
+    }
     setSaving(true);
     try {
       // Engine Configuration Synchronization
@@ -202,7 +208,7 @@ const AppSettingsPage = () => {
           </h2>
 
           <div className="space-y-8">
-            <div className="flex items-center justify-between p-6 bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
+            <div className="flex items-center justify-between p-6 bg-brand-bg/5 dark:bg-brand-bg/40 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
               <div className="flex gap-4 items-center">
                 <div className="p-2.5 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10 shadow-lg">
                   <ShieldAlert size={18} className={cn(settings.maintenanceMode && "animate-pulse text-red-500")} />
@@ -264,7 +270,7 @@ const AppSettingsPage = () => {
             </h2>
 
             <div className="space-y-8">
-               <div className="flex items-center justify-between p-6 bg-brand-bg/50 border border-brand-sage/20 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
+               <div className="flex items-center justify-between p-6 bg-brand-bg/5 dark:bg-brand-bg/40 rounded-[2rem] group hover:border-brand-primary/30 transition-all">
                   <div className="flex gap-4 items-center">
                      <div className="p-2.5 bg-brand-surface rounded-xl text-brand-secondary/60 group-hover:text-brand-primary transition-colors border border-brand-sage/10 shadow-lg">
                        <Radio size={18} className={cn(settings.automationEnabled && "animate-pulse text-brand-primary")} />

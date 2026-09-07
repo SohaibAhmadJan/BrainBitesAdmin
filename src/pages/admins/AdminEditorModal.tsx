@@ -8,6 +8,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { SPRING_SMOOTH } from '../../utils/animations';
 import ElasticButton from '../../components/ui/ElasticButton';
 
+import { useAdmin } from '../../context/AdminContext';
+
 interface AdminEditorModalProps {
   admin: AdminUser | null;
   onClose: () => void;
@@ -16,6 +18,7 @@ interface AdminEditorModalProps {
 
 const AdminEditorModal: React.FC<AdminEditorModalProps> = ({ admin, onClose, onSave }) => {
   const { theme } = useTheme();
+  const { adminUser } = useAdmin();
   const [isSyncing, setIsSyncing] = useState(false);
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
 
@@ -121,7 +124,7 @@ const AdminEditorModal: React.FC<AdminEditorModalProps> = ({ admin, onClose, onS
               {errors.email ? (
                 <p className="text-[10px] text-red-500 font-bold uppercase mt-1 ml-1">{errors.email}</p>
               ) : (
-                <p className="text-[10px] text-sub opacity-40 italic mt-1 ml-1">The invitation will be sent to this address.</p>
+                <p className="text-[10px] text-sub opacity-40 italic mt-1 ml-1">The new agent must use the 'Activate' link on the login page to initialize this identifier.</p>
               )}
            </div>
 
@@ -135,24 +138,11 @@ const AdminEditorModal: React.FC<AdminEditorModalProps> = ({ admin, onClose, onS
                 value={formData.role}
                 onChange={e => setFormData({...formData, role: e.target.value as AdminRole})}
               >
-                <option value="SUPER_ADMIN">Administrator</option>
-                <option value="ADMIN">Editor</option>
+                <option value="SUPER_ADMIN">Super Administrator</option>
+                <option value="ADMIN">Administrator</option>
                 <option value="CONTENT_MANAGER">Author</option>
-                <option value="ANALYST">Analyst</option>
+                <option value="ANALYST">Viewer</option>
               </select>
-           </div>
-
-           <div className="flex items-center gap-3 pt-2">
-              <input
-                type="checkbox"
-                id="welcome-email"
-                className="w-4 h-4 rounded border-brand-sage/30 bg-brand-bg/20 text-brand-primary focus:ring-brand-primary/20 cursor-pointer"
-                checked={sendWelcomeEmail}
-                onChange={e => setSendWelcomeEmail(e.target.checked)}
-              />
-              <label htmlFor="welcome-email" className="text-sm font-medium cursor-pointer select-none opacity-80">
-                Send a welcome email with login details
-              </label>
            </div>
         </div>
 

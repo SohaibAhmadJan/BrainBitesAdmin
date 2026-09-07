@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useFacts } from '../../hooks/useFacts';
 import { useCategories } from '../../hooks/useCategories';
+import { useAdmin } from '../../context/AdminContext';
 import { BiteItem } from '../../types';
 import PremiumCard from '../../components/ui/PremiumCard';
 import ElasticButton from '../../components/ui/ElasticButton';
@@ -24,6 +25,7 @@ import EmptyBuffer from '../../components/ui/EmptyBuffer';
 import { cn } from '../../utils/cn';
 
 const FactsPage = () => {
+  const { isAtLeast } = useAdmin();
   const {
     facts,
     loading,
@@ -70,6 +72,14 @@ const FactsPage = () => {
       exportFacts('json');
       setIsExporting(false);
     }, 800);
+  };
+
+  const executeFactRemoval = async (id: string) => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Deletion restricted for this clearance level.');
+      return;
+    }
+    await removeFact(id);
   };
 
   return (
@@ -168,7 +178,7 @@ const FactsPage = () => {
                               <Edit3 size={14} />
                             </button>
                             <button
-                              onClick={(e) => { e.stopPropagation(); removeFact(fact.id); }}
+                              onClick={(e) => { e.stopPropagation(); executeFactRemoval(fact.id); }}
                               className="p-1.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-lg border border-brand-sage/10 transition-all"
                             >
                               <Trash2 size={14} />
@@ -254,6 +264,10 @@ const FactsPage = () => {
             defaultCategory={categoryFilter === 'All' ? '' : categoryFilter}
             onClose={() => setIsEditorOpen(false)}
             onSave={async (fact) => {
+              if (!isAtLeast('CONTENT_MANAGER')) {
+                toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+                return;
+              }
               const success = await saveFact(fact);
               if (success) setIsEditorOpen(false);
             }}

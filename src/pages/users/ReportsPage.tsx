@@ -24,12 +24,14 @@ import { updateReportStatus } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
+import { useAdmin } from '../../context/AdminContext';
 import toast from 'react-hot-toast';
 import LoadingNode from '../../components/ui/LoadingNode';
 import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const ReportsPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const [reports, setReports] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -210,31 +212,35 @@ const ReportsPage = () => {
                    </div>
 
                    <div className="flex gap-2">
-                      {report.status !== 'RESOLVED' && (
-                        <button
-                          onClick={() => handleStatusUpdate(report.id, 'RESOLVED')}
-                          className="p-3 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-brand-white rounded-xl border border-brand-primary/20 transition-all shadow-sm"
-                          title="Execute Resolution"
-                        >
-                          <Check size={18} />
-                        </button>
+                      {isAtLeast('ADMIN') && (
+                          <>
+                              {report.status !== 'RESOLVED' && (
+                                <button
+                                  onClick={() => handleStatusUpdate(report.id, 'RESOLVED')}
+                                  className="p-3 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-brand-white rounded-xl border border-brand-primary/20 transition-all shadow-sm"
+                                  title="Execute Resolution"
+                                >
+                                  <Check size={18} />
+                                </button>
+                              )}
+                              {report.status === 'OPEN' && (
+                                <button
+                                  onClick={() => handleStatusUpdate(report.id, 'IN_PROGRESS')}
+                                  className="p-3 bg-brand-gold/10 hover:bg-brand-gold text-brand-gold hover:text-brand-white rounded-xl border border-brand-gold/20 transition-all shadow-sm"
+                                  title="Initiate Triage"
+                                >
+                                  <RefreshCcw size={18} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleStatusUpdate(report.id, 'DISMISSED')}
+                                className="p-3 bg-brand-bg/5 hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-sm"
+                                title="Dismiss Trace"
+                              >
+                                <X size={18} />
+                              </button>
+                          </>
                       )}
-                      {report.status === 'OPEN' && (
-                        <button
-                          onClick={() => handleStatusUpdate(report.id, 'IN_PROGRESS')}
-                          className="p-3 bg-brand-gold/10 hover:bg-brand-gold text-brand-gold hover:text-brand-white rounded-xl border border-brand-gold/20 transition-all shadow-sm"
-                          title="Initiate Triage"
-                        >
-                          <RefreshCcw size={18} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleStatusUpdate(report.id, 'DISMISSED')}
-                        className="p-3 bg-brand-bg/5 hover:bg-red-500/10 text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-sm"
-                        title="Dismiss Trace"
-                      >
-                        <X size={18} />
-                      </button>
                    </div>
                 </div>
 

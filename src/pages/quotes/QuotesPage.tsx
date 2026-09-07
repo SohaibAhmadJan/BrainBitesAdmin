@@ -11,8 +11,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Filter,
-  Sparkles
+  Filter
 } from 'lucide-react';
 import { QuoteItem, Category } from '../../types';
 import {
@@ -23,6 +22,7 @@ import { updateQuote, deleteQuote } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
+import { useAdmin } from '../../context/AdminContext';
 import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
 import LoadingNode from '../../components/ui/LoadingNode';
@@ -30,6 +30,7 @@ import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
 const QuotesPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +92,10 @@ const QuotesPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAtLeast('CONTENT_MANAGER')) {
+      toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+      return;
+    }
     if (!formData.text || !formData.author || !formData.category) {
       toast.error('Validation error: Identity missing');
       return;
@@ -127,7 +132,19 @@ const QuotesPage = () => {
     }
   };
 
+  const executeQuoteRemoval = async (id: string, author: string) => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Deletion restricted for this clearance level.');
+      return;
+    }
+    await handleDelete(id, author);
+  };
+
   const toggleActive = async (quote: QuoteItem) => {
+    if (!isAtLeast('CONTENT_MANAGER')) {
+      toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+      return;
+    }
     const updated = { ...quote, isActive: !quote.isActive };
     try {
       await updateQuote(updated.id, updated, `State toggle: ${updated.isActive ? 'ACTIVATE' : 'VAULT'}`);
@@ -147,8 +164,6 @@ const QuotesPage = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
-
-      {/* High-Fidelity Header */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
         <div>
            <motion.h1
@@ -167,7 +182,6 @@ const QuotesPage = () => {
         </div>
       </div>
 
-      {/* Search & Action Bar */}
       <div className="glass p-8 rounded-[2rem] shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-8 relative overflow-hidden backdrop-blur-3xl">
         <div className="relative flex-1 md:w-[32rem] group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary transition-colors" size={24} />
@@ -181,7 +195,6 @@ const QuotesPage = () => {
         </div>
       </div>
 
-      {/* Modern Filter Strip */}
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
          <button
            onClick={() => setCategoryFilter('All')}
@@ -206,19 +219,16 @@ const QuotesPage = () => {
          ))}
       </div>
 
-      {/* Wisdom Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-72 glass rounded-[3rem] animate-pulse relative overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-primary/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-            </div>
+            <div key={i} className="h-72 glass rounded-[3rem] animate-pulse relative overflow-hidden" />
           ))
         ) : filteredQuotes.length === 0 ? (
           <EmptyBuffer
-            icon={Quote}
+            icon={MessageSquare}
             title="Wisdom Repository Empty"
-            message="No curated theoretical snippets or psychological insights found in the current sector."
+            message="No curated theoretical snippets found."
           />
         ) : (
           <AnimatePresence>
@@ -229,11 +239,9 @@ const QuotesPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                whileHover={{ scale: 1.02 }}
                 className="glass p-10 rounded-[3rem] shadow-xl group border-transparent hover:border-brand-primary/20 transition-all flex flex-col relative overflow-hidden h-full"
               >
                 <Quote className="absolute -top-6 -right-6 w-32 h-32 text-brand-primary opacity-[0.03] rotate-12 group-hover:rotate-0 transition-transform duration-700" />
-
                 <div className="flex-1 space-y-6 relative z-10">
                    <div className="flex justify-between items-center">
                       <span className="px-3 py-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-[8px] font-black text-brand-primary uppercase tracking-[0.2em]">
@@ -250,22 +258,18 @@ const QuotesPage = () => {
                         {quote.isActive ? <Eye size={14} /> : <EyeOff size={14} />}
                       </motion.button>
                    </div>
-
                    <p className="text-xl font-medium leading-relaxed italic line-clamp-5 text-glow">
                      {quote.text}
                    </p>
-
                    <div className="flex items-center gap-3">
                       <div className="h-[2px] w-6 bg-brand-primary/30" />
                       <p className="text-brand-primary font-black text-[11px] uppercase tracking-widest">{quote.author}</p>
                    </div>
                 </div>
-
                 <div className="mt-10 pt-8 border-t border-brand-sage/5 flex justify-between items-center relative z-10">
                    <p className="text-[9px] font-black text-sub opacity-40 uppercase tracking-widest">
                      Deposited: {new Date(quote.createdAt).toLocaleDateString()}
                    </p>
-
                    <div className="flex gap-2">
                       <motion.button
                         whileHover={{ scale: 1.1 }}
@@ -276,7 +280,7 @@ const QuotesPage = () => {
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.1 }}
-                        onClick={() => handleDelete(quote.id, quote.author)}
+                        onClick={() => executeQuoteRemoval(quote.id, quote.author)}
                         className="p-3 bg-brand-bg/5 dark:bg-brand-bg hover:bg-red-500/10 text-sub hover:text-red-400 rounded-2xl transition-all border border-brand-sage/5"
                       >
                         <Trash2 size={18} />
@@ -289,7 +293,6 @@ const QuotesPage = () => {
         )}
       </div>
 
-      {/* Modern Modal Overhaul */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
@@ -315,7 +318,6 @@ const QuotesPage = () => {
                     <X size={24} />
                   </button>
                </div>
-
                <form onSubmit={handleSubmit} className="p-10 space-y-8">
                   <div className="space-y-3">
                     <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Wisdom Content</label>
@@ -327,7 +329,6 @@ const QuotesPage = () => {
                       onChange={e => setFormData({...formData, text: e.target.value})}
                     />
                   </div>
-
                   <div className="space-y-3">
                     <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Attribution Authority</label>
                     <input
@@ -337,7 +338,6 @@ const QuotesPage = () => {
                       onChange={e => setFormData({...formData, author: e.target.value})}
                     />
                   </div>
-
                   <div className="grid grid-cols-2 gap-6">
                      <div className="space-y-3">
                         <label className="text-[10px] text-sub font-black uppercase tracking-[0.3em] ml-2">Domain Target</label>
@@ -366,7 +366,6 @@ const QuotesPage = () => {
                         </button>
                      </div>
                   </div>
-
                   <div className="pt-6">
                      <motion.button
                       whileHover={{ scale: 1.02 }}

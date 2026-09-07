@@ -53,6 +53,7 @@ import { cn } from '../../utils/cn';
 import { AuditLog, AnalyticsEvent, AppNotification, UserProfile, Category, BiteItem } from '../../types';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { useTheme } from '../../context/ThemeContext';
+import { useAdmin } from '../../context/AdminContext';
 import toast from 'react-hot-toast';
 import PremiumCard from '../../components/ui/PremiumCard';
 import ElasticButton from '../../components/ui/ElasticButton';
@@ -102,6 +103,7 @@ const Counter = ({ value }: { value: number | string }) => {
 
 const DashboardPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const [timeRange, setTimeRange] = useState<'7D' | '1M' | '3M' | '1Y' | 'ALL'>('7D');
   const [allFacts, setAllFacts] = useState<BiteItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -302,6 +304,11 @@ const DashboardPage = () => {
   }, [timeRange, allFacts, loading]);
 
   const handleQuickDispatch = async () => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Dispatch restricted for this clearance level.');
+      return;
+    }
+
     if (!quickMessage.trim()) {
       toast.error('Message is empty');
       return;
@@ -696,52 +703,52 @@ const DashboardPage = () => {
               className="p-8 xl:col-span-2 relative overflow-hidden flex flex-col justify-center"
               glowColor="rgba(45, 106, 79, 0.05)"
             >
-                <div className="flex items-center justify-between mb-6 relative z-10">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
-                            <Radio size={18} className="animate-pulse" />
-                        </div>
-                        <div>
-                            <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Quick Dispatch</h3>
-                            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Live Broadcast</p>
+                    <div className="flex items-center justify-between mb-6 relative z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
+                                <Radio size={18} className="animate-pulse" />
+                            </div>
+                            <div>
+                                <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Quick Dispatch</h3>
+                                <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Live Broadcast</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex gap-6 items-center relative z-10">
-                    <div className="flex-1 relative group">
-                        <Bell className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Headline for instant transmission..."
-                            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
-                            value={quickMessage}
-                            onChange={(e) => setQuickMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleQuickDispatch()}
-                        />
+                    <div className="flex gap-6 items-center relative z-10">
+                        <div className="flex-1 relative group">
+                            <Bell className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
+                            <input
+                                type="text"
+                                placeholder="Headline for instant transmission..."
+                                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
+                                value={quickMessage}
+                                onChange={(e) => setQuickMessage(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleQuickDispatch()}
+                            />
+                        </div>
+                        <ElasticButton
+                            onClick={handleQuickDispatch}
+                            disabled={isDispatching}
+                            className="px-10 py-5 rounded-2xl shadow-xl h-full flex items-center justify-center gap-3"
+                        >
+                            {isDispatching ? (
+                                <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Send size={18} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-white">Dispatch</span>
+                                </>
+                            )}
+                        </ElasticButton>
                     </div>
-                    <ElasticButton
-                        onClick={handleQuickDispatch}
-                        disabled={isDispatching}
-                        className="px-10 py-5 rounded-2xl shadow-xl h-full flex items-center justify-center gap-3"
-                    >
-                        {isDispatching ? (
-                            <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Send size={18} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-brand-white">Dispatch</span>
-                            </>
-                        )}
-                    </ElasticButton>
-                </div>
 
-                <div className="mt-8 flex items-center gap-4 relative z-10 opacity-30">
-                    <div className="h-px flex-1 bg-brand-sage/20" />
-                    <p className="text-[8px] font-black uppercase tracking-[0.3em]">Protocol: High Priority • Topic: Global</p>
-                    <div className="h-px flex-1 bg-brand-sage/20" />
-                </div>
-            </PremiumCard>
+                    <div className="mt-8 flex items-center gap-4 relative z-10 opacity-30">
+                        <div className="h-px flex-1 bg-brand-sage/20" />
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em]">Protocol: High Priority • Topic: Global</p>
+                        <div className="h-px flex-1 bg-brand-sage/20" />
+                    </div>
+                </PremiumCard>
         </div>
     </div>
   );

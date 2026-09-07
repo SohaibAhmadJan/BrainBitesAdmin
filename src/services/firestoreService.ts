@@ -175,7 +175,7 @@ export const fetchAdmins = async (): Promise<AdminUser[]> => {
   if (!adminsRef) return [];
   try {
     const snapshot = await getDocs(adminsRef);
-    return snapshot.docs.map((doc) => ({ ...(doc.data() as AdminUser), id: doc.id }));
+    return snapshot.docs.map((doc) => ({ ...(doc.data() as AdminUser), uid: doc.id }));
   } catch (err) {
     console.error('fetchAdmins failed', err);
     return [];

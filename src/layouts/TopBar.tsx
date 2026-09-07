@@ -6,6 +6,7 @@ import { signOutAdmin, observeAuthState } from '../services/firebaseService';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
+import { useAdmin } from '../context/AdminContext';
 
 interface TopBarProps {
   title: string;
@@ -17,6 +18,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const { theme, toggleTheme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -21,10 +21,12 @@ import { AppNotification, NotificationType, BiteItem, UserProfile } from '../../
 import { fetchNotifications, fetchBites, fetchUsers, dispatchTargetedNotification } from '../../services/firestoreService';
 import { deleteNotification, sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
+import { useAdmin } from '../../context/AdminContext';
 import toast from 'react-hot-toast';
 import ImagePicker from '../../components/ui/ImagePicker';
 
 const NotificationsPage = () => {
+  const { isAtLeast } = useAdmin();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [facts, setFacts] = useState<BiteItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -66,6 +68,10 @@ const NotificationsPage = () => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Dispatch restricted for this clearance level.');
+      return;
+    }
     if (!form.title.trim() || !form.message.trim()) {
       toast.error('Validation Error: Title and Message required');
       return;

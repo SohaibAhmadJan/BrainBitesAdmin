@@ -27,7 +27,7 @@ import { useTheme } from '../../context/ThemeContext';
 import AdminEditorModal from './AdminEditorModal';
 
 const AdminsPage = () => {
-  const { isRole, adminUser } = useAdmin();
+  const { isAtLeast, adminUser } = useAdmin();
   const { theme } = useTheme();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +60,18 @@ const AdminsPage = () => {
   };
 
   const handleSave = async (adminData: AdminUser, sendInvite: boolean) => {
+    // 1. Level Check
+    const isTargetSuper = adminData.role === 'SUPER_ADMIN';
+    if (!isAtLeast('SUPER_ADMIN') && isTargetSuper) {
+        toast.error('Identity protocol violation: Cannot create or promote to Super Administrator.');
+        return;
+    }
+
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Registry modification restricted.');
+      return;
+    }
+
     if (!db || !adminUser) {
       toast.error('Security protocol not initialized');
       return;
@@ -67,10 +79,16 @@ const AdminsPage = () => {
 
     try {
       const batch = writeBatch(db);
-      const adminRef = doc(db, 'admins', adminData.uid);
+
+      // For NEW users (on Free Plan), we use an email-based ID as a placeholder
+      // until they self-onboard and get a real UID.
+      const isNew = !admins.some(a => a.uid === adminData.uid);
+      const targetId = isNew ? adminData.email.toLowerCase().replace(/[@.]/g, '_') : adminData.uid;
+
+      const adminRef = doc(db, 'admins', targetId);
 
       // Save Admin Record
-      batch.set(adminRef, adminData, { merge: true });
+      batch.set(adminRef, { ...adminData, uid: targetId }, { merge: true });
 
       // Create Audit Log
       const logId = `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -78,24 +96,14 @@ const AdminsPage = () => {
         adminUid: adminUser.uid,
         action: 'UPDATE_ADMIN_DIRECT',
         targetType: 'ADMIN',
-        targetId: adminData.uid,
+        targetId: targetId,
         reason: `Registry sync for ${adminData.email} (Direct)`,
         createdAt: Date.now()
       });
 
       await batch.commit();
 
-      // Trigger invitation email if requested
-      if (sendInvite) {
-        try {
-          await triggerPasswordReset(adminData.email);
-          toast.success('Invitation email dispatched');
-        } catch (emailErr) {
-          toast.error('Admin added, but email dispatch failed. Ensure user exists in Auth.');
-        }
-      }
-
-      toast.success('Registry updated (Direct Sync)');
+      toast.success('Agent Invitation Primed in Cloud.');
       setIsEditorOpen(false);
       loadAdmins();
     } catch (err: any) {
@@ -104,6 +112,22 @@ const AdminsPage = () => {
   };
 
   const handleDelete = async (uid: string, email: string) => {
+    const targetAdmin = admins.find(a => a.uid === uid);
+    if (!isAtLeast('SUPER_ADMIN') && targetAdmin?.role === 'SUPER_ADMIN') {
+        toast.error('Identity protocol violation: Insufficient clearance to expunge a Super Administrator.');
+        return;
+    }
+
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Registry deletion restricted.');
+      return;
+    }
+
+    if (uid === adminUser?.uid) {
+      toast.error('Self-termination prohibited. You cannot revoke your own root access.');
+      return;
+    }
+
     if (window.confirm(`Revoke administrative access for ${email}?`)) {
       if (!db || !adminUser) {
         toast.error('Security protocol not initialized');
@@ -138,6 +162,7 @@ const AdminsPage = () => {
     const matchesSearch = a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          a.displayName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'All' || a.role === roleFilter;
+
     return matchesSearch && matchesRole;
   });
 
@@ -146,10 +171,10 @@ const AdminsPage = () => {
 
   const getRoleLabel = (role: AdminRole) => {
     switch (role) {
-      case 'SUPER_ADMIN': return 'Administrator';
-      case 'ADMIN': return 'Editor';
+      case 'SUPER_ADMIN': return 'Super Administrator';
+      case 'ADMIN': return 'Administrator';
       case 'CONTENT_MANAGER': return 'Author';
-      case 'ANALYST': return 'Analyst';
+      case 'ANALYST': return 'Viewer';
       default: return role;
     }
   };
@@ -163,10 +188,6 @@ const AdminsPage = () => {
       default: return 'bg-brand-white/5 text-brand-white/40 border-brand-white/10';
     }
   };
-
-  if (!isRole('SUPER_ADMIN')) {
-      return <PermissionGate message="Management of administrative identities is restricted to the SUPER_ADMIN protocol level." />;
-  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 relative">
@@ -196,10 +217,10 @@ const AdminsPage = () => {
               onChange={(e) => setRoleFilter(e.target.value as any)}
             >
               <option value="All">All roles</option>
-              <option value="SUPER_ADMIN">Administrator</option>
-              <option value="ADMIN">Editor</option>
+              <option value="SUPER_ADMIN">Super Administrator</option>
+              <option value="ADMIN">Administrator</option>
               <option value="CONTENT_MANAGER">Author</option>
-              <option value="ANALYST">Analyst</option>
+              <option value="ANALYST">Viewer</option>
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-sub opacity-30 pointer-events-none" size={16} />
           </div>
@@ -296,13 +317,15 @@ const AdminsPage = () => {
                             >
                               <Edit3 size={14} />
                             </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              onClick={() => handleDelete(admin.uid, admin.email)}
-                              className="p-2.5 bg-brand-bg/40 text-sub hover:text-red-500 rounded-lg border border-brand-sage/10 transition-all shadow-md"
-                            >
-                              <Trash2 size={14} />
-                            </motion.button>
+                            {admin.uid !== adminUser?.uid && (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  onClick={() => handleDelete(admin.uid, admin.email)}
+                                  className="p-2.5 bg-brand-bg/40 text-sub hover:text-red-500 rounded-lg border border-brand-sage/10 transition-all shadow-md"
+                                >
+                                  <Trash2 size={14} />
+                                </motion.button>
+                            )}
                          </div>
                       </td>
                     </motion.tr>

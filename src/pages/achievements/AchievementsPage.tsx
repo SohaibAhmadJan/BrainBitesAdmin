@@ -16,6 +16,8 @@ import { cn } from '../../utils/cn';
 import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
 import AchievementEditorDrawer from './AchievementEditorDrawer';
+import { useAdmin } from '../../context/AdminContext';
+import toast from 'react-hot-toast';
 
 const getRequirementLabel = (type: string, magnitude: number) => {
   switch (type) {
@@ -32,6 +34,7 @@ const getRequirementLabel = (type: string, magnitude: number) => {
 
 const AchievementsPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const {
     achievements: filteredAchievements,
     allAchievements,
@@ -48,6 +51,14 @@ const AchievementsPage = () => {
   const handleEdit = (ach: Achievement | null = null) => {
     setSelectedAchievement(ach);
     setIsEditorOpen(true);
+  };
+
+  const executeAchievementRemoval = async (id: string, title: string) => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Deletion restricted for this clearance level.');
+      return;
+    }
+    await removeAchievement(id, title);
   };
 
   return (
@@ -79,7 +90,7 @@ const AchievementsPage = () => {
           <input
             type="text"
             placeholder="Search milestones by title or logic..."
-            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
+            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-6 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -95,7 +106,7 @@ const AchievementsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-80 glass rounded-[3rem] animate-pulse"></div>
+            <div key={i} className="h-80 glass rounded-[3rem] animate-pulse" />
           ))
         ) : filteredAchievements.length === 0 ? (
           <div className="col-span-full py-40 glass rounded-[3rem] border border-dashed border-brand-sage/20 flex flex-col items-center justify-center text-sub opacity-40 gap-4">
@@ -144,7 +155,7 @@ const AchievementsPage = () => {
                             </motion.button>
                             <motion.button
                               whileHover={{ scale: 1.1 }}
-                              onClick={(e) => { e.stopPropagation(); removeAchievement(ach.id, ach.title); }}
+                              onClick={(e) => { e.stopPropagation(); executeAchievementRemoval(ach.id, ach.title); }}
                               className="p-2.5 bg-brand-bg/5 dark:bg-brand-bg text-sub hover:text-red-500 rounded-xl border border-brand-sage/10 transition-all shadow-md"
                             >
                               <Trash2 size={16} />
@@ -186,7 +197,14 @@ const AchievementsPage = () => {
           <AchievementEditorDrawer
             achievement={selectedAchievement}
             onClose={() => setIsEditorOpen(false)}
-            onSave={saveAchievement}
+            onSave={async (ach) => {
+              if (!isAtLeast('CONTENT_MANAGER')) {
+                toast.error('Identity protocol violation: Modification restricted for this clearance level.');
+                return;
+              }
+              await saveAchievement(ach);
+              setIsEditorOpen(false);
+            }}
           />
         )}
       </AnimatePresence>

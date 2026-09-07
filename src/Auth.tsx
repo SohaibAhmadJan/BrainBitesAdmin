@@ -1,9 +1,11 @@
 import React, { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, LogOut, RefreshCcw, Lock } from 'lucide-react';
-import { isFirebaseConfigured, firebaseInitError, signInAdmin, signOutAdmin } from './services/firebaseService';
+import { isFirebaseConfigured, firebaseInitError, signInAdmin, signOutAdmin, signUpAdmin, db } from './services/firebaseService';
 import { AdminProvider, useAdmin } from './context/AdminContext';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import ElasticButton from './components/ui/ElasticButton';
+import toast from 'react-hot-toast';
 
 interface AuthProps {
   children: ReactNode;
@@ -15,13 +17,29 @@ const AuthContent: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSigningIn(true);
     try {
-      await signInAdmin(email, password);
+      if (isRegistering) {
+        try {
+          await signUpAdmin(email, password);
+          toast.success('Agent Identity Initialized.');
+        } catch (regErr: any) {
+          if (regErr.code === 'auth/email-already-in-use') {
+            console.log("[Auth] Agent already has an account. Switching to validation flow...");
+            await signInAdmin(email, password);
+            toast.success('Agent Identity Validated.');
+          } else {
+            throw regErr;
+          }
+        }
+      } else {
+        await signInAdmin(email, password);
+      }
     } catch (err: any) {
       setError(err.message || 'Identity validation failed. Please retry.');
     } finally {
@@ -63,7 +81,9 @@ const AuthContent: React.FC<{ children: ReactNode }> = ({ children }) => {
                <div className="w-3 h-10 bg-brand-primary rounded-full shadow-[0_0_20px_rgba(45,106,79,0.8)]" />
                BrainBites
             </h1>
-            <p className="text-brand-secondary/40 font-black tracking-[0.4em] text-[10px] uppercase">Access Terminal Alpha • Security Root</p>
+            <p className="text-brand-secondary/40 font-black tracking-[0.4em] text-[10px] uppercase">
+              {isRegistering ? 'Agent Activation Protocol' : 'Access Terminal Alpha • Security Root'}
+            </p>
           </div>
 
           <div className="glass p-12 rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-brand-sage/20 relative overflow-hidden">
@@ -108,9 +128,19 @@ const AuthContent: React.FC<{ children: ReactNode }> = ({ children }) => {
                 className="w-full py-5 bg-brand-primary hover:bg-brand-primary/90 text-brand-white font-black rounded-2xl transition-all shadow-[0_20px_50px_rgba(45,106,79,0.3)] tracking-[0.3em] text-xs uppercase flex items-center justify-center gap-3 disabled:opacity-50"
               >
                 {isSigningIn ? <RefreshCcw size={18} className="animate-spin" /> : <Lock size={18} />}
-                Initiate Handshake
+                {isRegistering ? 'Activate Identity' : 'Initiate Handshake'}
               </motion.button>
             </form>
+
+            <div className="mt-8 text-center">
+               <button
+                 type="button"
+                 onClick={() => setIsRegistering(!isRegistering)}
+                 className="text-[10px] font-black text-brand-secondary/40 hover:text-brand-primary uppercase tracking-[0.3em] transition-colors"
+               >
+                 {isRegistering ? 'Already activated? Sign In' : 'New Agent? Activate Here'}
+               </button>
+            </div>
           </div>
           <p className="text-center text-brand-secondary/20 text-[9px] font-bold tracking-[0.4em] uppercase">Encrypted Multi-Factor Protocol Active</p>
         </motion.div>

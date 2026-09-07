@@ -28,8 +28,11 @@ import ElasticButton from '../../components/ui/ElasticButton';
 import LoadingNode from '../../components/ui/LoadingNode';
 import EmptyBuffer from '../../components/ui/EmptyBuffer';
 
+import { useAdmin } from '../../context/AdminContext';
+
 const UsersPage = () => {
   const { theme } = useTheme();
+  const { isAtLeast } = useAdmin();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
@@ -53,7 +56,7 @@ const UsersPage = () => {
       ]);
       setUsers(userData);
       setAchievements(achData);
-      setAdminIds(new Set(adminData.map(a => a.id)));
+      setAdminIds(new Set(adminData.map(a => a.uid)));
     } catch (err) {
       console.error('Load data failed', err);
     } finally {
@@ -222,6 +225,14 @@ const UsersPage = () => {
                               whileTap={{ scale: 0.95 }}
                               className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-lg transition-all"
                               title="Restrict Access"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isAtLeast('ADMIN')) {
+                                  toast.error('Identity protocol violation: User modification restricted.');
+                                  return;
+                                }
+                                // Add your restriction logic here
+                              }}
                             >
                               <ShieldAlert size={14} />
                             </motion.button>
