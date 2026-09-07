@@ -594,8 +594,8 @@ const AnalyticsHub = () => {
         console.warn('Device Registry sync failed (Index likely missing). Falling back to user-based estimation.');
       }
 
-      const adminIds = new Set(admins.map(a => a.id));
-      const users = allUsers.filter(u => !adminIds.has(u.id));
+      const adminIds = new Set(admins.map(a => a.uid || (a as any).id));
+      const users = allUsers.filter(u => !adminIds.has(u.id) && !adminIds.has(u.account?.uid));
       const devices = allDevices;
 
       const events = [...rawEvents].sort((a, b) => safeGetTime(b.timestamp) - safeGetTime(a.timestamp));

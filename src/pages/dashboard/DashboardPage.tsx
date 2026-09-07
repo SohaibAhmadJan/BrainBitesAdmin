@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,7 +22,11 @@ import {
   FolderHeart,
   BellRing,
   Send,
-  Radio
+  Radio,
+  RefreshCw,
+  AlertTriangle,
+  Fingerprint,
+  Database
 } from 'lucide-react';
 import {
   XAxis,
@@ -46,8 +50,10 @@ import {
   fetchUsers,
   fetchQuotes,
   fetchAchievements,
-  fetchAnalyticsEvents
+  fetchAnalyticsEvents,
+  fetchAdmins
 } from '../../services/firestoreService';
+import { db } from '../../services/firebaseService';
 import { sendGlobalNotification } from '../../services/adminApi';
 import { cn } from '../../utils/cn';
 import { AuditLog, AnalyticsEvent, AppNotification, UserProfile, Category, BiteItem } from '../../types';
@@ -67,6 +73,7 @@ const parseTimestamp = (ts: any): number => {
     if (typeof ts === 'number') return ts;
     if (ts.toMillis) return ts.toMillis();
     if (ts.seconds) return ts.seconds * 1000;
+    if (ts._seconds) return ts._seconds * 1000;
     return new Date(ts).getTime();
 };
 
@@ -103,7 +110,7 @@ const Counter = ({ value }: { value: number | string }) => {
 
 const DashboardPage = () => {
   const { theme } = useTheme();
-  const { isAtLeast } = useAdmin();
+  const { isAtLeast, isAuthorized, isLoading: isAdminAuthLoading } = useAdmin();
   const [timeRange, setTimeRange] = useState<'7D' | '1M' | '3M' | '1Y' | 'ALL'>('7D');
   const [allFacts, setAllFacts] = useState<BiteItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -128,127 +135,156 @@ const DashboardPage = () => {
   const [isDispatching, setIsDispatching] = useState(false);
   const navigate = useNavigate();
 
-  // 1. Initial Load: Core Stats and Global Lists
+  const loadGlobalStats = useCallback(async () => {
+    if (isAdminAuthLoading || !isAuthorized) return;
+
+    setLoading(true);
+    console.log('[Dashboard] Initiating administrative data sequence...');
+
+    try {
+      // Small settle delay for Firestore auth token to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const [
+        factsRes,
+        collectionsRes,
+        notificationsRes,
+        auditLogsRes,
+        categoriesRes,
+        usersRes,
+        quotesRes,
+        achievementsRes,
+        analyticsRes,
+        adminsRes
+      ] = await Promise.allSettled([
+        fetchBites(),
+        fetchCollections(),
+        fetchNotifications(),
+        fetchAuditLogs(50),
+        fetchCategories(),
+        fetchUsers(),
+        fetchQuotes(),
+        fetchAchievements(),
+        fetchAnalyticsEvents(30),
+        fetchAdmins()
+      ]);
+
+      const facts = factsRes.status === 'fulfilled' ? factsRes.value : [];
+      const collections = collectionsRes.status === 'fulfilled' ? collectionsRes.value : [];
+      const notifications = notificationsRes.status === 'fulfilled' ? notificationsRes.value : [];
+      const auditLogs = auditLogsRes.status === 'fulfilled' ? auditLogsRes.value : [];
+      const categories = categoriesRes.status === 'fulfilled' ? categoriesRes.value : [];
+      const rawUsers = usersRes.status === 'fulfilled' ? usersRes.value : [];
+      const quotes = quotesRes.status === 'fulfilled' ? quotesRes.value : [];
+      const achievements = achievementsRes.status === 'fulfilled' ? achievementsRes.value : [];
+      const analytics = analyticsRes.status === 'fulfilled' ? analyticsRes.value : [];
+      const admins = adminsRes.status === 'fulfilled' ? adminsRes.value : [];
+
+      console.log(`[Dashboard] Sync complete. Data nodes detected: Facts(${facts.length}) Users(${rawUsers.length}) Analytics(${analytics.length})`);
+
+      const adminIds = new Set(admins.map(a => a?.uid).filter(Boolean));
+      const filteredUsers = rawUsers.filter(u => !adminIds.has(u.id));
+
+      setAllFacts(facts);
+      setAllUsers(filteredUsers);
+
+      // --- Calculate Top Insights ---
+      const insightMap: Record<string, number> = {};
+      analytics.filter(e => e.name === 'read_fact').forEach(e => {
+          const id = e.params?.item_id;
+          if (id) insightMap[id] = (insightMap[id] || 0) + 1;
+      });
+
+      const sortedInsights = Object.entries(insightMap)
+          .map(([id, count]) => {
+              const fact = facts.find(f => f.id === id);
+              return {
+                  id,
+                  count,
+                  title: ((fact?.fact || 'Unknown Insight').slice(0, 40)) + '...',
+                  category: fact?.category || 'General'
+              };
+          })
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+      setTopInsights(sortedInsights);
+
+      // --- Category Distribution ---
+      const uniqueMap = new Map<string, Category>();
+      categories.forEach(cat => {
+          const nameKey = cat.name.trim().toLowerCase();
+          if (!uniqueMap.has(nameKey) || (cat.description?.length || 0) > (uniqueMap.get(nameKey)?.description?.length || 0)) {
+              uniqueMap.set(nameKey, cat);
+          }
+      });
+      const uniqueCategories = Array.from(uniqueMap.values());
+
+      setCounts({
+        facts: facts.length,
+        collections: collections.length,
+        notifications: notifications.length,
+        categories: uniqueCategories.length,
+        users: filteredUsers.length,
+        quotes: quotes.length,
+        achievements: achievements.length
+      });
+
+      const lastWeekTs = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const calculateTrend = (items: any[]) => {
+          const recent = items.filter(i => parseTimestamp(i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
+          return { delta: recent, isPositive: true };
+      };
+
+      setTrends({
+          Facts: calculateTrend(facts),
+          Users: calculateTrend(filteredUsers),
+          Notifications: calculateTrend(notifications)
+      });
+
+      setRecentLogs(auditLogs.slice(0, 8));
+
+      const sortedUsers = [...filteredUsers]
+          .sort((a, b) => (b.stats?.factsReadCount || 0) - (a.stats?.factsReadCount || 0))
+          .slice(0, 5);
+      setTopScholars(sortedUsers);
+
+      const distMap: Record<string, number> = {};
+      uniqueCategories.forEach(cat => { distMap[cat.name] = 0; });
+      facts.forEach(f => {
+          if (f.category && distMap[f.category] !== undefined) distMap[f.category]++;
+      });
+
+      const distChart = uniqueCategories
+          .filter(cat => distMap[cat.name] > 0)
+          .map((cat) => ({
+              name: cat.name,
+              value: distMap[cat.name],
+              color: cat.color || '#2D6A4F'
+          }))
+          .sort((a, b) => b.value - a.value);
+      setCategoryData(distChart);
+
+    } catch (err) {
+      console.error('[Dashboard] Critical Data Protocol Failure:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdminAuthLoading, isAuthorized]);
+
   useEffect(() => {
-    const loadGlobalStats = async () => {
-      setLoading(true);
-      try {
-        const [facts = [], collections = [], notifications = [], auditLogs = [], categories = [], users = [], quotes = [], achievements = [], analytics = []] = await Promise.all([
-          fetchBites(),
-          fetchCollections(),
-          fetchNotifications(),
-          fetchAuditLogs(),
-          fetchCategories(),
-          fetchUsers(),
-          fetchQuotes(),
-          fetchAchievements(),
-          fetchAnalyticsEvents(30) // Fixed 30 days for leaderboard stability
-        ]);
-
-        setAllFacts(facts);
-        setAllUsers(users);
-
-        // --- Calculate Top Insights (Static) ---
-        const insightMap: Record<string, number> = {};
-        analytics.filter(e => e.name === 'read_fact').forEach(e => {
-            const id = e.params?.item_id;
-            if (id) insightMap[id] = (insightMap[id] || 0) + 1;
-        });
-
-        const sortedInsights = Object.entries(insightMap)
-            .map(([id, count]) => {
-                const fact = facts.find(f => f.id === id);
-                return {
-                    id,
-                    count,
-                    title: (fact?.fact?.slice(0, 40) || 'Unknown Insight') + '...',
-                    category: fact?.category || 'General'
-                };
-            })
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5);
-        setTopInsights(sortedInsights);
-
-        // --- Category De-duplication Logic ---
-        const uniqueMap = new Map<string, Category>();
-        categories.forEach(cat => {
-            const nameKey = cat.name.trim().toLowerCase();
-            if (!uniqueMap.has(nameKey) || (cat.description?.length || 0) > (uniqueMap.get(nameKey)?.description?.length || 0)) {
-                uniqueMap.set(nameKey, cat);
-            }
-        });
-        const uniqueCategories = Array.from(uniqueMap.values());
-
-        setCounts({
-          facts: facts.length,
-          collections: collections.length,
-          notifications: notifications.length,
-          categories: uniqueCategories.length,
-          users: users.length || 1284,
-          quotes: quotes.length,
-          achievements: achievements.length
-        });
-
-        const lastWeekTs = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        const calculateTrend = (items: any[]) => {
-            const recent = items.filter(i => (i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
-            return { delta: recent, isPositive: true };
-        };
-
-        setTrends({
-            Facts: calculateTrend(facts),
-            Users: calculateTrend(users),
-            Notifications: calculateTrend(notifications)
-        });
-
-        setRecentLogs(auditLogs.slice(0, 8));
-
-        const sortedUsers = [...users]
-            .sort((a, b) => b.stats.factsReadCount - a.stats.factsReadCount)
-            .slice(0, 5);
-        setTopScholars(sortedUsers);
-
-        const distMap: Record<string, number> = {};
-        uniqueCategories.forEach(cat => { distMap[cat.name] = 0; });
-        facts.forEach(f => {
-            if (f.category && distMap[f.category] !== undefined) distMap[f.category]++;
-        });
-
-        const distChart = uniqueCategories
-            .filter(cat => distMap[cat.name] > 0)
-            .map((cat) => ({
-                name: cat.name,
-                value: distMap[cat.name],
-                color: cat.color || '#2D6A4F'
-            }))
-            .sort((a, b) => b.value - a.value);
-        setCategoryData(distChart);
-
-      } catch (err) {
-        console.error('Global stats load failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadGlobalStats();
-  }, []);
+  }, [loadGlobalStats]);
 
-  // 2. Dynamic Load: Analytics based on Time Range (EXCLUSIVELY for Lifecycle Chart)
+  // Analytics Effect
   useEffect(() => {
+    if (isAdminAuthLoading || !isAuthorized || loading) return;
+
     const loadAnalytics = async () => {
       setIsAnalyticsLoading(true);
       try {
-        const rangeInDays = {
-            '7D': 7,
-            '1M': 30,
-            '3M': 90,
-            '1Y': 365,
-            'ALL': 3650
-        }[timeRange];
-
+        const rangeInDays = { '7D': 7, '1M': 30, '3M': 90, '1Y': 365, 'ALL': 3650 }[timeRange];
         const analytics = await fetchAnalyticsEvents(rangeInDays);
 
-        // 1. User Lifecycle Aggregation (Isolating this logic)
         const lifecycleMap: Record<string, { installs: number, uninstalls: number, active: number }> = {};
         const isHighDensity = timeRange === '1Y' || timeRange === 'ALL';
 
@@ -290,7 +326,6 @@ const DashboardPage = () => {
             active: lifecycleMap[date].active
         })).reverse();
         setLifecycleData(chart);
-
       } catch (err) {
         console.error('Analytics load failed:', err);
       } finally {
@@ -298,34 +333,25 @@ const DashboardPage = () => {
       }
     };
 
-    if (allFacts.length > 0 || !loading) {
-        loadAnalytics();
-    }
-  }, [timeRange, allFacts, loading]);
+    loadAnalytics();
+  }, [timeRange, isAdminAuthLoading, isAuthorized, loading]);
 
   const handleQuickDispatch = async () => {
     if (!isAtLeast('ADMIN')) {
-      toast.error('Identity protocol violation: Dispatch restricted for this clearance level.');
+      toast.error('Identity protocol violation: Dispatch restricted.');
       return;
     }
-
-    if (!quickMessage.trim()) {
-      toast.error('Message is empty');
-      return;
-    }
+    if (!quickMessage.trim()) return;
 
     setIsDispatching(true);
-    const newNotif: AppNotification = {
-      id: `n-${Math.random().toString(36).slice(2, 11)}`,
-      title: 'Flash Broadcast',
-      message: quickMessage,
-      type: 'GENERAL',
-      isGlobal: true,
-      timestamp: Date.now()
-    };
-
     try {
-      await sendGlobalNotification(newNotif, `Quick Dispatch: ${quickMessage}`);
+      await sendGlobalNotification({
+        title: 'Flash Broadcast',
+        message: quickMessage,
+        type: 'GENERAL',
+        isGlobal: true,
+        timestamp: Date.now()
+      }, `Quick Dispatch: ${quickMessage}`);
       toast.success('Notification sent');
       setQuickMessage('');
     } catch (err: any) {
@@ -346,9 +372,8 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
-        <div className="flex items-center gap-4">
+        <div>
            <motion.h1
              initial={{ opacity: 0, y: 10 }}
              animate={{ opacity: 1, y: 0 }}
@@ -356,6 +381,15 @@ const DashboardPage = () => {
            >
              Dashboard
            </motion.h1>
+        </div>
+        <div className="flex gap-4">
+           <button
+             onClick={loadGlobalStats}
+             className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border border-brand-sage/10 shadow-md"
+             title="Synchronize Data"
+           >
+              <RefreshCw size={20} className={cn(loading && "animate-spin")} />
+           </button>
         </div>
       </div>
 
@@ -389,6 +423,16 @@ const DashboardPage = () => {
           </PremiumCard>
         ))}
       </div>
+
+      {counts.facts === 0 && !loading && (
+        <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-2xl flex items-center gap-6 animate-in slide-in-from-top duration-500">
+           <AlertTriangle className="text-amber-500" size={32} />
+           <div>
+              <h3 className="text-amber-500 font-bold uppercase text-sm tracking-widest">Administrative Data Nullified</h3>
+              <p className="text-amber-500/60 text-xs mt-1">The system retrieved an empty fact repository. If documents exist in Firestore, this may be due to a security handshake delay. Click the refresh icon above to re-initiate the sequence.</p>
+           </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
         {/* User Lifecycle Metrics */}
@@ -573,88 +617,6 @@ const DashboardPage = () => {
         ), [categoryData, theme])}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-        {/* Top Insights Leaderboard */}
-        {React.useMemo(() => (
-          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
-              <div className="flex items-center justify-between mb-6 relative z-10">
-                  <div className="flex items-center gap-3">
-                      <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
-                          <Trophy size={18} />
-                      </div>
-                      <div>
-                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
-                          <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Popular Insights</p>
-                      </div>
-                  </div>
-              </div>
-              <div className="space-y-4 relative z-10">
-                  {loading ? <LoadingNode /> : topInsights.length === 0 ? (
-                      <EmptyBuffer title="No Data" message="Insufficient analytics for leaderboard generation." />
-                  ) : topInsights.map((insight, idx) => (
-                      <div key={insight.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
-                          <div className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-xs",
-                              idx === 0 ? "bg-brand-gold/20 text-brand-gold shadow-[0_0_15px_rgba(233,196,106,0.3)]" :
-                              idx === 1 ? "bg-slate-300/20 text-slate-400" :
-                              idx === 2 ? "bg-amber-700/20 text-amber-800" : "bg-brand-bg/50 text-sub/40"
-                          )}>
-                              #{idx + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors italic">"{insight.title}"</p>
-                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">{insight.category}</p>
-                          </div>
-                          <div className="text-right">
-                              <p className="text-xs font-black text-brand-primary tabular-nums">{insight.count}</p>
-                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Reads</p>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </PremiumCard>
-        ), [topInsights, loading])}
-
-        {/* Top Scholars Leaderboard */}
-        {React.useMemo(() => (
-          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
-              <div className="flex items-center justify-between mb-6 relative z-10">
-                  <div className="flex items-center gap-3">
-                      <div className="p-2 bg-brand-secondary/10 rounded-xl text-brand-secondary">
-                          <UserRound size={18} />
-                      </div>
-                      <div>
-                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
-                          <p className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest mt-0.5">Top Scholars</p>
-                      </div>
-                  </div>
-              </div>
-              <div className="space-y-4 relative z-10">
-                  {loading ? <LoadingNode /> : topScholars.length === 0 ? (
-                      <EmptyBuffer title="No Data" message="No user activity detected for ranking." />
-                  ) : topScholars.map((user, idx) => (
-                      <div key={user.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
-                          <div className="w-10 h-10 rounded-xl bg-brand-bg/50 border border-brand-sage/10 flex items-center justify-center shrink-0 text-brand-primary font-black text-sm">
-                              {user.profile.displayName[0]?.toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors">{user.profile.displayName}</p>
-                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">Level {Math.floor(user.stats.factsReadCount / 10) + 1} Participant</p>
-                          </div>
-                          <div className="text-right">
-                              <div className="flex items-center gap-2 justify-end">
-                                  <span className="text-xs font-black text-brand-secondary tabular-nums">{user.stats.factsReadCount}</span>
-                                  <BookOpen size={12} className="text-brand-primary opacity-40" />
-                              </div>
-                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Total Insights</p>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </PremiumCard>
-        ), [topScholars, loading])}
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
             {/* Recent Activity Feed */}
             <PremiumCard
@@ -703,53 +665,53 @@ const DashboardPage = () => {
               className="p-8 xl:col-span-2 relative overflow-hidden flex flex-col justify-center"
               glowColor="rgba(45, 106, 79, 0.05)"
             >
-                    <div className="flex items-center justify-between mb-6 relative z-10">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
-                                <Radio size={18} className="animate-pulse" />
-                            </div>
-                            <div>
-                                <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Quick Dispatch</h3>
-                                <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Live Broadcast</p>
-                            </div>
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
+                            <Radio size={18} className="animate-pulse" />
+                        </div>
+                        <div>
+                            <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Quick Dispatch</h3>
+                            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Live Broadcast</p>
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex gap-6 items-center relative z-10">
-                        <div className="flex-1 relative group">
-                            <Bell className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Headline for instant transmission..."
-                                className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
-                                value={quickMessage}
-                                onChange={(e) => setQuickMessage(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleQuickDispatch()}
-                            />
-                        </div>
-                        <ElasticButton
-                            onClick={handleQuickDispatch}
-                            disabled={isDispatching}
-                            className="px-10 py-5 rounded-2xl shadow-xl h-full flex items-center justify-center gap-3"
-                        >
-                            {isDispatching ? (
-                                <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <Send size={18} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-white">Dispatch</span>
-                                </>
-                            )}
-                        </ElasticButton>
+                <div className="flex gap-6 items-center relative z-10">
+                    <div className="flex-1 relative group">
+                        <Bell className="absolute left-5 top-1/2 -translate-y-1/2 text-sub opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Headline for instant transmission..."
+                            className="w-full bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/20 rounded-2xl pl-14 pr-8 py-5 text-sm focus:outline-none focus:border-brand-primary/50 transition-all shadow-inner font-medium"
+                            value={quickMessage}
+                            onChange={(e) => setQuickMessage(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleQuickDispatch()}
+                        />
                     </div>
+                    <ElasticButton
+                        onClick={handleQuickDispatch}
+                        disabled={isDispatching}
+                        className="px-10 py-5 rounded-2xl shadow-xl h-full flex items-center justify-center gap-3"
+                    >
+                        {isDispatching ? (
+                            <div className="w-4 h-4 border-2 border-brand-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Send size={18} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-brand-white">Dispatch</span>
+                            </>
+                        )}
+                    </ElasticButton>
+                </div>
 
-                    <div className="mt-8 flex items-center gap-4 relative z-10 opacity-30">
-                        <div className="h-px flex-1 bg-brand-sage/20" />
-                        <p className="text-[8px] font-black uppercase tracking-[0.3em]">Protocol: High Priority • Topic: Global</p>
-                        <div className="h-px flex-1 bg-brand-sage/20" />
-                    </div>
-                </PremiumCard>
-        </div>
+                <div className="mt-8 flex items-center gap-4 relative z-10 opacity-30">
+                    <div className="h-px flex-1 bg-brand-sage/20" />
+                    <p className="text-[8px] font-black uppercase tracking-[0.3em]">Protocol: High Priority • Topic: Global</p>
+                    <div className="h-px flex-1 bg-brand-sage/20" />
+                </div>
+            </PremiumCard>
+      </div>
     </div>
   );
 };

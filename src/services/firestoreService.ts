@@ -21,46 +21,58 @@ import {
 import { db } from './firebaseService';
 import { BiteItem, CollectionSet, AppNotification, UserProfile, AnalyticsEvent, AppSettings, AuditLog, Achievement, AdminUser, QuoteItem, Category, UserReport } from '../types';
 
-// Helper to handle potentially null Firebase services
-const getColl = (path: string) => db ? collection(db, path) : null as any;
+/**
+ * DYNAMIC REGISTRY
+ * Ensures we always use the latest initialized Firestore instance.
+ * Prevents "Null Reference" errors if the module is imported before Firebase settling.
+ */
+const getColl = (path: string) => {
+    if (!db) {
+        console.error(`[Firestore] Attempted to access collection '${path}' before database initialization.`);
+        return null;
+    }
+    return collection(db, path);
+};
 
-const factsRef = getColl('facts') as CollectionReference;
-const collectionsRef = getColl('collections') as CollectionReference;
-const notificationsRef = getColl('notifications') as CollectionReference;
-const usersRef = getColl('users') as CollectionReference;
-const analyticsRef = getColl('analytics_events') as CollectionReference;
-const settingsRef = getColl('app_settings') as CollectionReference;
-const logsRef = getColl('audit_logs') as CollectionReference;
-const achievementsRef = getColl('achievements') as CollectionReference;
-const adminsRef = getColl('admins') as CollectionReference;
-const quotesRef = getColl('quotes') as CollectionReference;
-const categoriesRef = getColl('categories') as CollectionReference;
-const reportsRef = getColl('user_reports') as CollectionReference;
+// Getter functions for references to ensure they aren't stuck at 'null'
+const getFactsRef = () => getColl('facts');
+const getCollectionsRef = () => getColl('collections');
+const getNotificationsRef = () => getColl('notifications');
+const getUsersRef = () => getColl('users');
+const getAnalyticsRef = () => getColl('analytics_events');
+const getSettingsRef = () => getColl('app_settings');
+const getLogsRef = () => getColl('audit_logs');
+const getAchievementsRef = () => getColl('achievements');
+const getAdminsRef = () => getColl('admins');
+const getQuotesRef = () => getColl('quotes');
+const getCategoriesRef = () => getColl('categories');
+const getReportsRef = () => getColl('user_reports');
 
 /**
- * AUTHORITATIVE READS (Client-side enabled via Security Rules)
+ * AUTHORITATIVE READS
  */
 
 export const fetchBites = async (fetchLimit: number = 500): Promise<BiteItem[]> => {
-  if (!factsRef) return [];
+  const ref = getFactsRef();
+  if (!ref) return [];
   try {
-    const q = query(factsRef, limit(fetchLimit));
+    const q = query(ref, limit(fetchLimit));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as BiteItem), id: doc.id }));
   } catch (err) {
     console.error('fetchBites failed', err);
-    throw new Error(err instanceof Error ? err.message : String(err));
+    return [];
   }
 };
 
 export const fetchBitesByIds = async (ids: string[]): Promise<BiteItem[]> => {
-  if (!factsRef || ids.length === 0) return [];
+  const ref = getFactsRef();
+  if (!ref || ids.length === 0) return [];
   try {
-    // Firestore 'in' query limit is 30 items
     const batches = [];
     for (let i = 0; i < ids.length; i += 30) {
       const batch = ids.slice(i, i + 30);
-      const q = query(factsRef, where(documentId(), 'in', batch));
+      const q = query(ref, where(documentId(), 'in', batch));
       batches.push(getDocs(q));
     }
     const snapshots = await Promise.all(batches);
@@ -68,38 +80,38 @@ export const fetchBitesByIds = async (ids: string[]): Promise<BiteItem[]> => {
       snap.docs.map(doc => ({ ...(doc.data() as BiteItem), id: doc.id }))
     );
   } catch (err) {
-    console.error('fetchBitesByIds failed', err);
     return [];
   }
 };
 
 export const fetchCollections = async (): Promise<CollectionSet[]> => {
-  if (!collectionsRef) return [];
+  const ref = getCollectionsRef();
+  if (!ref) return [];
   try {
-    const snapshot = await getDocs(collectionsRef);
+    const snapshot = await getDocs(ref);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as CollectionSet), id: doc.id }));
   } catch (err) {
-    console.error('fetchCollections failed', err);
-    throw new Error(err instanceof Error ? err.message : String(err));
+    return [];
   }
 };
 
 export const fetchNotifications = async (fetchLimit: number = 100): Promise<AppNotification[]> => {
-  if (!notificationsRef) return [];
+  const ref = getNotificationsRef();
+  if (!ref) return [];
   try {
-    const q = query(notificationsRef, orderBy('timestamp', 'desc'), limit(fetchLimit));
+    const q = query(ref, orderBy('timestamp', 'desc'), limit(fetchLimit));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AppNotification), id: doc.id }));
   } catch (err) {
-    console.error('fetchNotifications failed', err);
-    throw new Error(err instanceof Error ? err.message : String(err));
+    return [];
   }
 };
 
 export const fetchUsers = async (fetchLimit: number = 100): Promise<UserProfile[]> => {
-  if (!usersRef) return [];
+  const ref = getUsersRef();
+  if (!ref) return [];
   try {
-    const q = query(usersRef, limit(fetchLimit));
+    const q = query(ref, limit(fetchLimit));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as UserProfile), id: doc.id }));
   } catch (err) {
@@ -115,17 +127,17 @@ export const fetchUserSubcollection = async (uid: string, sub: string, fetchLimi
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ ...(doc.data() as object), id: doc.id }));
     } catch (err) {
-        console.error(`fetchUserSubcollection failed for ${sub}:`, err);
         return [];
     }
 };
 
 export const fetchAnalyticsEvents = async (days: number, fetchLimit: number = 5000): Promise<AnalyticsEvent[]> => {
-    if (!analyticsRef) return [];
+    const ref = getAnalyticsRef();
+    if (!ref) return [];
     try {
         const startTime = Date.now() - (days * 24 * 60 * 60 * 1000);
         const q = query(
-            analyticsRef,
+            ref,
             where('timestamp', '>=', Timestamp.fromMillis(startTime)),
             orderBy('timestamp', 'desc'),
             limit(fetchLimit)
@@ -139,9 +151,10 @@ export const fetchAnalyticsEvents = async (days: number, fetchLimit: number = 50
 };
 
 export const fetchAppSettings = async (): Promise<AppSettings | null> => {
-  if (!settingsRef) return null;
+  const ref = getSettingsRef();
+  if (!ref) return null;
   try {
-    const docSnap = await getDoc(doc(settingsRef, 'global_config'));
+    const docSnap = await getDoc(doc(ref, 'global_config'));
     return docSnap.exists() ? (docSnap.data() as AppSettings) : null;
   } catch (err) {
     return null;
@@ -149,57 +162,57 @@ export const fetchAppSettings = async (): Promise<AppSettings | null> => {
 };
 
 export const fetchAuditLogs = async (fetchLimit: number = 200): Promise<AuditLog[]> => {
-  if (!logsRef) return [];
+  const ref = getLogsRef();
+  if (!ref) return [];
   try {
-    const q = query(logsRef, orderBy('createdAt', 'desc'), limit(fetchLimit));
+    const q = query(ref, orderBy('createdAt', 'desc'), limit(fetchLimit));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AuditLog), id: doc.id }));
   } catch (err) {
-    console.error('fetchAuditLogs failed', err);
     return [];
   }
 };
 
 export const fetchAchievements = async (): Promise<Achievement[]> => {
-  if (!achievementsRef) return [];
+  const ref = getAchievementsRef();
+  if (!ref) return [];
   try {
-    const snapshot = await getDocs(achievementsRef);
+    const snapshot = await getDocs(ref);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as Achievement), id: doc.id }));
   } catch (err) {
-    console.error('fetchAchievements failed', err);
     return [];
   }
 };
 
 export const fetchAdmins = async (): Promise<AdminUser[]> => {
-  if (!adminsRef) return [];
+  const ref = getAdminsRef();
+  if (!ref) return [];
   try {
-    const snapshot = await getDocs(adminsRef);
+    const snapshot = await getDocs(ref);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as AdminUser), uid: doc.id }));
   } catch (err) {
-    console.error('fetchAdmins failed', err);
     return [];
   }
 };
 
 export const fetchQuotes = async (): Promise<QuoteItem[]> => {
-  if (!quotesRef) return [];
+  const ref = getQuotesRef();
+  if (!ref) return [];
   try {
-    const snapshot = await getDocs(quotesRef);
+    const snapshot = await getDocs(ref);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as QuoteItem), id: doc.id }));
   } catch (err) {
-    console.error('fetchQuotes failed', err);
     return [];
   }
 };
 
 export const fetchCategories = async (): Promise<Category[]> => {
-  if (!categoriesRef) return [];
+  const ref = getCategoriesRef();
+  if (!ref) return [];
   try {
-    const snapshot = await getDocs(categoriesRef);
+    const snapshot = await getDocs(ref);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as Category), id: doc.id }));
   } catch (err) {
-    console.error('fetchCategories failed', err);
     return [];
   }
 };
@@ -215,7 +228,6 @@ export const fetchAllDevices = async (): Promise<any[]> => {
             userId: doc.ref.parent.parent?.id
         }));
     } catch (err) {
-        console.error("fetchAllDevices failed:", err);
         return [];
     }
 };
@@ -225,109 +237,22 @@ export const fetchTotalInstallations = async (): Promise<number> => {
     try {
         const installationsRef = collection(db, 'installations');
         const snapshot = await getDocs(installationsRef);
-        console.log(`[FirestoreService] Total Installations Found: ${snapshot.size}`);
         return snapshot.size;
     } catch (err) {
-        console.error("[FirestoreService] fetchTotalInstallations FAILED:", err);
         return 0;
     }
 };
 
 export const fetchReports = async (fetchLimit: number = 100): Promise<UserReport[]> => {
-  if (!reportsRef) return [];
+  const ref = getReportsRef();
+  if (!ref) return [];
   try {
-    const q = query(reportsRef, orderBy('createdAt', 'desc'), limit(fetchLimit));
+    const q = query(ref, orderBy('createdAt', 'desc'), limit(fetchLimit));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as UserReport), id: doc.id }));
   } catch (err) {
-    console.error('fetchReports failed', err);
     return [];
   }
-};
-
-/**
- * INTELLIGENCE AGGREGATORS (New Decision Engine Logic)
- */
-
-export const fetchIntelligenceData = async (rangeDays: number) => {
-    if (!analyticsRef) return null;
-    try {
-        const startTime = Date.now() - (rangeDays * 24 * 60 * 60 * 1000);
-        const q = query(
-            analyticsRef,
-            where('timestamp', '>=', Timestamp.fromMillis(startTime))
-        );
-        const snapshot = await getDocs(q);
-        const events = snapshot.docs.map(doc => doc.data() as AnalyticsEvent);
-
-        // 1. Funnel Calculation
-        const funnel = {
-            impressions: events.filter(e => e.name === 'app_open').length,
-            reads: events.filter(e => e.name === 'read_fact').length,
-            likes: events.filter(e => e.name === 'like_fact').length,
-            shares: events.filter(e => e.name === 'fact_share').length
-        };
-
-        // 2. Search Intelligence
-        const searchCounts: Record<string, number> = {};
-        events.filter(e => e.name === 'content_search').forEach(e => {
-            const q = e.params?.query || 'unknown';
-            searchCounts[q] = (searchCounts[q] || 0) + 1;
-        });
-        const searchCloud = Object.entries(searchCounts)
-            .map(([text, value]) => ({ text, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 20);
-
-        // 3. Hourly Heatmap
-        const hourlyMap: Record<number, number> = {};
-        for(let i=0; i<24; i++) hourlyMap[i] = 0;
-        events.forEach(e => {
-            const hour = new Date(e.timestamp).getHours();
-            hourlyMap[hour]++;
-        });
-        const heatmap = Object.entries(hourlyMap).map(([hour, count]) => ({ hour: parseInt(hour), count }));
-
-        // 4. Churn Risk (Mock logic based on activity)
-        const users = await fetchUsers();
-        const activeUids = new Set(events.map(e => e.uid));
-        const atRiskUsers = users.filter(u => {
-            const daysSinceActive = (Date.now() - (u.stats?.lastActiveAt || 0)) / (1000 * 60 * 60 * 24);
-            return daysSinceActive > 3 && daysSinceActive < 14;
-        }).slice(0, 5);
-
-        // 5. Stickiness Data (Interaction Rate vs Read Time)
-        // Note: Read time is often static in BiteItem, but we can track session duration if logged.
-        // For now, we use Views vs Likes as a proxy for "Stickiness".
-        const facts = await fetchBites();
-        const stickiness = facts.map(f => {
-            const views = events.filter(e => e.name === 'read_fact' && e.params?.item_id === f.id).length;
-            const interactions = events.filter(e => e.params?.item_id === f.id && e.name !== 'read_fact').length;
-            return {
-                name: f.fact.slice(0, 15),
-                views,
-                rate: views > 0 ? (interactions / views) * 100 : 0
-            };
-        }).filter(f => f.views > 0).slice(0, 20);
-
-        // 6. Achievement Velocity
-        const achEvents = events.filter(e => e.name === 'achievement_unlocked');
-        const velocity = achEvents.length / (rangeDays || 1);
-
-        // 7. Version Adoption
-        const versionMap: Record<string, number> = {};
-        users.forEach(u => {
-            // Mocking version if not present
-            const v = (u as any).device?.appVersion || '3.1.0';
-            versionMap[v] = (versionMap[v] || 0) + 1;
-        });
-        const versions = Object.entries(versionMap).map(([name, value]) => ({ name, value }));
-
-        return { funnel, searchCloud, heatmap, atRiskUsers, stickiness, velocity, versions };
-    } catch (err) {
-        console.error("Intelligence fetch failed:", err);
-        return null;
-    }
 };
 
 /**
@@ -335,8 +260,9 @@ export const fetchIntelligenceData = async (rangeDays: number) => {
  */
 
 export const subscribeToBites = (callback: (items: BiteItem[]) => void) => {
-  if (!factsRef) return () => {};
-  const q = query(factsRef, limit(100)) as Query<DocumentData>;
+  const ref = getFactsRef();
+  if (!ref) return () => {};
+  const q = query(ref, limit(100)) as Query<DocumentData>;
   return onSnapshot(
     q,
     (snapshot) => {
@@ -349,9 +275,10 @@ export const subscribeToBites = (callback: (items: BiteItem[]) => void) => {
 };
 
 export const subscribeToCollections = (callback: (items: CollectionSet[]) => void) => {
-  if (!collectionsRef) return () => {};
+  const ref = getCollectionsRef();
+  if (!ref) return () => {};
   return onSnapshot(
-    collectionsRef as Query<DocumentData>,
+    ref as Query<DocumentData>,
     (snapshot) => {
         callback(snapshot.docs.map((doc) => ({ ...(doc.data() as CollectionSet), id: doc.id })));
     },
@@ -362,8 +289,9 @@ export const subscribeToCollections = (callback: (items: CollectionSet[]) => voi
 };
 
 export const subscribeToNotifications = (callback: (items: AppNotification[]) => void) => {
-  if (!notificationsRef) return () => {};
-  const q = query(notificationsRef, orderBy('timestamp', 'desc'), limit(50)) as Query<DocumentData>;
+  const ref = getNotificationsRef();
+  if (!ref) return () => {};
+  const q = query(ref, orderBy('timestamp', 'desc'), limit(50)) as Query<DocumentData>;
   return onSnapshot(
     q,
     (snapshot) => {
@@ -386,8 +314,9 @@ export const subscribeToInstallationCount = (callback: (count: number) => void) 
 };
 
 export const subscribeToReports = (callback: (items: UserReport[]) => void) => {
-  if (!reportsRef) return () => {};
-  const q = query(reportsRef, orderBy('createdAt', 'desc'), limit(50)) as Query<DocumentData>;
+  const ref = getReportsRef();
+  if (!ref) return () => {};
+  const q = query(ref, orderBy('createdAt', 'desc'), limit(50)) as Query<DocumentData>;
   return onSnapshot(
     q,
     (snapshot) => {
@@ -400,15 +329,15 @@ export const subscribeToReports = (callback: (items: UserReport[]) => void) => {
 };
 
 export const dispatchNotificationDirectly = async (notification: Omit<AppNotification, 'id'>): Promise<string> => {
-    if (!notificationsRef) throw new Error('Firestore Connectivity Incomplete');
+    const ref = getNotificationsRef();
+    if (!ref) throw new Error('Firestore Connectivity Incomplete');
     try {
-        const docRef = await addDoc(notificationsRef, {
+        const docRef = await addDoc(ref, {
             ...notification,
             timestamp: Date.now()
         });
         return docRef.id;
     } catch (err) {
-        console.error('dispatchNotificationDirectly failed', err);
         throw new Error(err instanceof Error ? err.message : String(err));
     }
 };
@@ -423,7 +352,6 @@ export const dispatchTargetedNotification = async (uid: string, notification: Om
         });
         return docRef.id;
     } catch (err) {
-        console.error('dispatchTargetedNotification failed', err);
         throw new Error(err instanceof Error ? err.message : String(err));
     }
 };
