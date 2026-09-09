@@ -26,7 +26,9 @@ import {
   RefreshCw,
   AlertTriangle,
   Fingerprint,
-  Database
+  Database,
+  Users,
+  Cpu
 } from 'lucide-react';
 import {
   XAxis,
@@ -39,7 +41,8 @@ import {
   Cell,
   Legend,
   LineChart,
-  Line
+  Line,
+  Area
 } from 'recharts';
 import {
   fetchBites,
@@ -70,40 +73,52 @@ import EmptyBuffer from '../../components/ui/EmptyBuffer';
 // Helper to handle both Firestore Timestamps and raw numbers
 const parseTimestamp = (ts: any): number => {
     if (!ts) return Date.now();
-    if (typeof ts === 'number') return ts;
-    if (ts.toMillis) return ts.toMillis();
-    if (ts.seconds) return ts.seconds * 1000;
-    if (ts._seconds) return ts._seconds * 1000;
-    return new Date(ts).getTime();
+    try {
+        if (typeof ts === 'number') return ts;
+        if (ts.toMillis) return ts.toMillis();
+        if (ts.seconds) return ts.seconds * 1000;
+        if (ts._seconds) return ts._seconds * 1000;
+
+        const parsed = new Date(ts).getTime();
+        return isNaN(parsed) ? Date.now() : parsed;
+    } catch (e) {
+        return Date.now();
+    }
 };
 
 const Counter = ({ value }: { value: number | string }) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const numValue = typeof value === 'number' ? value : parseInt(value.toString().replace(/,/g, '')) || 0;
+  const targetValue = useMemo(() => {
+    return typeof value === 'number' ? value : parseInt(String(value).replace(/,/g, '')) || 0;
+  }, [value]);
 
   useEffect(() => {
     let start = 0;
-    const end = numValue;
+    const end = targetValue;
     if (start === end) {
         setDisplayValue(end);
         return;
     }
 
-    let totalMiliseconds = 1000;
-    let incrementTime = (totalMiliseconds / (end || 1)) > 10 ? (totalMiliseconds / (end || 1)) : 10;
+    const totalSteps = 20;
+    const intervalTime = 30;
+    let currentStep = 0;
 
-    let timer = setInterval(() => {
-      start += Math.ceil(end / 100) || 1;
-      if (start >= end) {
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / totalSteps;
+      const nextValue = Math.floor(end * progress);
+
+      if (currentStep >= totalSteps) {
         setDisplayValue(end);
         clearInterval(timer);
       } else {
-        setDisplayValue(start);
+        setDisplayValue(nextValue);
       }
-    }, incrementTime);
+    }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [numValue]);
+  }, [targetValue]);
 
   return <span>{displayValue.toLocaleString()}</span>;
 };
@@ -129,6 +144,7 @@ const DashboardPage = () => {
   const [topScholars, setTopScholars] = useState<UserProfile[]>([]);
   const [lifecycleData, setLifecycleData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [lastActivity, setLastActivity] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   const [quickMessage, setQuickMessage] = useState('');
@@ -142,7 +158,6 @@ const DashboardPage = () => {
     console.log('[Dashboard] Initiating administrative data sequence...');
 
     try {
-      // Small settle delay for Firestore auth token to propagate
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const [
@@ -169,35 +184,39 @@ const DashboardPage = () => {
         fetchAdmins()
       ]);
 
-      const facts = factsRes.status === 'fulfilled' ? factsRes.value : [];
-      const collections = collectionsRes.status === 'fulfilled' ? collectionsRes.value : [];
-      const notifications = notificationsRes.status === 'fulfilled' ? notificationsRes.value : [];
-      const auditLogs = auditLogsRes.status === 'fulfilled' ? auditLogsRes.value : [];
-      const categories = categoriesRes.status === 'fulfilled' ? categoriesRes.value : [];
-      const rawUsers = usersRes.status === 'fulfilled' ? usersRes.value : [];
-      const quotes = quotesRes.status === 'fulfilled' ? quotesRes.value : [];
-      const achievements = achievementsRes.status === 'fulfilled' ? achievementsRes.value : [];
-      const analytics = analyticsRes.status === 'fulfilled' ? analyticsRes.value : [];
-      const admins = adminsRes.status === 'fulfilled' ? adminsRes.value : [];
+      const facts = (factsRes.status === 'fulfilled' ? factsRes.value : []).filter(Boolean);
+      const collections = (collectionsRes.status === 'fulfilled' ? collectionsRes.value : []).filter(Boolean);
+      const notifications = (notificationsRes.status === 'fulfilled' ? notificationsRes.value : []).filter(Boolean);
+      const auditLogs = (auditLogsRes.status === 'fulfilled' ? auditLogsRes.value : []).filter(Boolean);
+      const categories = (categoriesRes.status === 'fulfilled' ? categoriesRes.value : []).filter(Boolean);
+      const rawUsers = (usersRes.status === 'fulfilled' ? usersRes.value : []).filter(Boolean);
+      const quotes = (quotesRes.status === 'fulfilled' ? quotesRes.value : []).filter(Boolean);
+      const achievements = (achievementsRes.status === 'fulfilled' ? achievementsRes.value : []).filter(Boolean);
+      const analytics = (analyticsRes.status === 'fulfilled' ? analyticsRes.value : []).filter(Boolean);
+      const admins = (adminsRes.status === 'fulfilled' ? adminsRes.value : []).filter(Boolean);
 
-      console.log(`[Dashboard] Sync complete. Data nodes detected: Facts(${facts.length}) Users(${rawUsers.length}) Analytics(${analytics.length})`);
+      const latestTs = analytics.reduce((max, e) => {
+        const ts = parseTimestamp(e.timestamp);
+        return ts > max ? ts : max;
+      }, 0);
+      setLastActivity(latestTs || null);
 
-      const adminIds = new Set(admins.map(a => a?.uid).filter(Boolean));
-      const filteredUsers = rawUsers.filter(u => !adminIds.has(u.id));
+      const adminIds = new Set(admins.map(a => a?.uid || a?.id).filter(Boolean));
+      const filteredUsers = rawUsers.filter(u => u && !adminIds.has(u.id || u.account?.uid));
 
       setAllFacts(facts);
       setAllUsers(filteredUsers);
 
-      // --- Calculate Top Insights ---
+      // --- 1. Top Insights ---
       const insightMap: Record<string, number> = {};
-      analytics.filter(e => e.name === 'read_fact').forEach(e => {
+      analytics.filter(e => e && e.name === 'read_fact').forEach(e => {
           const id = e.params?.item_id;
           if (id) insightMap[id] = (insightMap[id] || 0) + 1;
       });
 
       const sortedInsights = Object.entries(insightMap)
           .map(([id, count]) => {
-              const fact = facts.find(f => f.id === id);
+              const fact = facts.find(f => f && f.id === id);
               return {
                   id,
                   count,
@@ -209,9 +228,10 @@ const DashboardPage = () => {
           .slice(0, 5);
       setTopInsights(sortedInsights);
 
-      // --- Category Distribution ---
+      // --- 2. Categories ---
       const uniqueMap = new Map<string, Category>();
       categories.forEach(cat => {
+          if (!cat || !cat.name) return;
           const nameKey = cat.name.trim().toLowerCase();
           if (!uniqueMap.has(nameKey) || (cat.description?.length || 0) > (uniqueMap.get(nameKey)?.description?.length || 0)) {
               uniqueMap.set(nameKey, cat);
@@ -229,9 +249,10 @@ const DashboardPage = () => {
         achievements: achievements.length
       });
 
+      // --- 3. Trends ---
       const lastWeekTs = Date.now() - (7 * 24 * 60 * 60 * 1000);
       const calculateTrend = (items: any[]) => {
-          const recent = items.filter(i => parseTimestamp(i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
+          const recent = items.filter(i => i && parseTimestamp(i.createdAt || i.timestamp || i.account?.createdAt) > lastWeekTs).length;
           return { delta: recent, isPositive: true };
       };
 
@@ -251,7 +272,7 @@ const DashboardPage = () => {
       const distMap: Record<string, number> = {};
       uniqueCategories.forEach(cat => { distMap[cat.name] = 0; });
       facts.forEach(f => {
-          if (f.category && distMap[f.category] !== undefined) distMap[f.category]++;
+          if (f && f.category && distMap[f.category] !== undefined) distMap[f.category]++;
       });
 
       const distChart = uniqueCategories
@@ -275,7 +296,7 @@ const DashboardPage = () => {
     loadGlobalStats();
   }, [loadGlobalStats]);
 
-  // Analytics Effect
+  // Lifecycle Analytics Effect - DAILY ACTIVE USERS (DAU) LOGIC
   useEffect(() => {
     if (isAdminAuthLoading || !isAuthorized || loading) return;
 
@@ -283,29 +304,41 @@ const DashboardPage = () => {
       setIsAnalyticsLoading(true);
       try {
         const rangeInDays = { '7D': 7, '1M': 30, '3M': 90, '1Y': 365, 'ALL': 3650 }[timeRange];
-        const analytics = await fetchAnalyticsEvents(rangeInDays);
+        const analytics = (await fetchAnalyticsEvents(rangeInDays)) || [];
 
-        const lifecycleMap: Record<string, { installs: number, uninstalls: number, active: number }> = {};
+        const lifecycleMap: Record<string, { installs: number, uninstalls: number, activeUids: Set<string>, net: number }> = {};
         const isHighDensity = timeRange === '1Y' || timeRange === 'ALL';
 
+        const now = new Date();
+        const dateKeys: string[] = [];
+
+        // Pre-populate slots
         if (isHighDensity) {
-            for (let i = 0; i < (timeRange === '1Y' ? 12 : 24); i++) {
-                const date = new Date();
-                date.setMonth(date.getMonth() - i);
+            for (let i = (timeRange === '1Y' ? 11 : 23); i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 const dateStr = date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
+                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, activeUids: new Set(), net: 0 };
+                dateKeys.push(dateStr);
             }
         } else {
             const daysToPopulate = rangeInDays === 3650 ? 30 : rangeInDays;
-            for (let i = 0; i < daysToPopulate; i++) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
+            for (let i = daysToPopulate - 1; i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
                 const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, active: 0 };
+                lifecycleMap[dateStr] = { installs: 0, uninstalls: 0, activeUids: new Set(), net: 0 };
+                dateKeys.push(dateStr);
             }
         }
 
-        analytics.forEach(event => {
+        // Calculate base population before chart range
+        const rangeStartTime = new Date();
+        rangeStartTime.setDate(rangeStartTime.getDate() - rangeInDays);
+        rangeStartTime.setHours(0,0,0,0);
+
+        let currentCumulative = allUsers.filter(u => parseTimestamp(u.account?.createdAt) < rangeStartTime.getTime()).length;
+
+        // Group Analytics Events
+        analytics.filter(Boolean).forEach(event => {
             const ts = parseTimestamp(event.timestamp);
             const date = new Date(ts);
             const dateStr = isHighDensity
@@ -315,26 +348,35 @@ const DashboardPage = () => {
             if (lifecycleMap[dateStr]) {
                 if (event.name === 'app_install') lifecycleMap[dateStr].installs++;
                 else if (event.name === 'app_remove' || event.name === 'app_uninstall') lifecycleMap[dateStr].uninstalls++;
-                else if (event.name === 'app_open' || event.name === 'session_start') lifecycleMap[dateStr].active++;
+
+                // Track unique active user per day (DAU)
+                if (event.uid) lifecycleMap[dateStr].activeUids.add(event.uid);
             }
         });
 
-        const chart = Object.keys(lifecycleMap).map(date => ({
-            name: date,
-            installs: lifecycleMap[date].installs,
-            uninstalls: lifecycleMap[date].uninstalls,
-            active: lifecycleMap[date].active
-        })).reverse();
-        setLifecycleData(chart);
+        // Final Chart Assembly
+        const finalChart = dateKeys.map(key => {
+            currentCumulative += lifecycleMap[key].installs;
+
+            return {
+                name: key,
+                installs: lifecycleMap[key].installs,
+                uninstalls: lifecycleMap[key].uninstalls,
+                active: Math.min(lifecycleMap[key].activeUids.size, currentCumulative),
+                net: currentCumulative
+            };
+        });
+
+        setLifecycleData(finalChart);
       } catch (err) {
-        console.error('Analytics load failed:', err);
+        console.error('Analytics logic failure:', err);
       } finally {
         setIsAnalyticsLoading(false);
       }
     };
 
     loadAnalytics();
-  }, [timeRange, isAdminAuthLoading, isAuthorized, loading]);
+  }, [timeRange, isAdminAuthLoading, isAuthorized, loading, allUsers]);
 
   const handleQuickDispatch = async () => {
     if (!isAtLeast('ADMIN')) {
@@ -370,22 +412,40 @@ const DashboardPage = () => {
     { label: 'Notifications', value: counts.notifications, icon: BellRing, color: 'text-brand-secondary', path: '/notifications', trend: trends['Notifications'] },
   ];
 
+  if (isAdminAuthLoading) {
+    return <div className="h-[80vh] flex items-center justify-center"><LoadingNode message="Syncing Identity Stream..." /></div>;
+  }
+
+  if (!isAuthorized) {
+    return null;
+  }
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
            <motion.h1
              initial={{ opacity: 0, y: 10 }}
              animate={{ opacity: 1, y: 0 }}
-             className="text-3xl font-bold tracking-tight uppercase"
+             className="text-4xl font-black tracking-tighter uppercase flex items-center gap-4"
            >
              Dashboard
+             <div className="px-3 py-1 bg-brand-primary/10 border border-brand-primary/20 rounded-lg flex items-center gap-2">
+                <Cpu size={12} className="text-brand-primary animate-pulse" />
+                <span className="text-[10px] font-black tracking-widest text-brand-primary uppercase">v4.3.8 Active</span>
+             </div>
            </motion.h1>
         </div>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
+           {lastActivity && (
+             <div className="px-4 py-2 glass rounded-xl border border-brand-sage/10 flex items-center gap-2 shadow-lg group hover:border-brand-primary/30 transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Identity Feed: {formatTimeAgo(new Date(lastActivity).toISOString())}</span>
+             </div>
+           )}
            <button
              onClick={loadGlobalStats}
-             className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border border-brand-sage/10 shadow-md"
+             className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border border-brand-sage/10 shadow-md active:scale-95"
              title="Synchronize Data"
            >
               <RefreshCw size={20} className={cn(loading && "animate-spin")} />
@@ -445,7 +505,7 @@ const DashboardPage = () => {
               <h3 className="text-xl font-bold tracking-tight flex items-center gap-3">
                  <ActivityIcon size={22} className="text-brand-primary" /> User Lifecycle
               </h3>
-              <p className="text-sub text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-40">Growth, Retention & Churn Dynamics</p>
+              <p className="text-sub text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-40">Cumulative Population & Active Distribution</p>
             </div>
 
             <div className="flex bg-brand-bg/5 dark:bg-brand-bg/40 p-1 rounded-xl border border-brand-sage/10">
@@ -501,8 +561,7 @@ const DashboardPage = () => {
                         <div key={`item-${index}`} className="flex items-center gap-2">
                           <div className={cn(
                             "w-2 h-2 rounded-full",
-                            entry.value === 'installs' ? "bg-[#00A8FF]" :
-                            entry.value === 'uninstalls' ? "bg-[#FF7675]" : "bg-[#FDCB6E]"
+                            entry.value === 'Population' ? "bg-brand-primary" : "bg-[#FDCB6E]"
                           )} />
                           <span className="text-[10px] font-black uppercase tracking-widest text-sub opacity-60">
                             {entry.value}
@@ -513,32 +572,24 @@ const DashboardPage = () => {
                   )}
                 />
                 <Line
-                  type="monotone"
-                  dataKey="installs"
-                  stroke="#00A8FF"
+                  name="Population"
+                  type="stepAfter"
+                  dataKey="net"
+                  stroke="var(--brand-primary)"
                   strokeWidth={4}
-                  dot={{ r: 4, fill: '#00A8FF', strokeWidth: 0 }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                  animationDuration={2500}
+                  dot={{ r: 0 }}
+                  activeDot={{ r: 6, fill: "var(--brand-primary)", strokeWidth: 0 }}
+                  animationDuration={2000}
                 />
                 <Line
-                  type="monotone"
-                  dataKey="uninstalls"
-                  stroke="#FF7675"
-                  strokeWidth={3}
-                  strokeDasharray="8 8"
-                  dot={{ r: 4, fill: '#FF7675', strokeWidth: 0 }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                  animationDuration={3000}
-                />
-                <Line
+                  name="Active"
                   type="monotone"
                   dataKey="active"
                   stroke="#FDCB6E"
-                  strokeWidth={3}
-                  strokeDasharray="2 4"
-                  dot={{ r: 4, fill: '#FDCB6E', strokeWidth: 0 }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  dot={{ r: 3, fill: '#FDCB6E', strokeWidth: 0 }}
+                  activeDot={{ r: 5, strokeWidth: 0 }}
                   animationDuration={3500}
                 />
               </LineChart>
@@ -615,6 +666,88 @@ const DashboardPage = () => {
             </div>
           </PremiumCard>
         ), [categoryData, theme])}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+        {/* Top Insights Leaderboard */}
+        {React.useMemo(() => (
+          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
+                          <Trophy size={18} />
+                      </div>
+                      <div>
+                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
+                          <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mt-0.5">Popular Insights</p>
+                      </div>
+                  </div>
+              </div>
+              <div className="space-y-4 relative z-10">
+                  {loading ? <LoadingNode /> : topInsights.length === 0 ? (
+                      <EmptyBuffer title="No Data" message="Insufficient analytics for leaderboard generation." />
+                  ) : topInsights.map((insight, idx) => (
+                      <div key={insight.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
+                          <div className={cn(
+                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-xs",
+                              idx === 0 ? "bg-brand-gold/20 text-brand-gold shadow-[0_0_15px_rgba(233,196,106,0.3)]" :
+                              idx === 1 ? "bg-slate-300/20 text-slate-400" :
+                              idx === 2 ? "bg-amber-700/20 text-amber-800" : "bg-brand-bg/50 text-sub/40"
+                          )}>
+                              #{idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors italic">"{insight.title}"</p>
+                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">{insight.category}</p>
+                          </div>
+                          <div className="text-right">
+                              <p className="text-xs font-black text-brand-primary tabular-nums">{insight.count}</p>
+                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Reads</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </PremiumCard>
+        ), [topInsights, loading])}
+
+        {/* Top Scholars Leaderboard */}
+        {React.useMemo(() => (
+          <PremiumCard className="p-8 relative overflow-hidden" glowColor="rgba(45, 106, 79, 0.05)">
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-brand-secondary/10 rounded-xl text-brand-secondary">
+                          <UserRound size={18} />
+                      </div>
+                      <div>
+                          <h3 className="text-[9px] font-bold uppercase tracking-widest text-sub opacity-40">Leaderboard</h3>
+                          <p className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest mt-0.5">Top Scholars</p>
+                      </div>
+                  </div>
+              </div>
+              <div className="space-y-4 relative z-10">
+                  {loading ? <LoadingNode /> : topScholars.length === 0 ? (
+                      <EmptyBuffer title="No Data" message="No user activity detected for ranking." />
+                  ) : topScholars.map((user, idx) => (
+                      <div key={user.id} className="flex items-center gap-4 group/item transition-all py-1 border-b border-brand-sage/5 last:border-0 pb-3">
+                          <div className="w-10 h-10 rounded-xl bg-brand-bg/5 border border-brand-sage/10 flex items-center justify-center shrink-0 text-brand-primary font-black text-sm">
+                              {user.profile?.displayName?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-brand-white truncate group-hover/item:text-brand-primary transition-colors">{user.profile?.displayName || 'Unknown User'}</p>
+                              <p className="text-[8px] text-sub opacity-50 font-black uppercase tracking-widest mt-1">Level {Math.floor((user.stats?.factsReadCount || 0) / 10) + 1} Participant</p>
+                          </div>
+                          <div className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                  <span className="text-xs font-black text-brand-secondary tabular-nums">{user.stats?.factsReadCount || 0}</span>
+                                  <BookOpen size={12} className="text-brand-primary opacity-40" />
+                              </div>
+                              <p className="text-[7px] font-black text-sub opacity-30 uppercase">Total Insights</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </PremiumCard>
+        ), [topScholars, loading])}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
@@ -712,6 +845,7 @@ const DashboardPage = () => {
                 </div>
             </PremiumCard>
       </div>
+
     </div>
   );
 };
