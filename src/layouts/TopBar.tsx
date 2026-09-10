@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Bell, Settings, LogOut, User, Command, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Settings, LogOut, User, Command, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { signOutAdmin, observeAuthState } from '../services/firebaseService';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { cn } from '../utils/cn';
@@ -17,6 +17,8 @@ interface TopBarProps {
 const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollapsed }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
   const { isAtLeast } = useAdmin();
   const navigate = useNavigate();
@@ -29,10 +31,20 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+
     window.addEventListener('scroll', handleScroll);
+    window.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       unsubscribe();
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -60,13 +72,18 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
       </div>
 
       <div className="flex items-center gap-8 justify-end">
-        {/* Floating Glass Search Trigger */}
+        {/* Floating Glass Search Trigger - Temporarily Disabled */}
+        {/*
         <motion.button
+          type="button"
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setIsSearchOpen(true)}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            console.log('[TopBar] Search trigger clicked.');
+            setIsSearchOpen(true);
+          }}
           className={cn(
-            "flex items-center gap-3 backdrop-blur-md border px-4 py-1.5 rounded-xl transition-all group w-full max-w-md shadow-sm",
+            "flex items-center gap-3 backdrop-blur-md border px-4 py-1.5 rounded-xl transition-all group w-full max-w-md min-w-[240px] shadow-sm",
             theme === 'dark'
               ? "bg-brand-surface/40 border-brand-sage/20 text-brand-white/30 hover:border-brand-primary/50"
               : "bg-white/80 border-brand-primary/10 text-brand-surface/40 hover:border-brand-primary/30"
@@ -82,6 +99,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
             <span className="text-[9px] font-black opacity-50">K</span>
           </div>
         </motion.button>
+        */}
 
         <div className={cn("flex items-center gap-4 border-l pl-8", theme === 'dark' ? "border-brand-sage/20" : "border-brand-primary/10")}>
           <motion.button
@@ -99,24 +117,11 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
             {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
           </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/notifications')}
-            className={cn(
-              "relative p-2.5 rounded-xl border shadow-lg transition-all",
-              theme === 'dark'
-                ? "bg-brand-surface/30 border-brand-sage/10 text-brand-secondary hover:text-brand-primary"
-                : "bg-brand-primary/5 border-brand-primary/10 text-brand-primary hover:bg-brand-primary/10"
-            )}
-          >
-            <Bell size={22} />
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-brand-accent rounded-full border-2 border-brand-bg shadow-[0_0_10px_rgba(233,196,106,0.6)]"></span>
-          </motion.button>
-
-          <div className="group relative">
+          <div className="relative" ref={profileRef}>
             <motion.button
               whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-3 pl-4"
             >
               <div className={cn(
@@ -129,37 +134,53 @@ const TopBar: React.FC<TopBarProps> = ({ title, setIsSearchOpen, isSidebarCollap
               </div>
             </motion.button>
 
-            <div className={cn(
-              "absolute right-0 mt-3 w-64 backdrop-blur-3xl border rounded-2xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100 p-2 z-50",
-              theme === 'dark' ? "bg-brand-surface/95 border-brand-sage/30" : "bg-white/95 border-brand-primary/10"
-            )}>
-               <div className={cn("px-5 py-4 border-b mb-2", theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5")}>
-                 <p className="text-xs font-black tracking-widest uppercase opacity-40 mb-1">Authenticated As</p>
-                 <p className={cn("text-sm font-bold truncate", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user?.email || 'master@brainbites.com'}</p>
-                 <div className="mt-2 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" />
-                    <span className="text-[10px] font-black text-brand-primary uppercase tracking-tighter">System Root Access</span>
-                 </div>
-               </div>
-               <button
-                onClick={() => navigate('/settings')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 text-sm rounded-2xl transition-all duration-300",
-                  theme === 'dark' ? "text-brand-white/70 hover:text-brand-white hover:bg-brand-primary/20" : "text-brand-surface/70 hover:text-brand-primary hover:bg-brand-primary/5"
-                )}
-               >
-                 <User size={18} className="text-brand-secondary" /> Profile Dashboard
-               </button>
-               <button
-                onClick={() => signOutAdmin()}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 text-sm rounded-2xl transition-all duration-300 mt-1",
-                  theme === 'dark' ? "text-brand-accent/70 hover:text-brand-white hover:bg-brand-accent/10" : "text-red-500/70 hover:text-red-500 hover:bg-red-500/5"
-                )}
-               >
-                 <LogOut size={18} /> Terminate Session
-               </button>
-            </div>
+            <AnimatePresence>
+              {isProfileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className={cn(
+                    "absolute right-0 mt-3 w-64 backdrop-blur-3xl border rounded-2xl shadow-2xl p-2 z-50",
+                    theme === 'dark' ? "bg-brand-surface/95 border-brand-sage/30" : "bg-white/95 border-brand-primary/10"
+                  )}
+                >
+                  <div className={cn("px-5 py-4 border-b mb-2", theme === 'dark' ? "border-brand-sage/10" : "border-brand-primary/5")}>
+                    <p className="text-xs font-black tracking-widest uppercase opacity-40 mb-1">Authenticated As</p>
+                    <p className={cn("text-sm font-bold truncate", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user?.email || 'master@brainbites.com'}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(45,106,79,1)]" />
+                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-tighter">System Root Access</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigate('/settings');
+                      setIsProfileOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 text-sm rounded-2xl transition-all duration-300 text-left",
+                      theme === 'dark' ? "text-brand-white/70 hover:text-brand-white hover:bg-brand-primary/20" : "text-brand-surface/70 hover:text-brand-primary hover:bg-brand-primary/5"
+                    )}
+                  >
+                    <User size={18} className="text-brand-secondary" /> Profile Dashboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      signOutAdmin();
+                      setIsProfileOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 text-sm rounded-2xl transition-all duration-300 mt-1 text-left",
+                      theme === 'dark' ? "text-brand-accent/70 hover:text-brand-white hover:bg-brand-accent/10" : "text-red-500/70 hover:text-red-500 hover:bg-red-500/5"
+                    )}
+                  >
+                    <LogOut size={18} /> Terminate Session
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

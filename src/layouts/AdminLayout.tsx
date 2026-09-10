@@ -70,7 +70,9 @@ const AdminLayout = () => {
         </main>
       </div>
 
+      {/* Global Search - Temporarily Disabled
       <GlobalSearch isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
+      */}
     </div>
   );
 };

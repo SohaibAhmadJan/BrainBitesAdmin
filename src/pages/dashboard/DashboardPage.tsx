@@ -27,8 +27,7 @@ import {
   AlertTriangle,
   Fingerprint,
   Database,
-  Users,
-  Cpu
+  Users
 } from 'lucide-react';
 import {
   XAxis,
@@ -430,19 +429,9 @@ const DashboardPage = () => {
              className="text-4xl font-black tracking-tighter uppercase flex items-center gap-4"
            >
              Dashboard
-             <div className="px-3 py-1 bg-brand-primary/10 border border-brand-primary/20 rounded-lg flex items-center gap-2">
-                <Cpu size={12} className="text-brand-primary animate-pulse" />
-                <span className="text-[10px] font-black tracking-widest text-brand-primary uppercase">v4.3.8 Active</span>
-             </div>
            </motion.h1>
         </div>
         <div className="flex items-center gap-4">
-           {lastActivity && (
-             <div className="px-4 py-2 glass rounded-xl border border-brand-sage/10 flex items-center gap-2 shadow-lg group hover:border-brand-primary/30 transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Identity Feed: {formatTimeAgo(new Date(lastActivity).toISOString())}</span>
-             </div>
-           )}
            <button
              onClick={loadGlobalStats}
              className="p-3 glass rounded-xl text-sub hover:text-brand-primary transition-all border border-brand-sage/10 shadow-md active:scale-95"

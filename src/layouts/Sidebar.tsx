@@ -25,11 +25,13 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  Library
+  Library,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
 import { useAdmin } from '../context/AdminContext';
+import { signOutAdmin } from '../services/firebaseService';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -39,16 +41,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { theme } = useTheme();
   const { adminUser, hasPermission } = useAdmin();
-
-  const getDisplayRole = (role: string | undefined) => {
-    switch (role) {
-      case 'SUPER_ADMIN': return 'Super Administrator';
-      case 'ADMIN': return 'Administrator';
-      case 'CONTENT_MANAGER': return 'Author';
-      case 'ANALYST': return 'Viewer';
-      default: return role || 'Admin';
-    }
-  };
 
   const sections = [
     {
@@ -117,9 +109,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                <div className="w-1.5 h-5 bg-brand-primary rounded-full" />
                BrainBites
             </h1>
-            <span className="text-[9px] font-bold text-brand-secondary uppercase tracking-widest block ml-3.5 opacity-50">
-              {getDisplayRole(adminUser?.role)}
-            </span>
           </motion.div>
         )}
         <button
@@ -177,6 +166,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           </div>
         ))}
       </nav>
+
+      <div className="p-3 border-t border-brand-sage/10">
+        <button
+          onClick={() => signOutAdmin()}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative",
+            theme === 'dark'
+              ? "text-brand-accent/60 hover:bg-brand-accent/10 hover:text-brand-accent"
+              : "text-red-500/60 hover:bg-red-500/5 hover:text-red-500"
+          )}
+          title={isCollapsed ? "Logout" : ""}
+        >
+          <LogOut size={isCollapsed ? 20 : 16} className={cn(
+            "shrink-0 transition-transform duration-200",
+            isCollapsed && "mx-auto"
+          )} />
+          {!isCollapsed && <span className="text-sm font-bold uppercase tracking-widest">Logout</span>}
+
+          {isCollapsed && (
+            <div className={cn(
+              "absolute left-full ml-3 px-3 py-1.5 rounded-xl text-xs font-bold opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap z-50 shadow-2xl",
+              theme === 'dark' ? "glass text-brand-accent" : "bg-white text-red-500 border border-brand-primary/10 shadow-lg"
+            )}>
+              Logout
+            </div>
+          )}
+        </button>
+      </div>
 
     </aside>
   );
