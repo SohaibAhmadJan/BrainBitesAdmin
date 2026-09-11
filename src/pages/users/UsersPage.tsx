@@ -184,10 +184,20 @@ const UsersPage = () => {
                           "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest border",
                           user.account.status === 'ACTIVE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" :
                           user.account.status === 'DISABLED' ? "bg-red-500/10 border-red-500/20 text-red-500" :
+                          user.account.status === 'PENDING_DELETION' ? "bg-orange-500/10 border-orange-500/20 text-orange-500" :
                           "bg-brand-bg/5 text-sub border-brand-sage/10"
                         )}>
-                          <div className={cn("w-1 h-1 rounded-full", user.account.status === 'ACTIVE' ? 'bg-brand-primary' : 'bg-red-500')} />
-                          {user.account.status}
+                          <div className={cn(
+                            "w-1 h-1 rounded-full",
+                            user.account.status === 'ACTIVE' ? 'bg-brand-primary' :
+                            user.account.status === 'PENDING_DELETION' ? 'bg-orange-500' : 'bg-red-500'
+                          )} />
+                          {user.account.status === 'PENDING_DELETION' ? (
+                            (() => {
+                                const daysLeft = Math.ceil(((user.account.scheduledDeletionAt || 0) - Date.now()) / (1000 * 60 * 60 * 24));
+                                return `Deleting in ${daysLeft}d`;
+                            })()
+                          ) : user.account.status}
                         </div>
                       </td>
                       <td className="p-4">

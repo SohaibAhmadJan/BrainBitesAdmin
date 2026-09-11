@@ -165,6 +165,24 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
            </div>
 
            <div className="flex items-center gap-4">
+              {user.account.status === 'PENDING_DELETION' && (
+                <ElasticButton
+                  onClick={async () => {
+                    if (!window.confirm(`Cancel deletion request and restore access for ${user.profile.displayName}?`)) return;
+                    try {
+                        await updateUserStatus(user.id, 'ACTIVE', 'Manual administrative restoration');
+                        toast.success('Identity restored to ACTIVE status');
+                        onClose();
+                    } catch (err: any) {
+                        toast.error(`Restoration failed: ${err.message}`);
+                    }
+                  }}
+                  variant="success"
+                  className="px-8 py-2.5 rounded-xl text-xs shadow-lg"
+                >
+                  Restore Identity
+                </ElasticButton>
+              )}
               <ElasticButton
                 onClick={handleToggleLock}
                 variant={user.account.status === 'ACTIVE' ? 'danger' : 'success'}
