@@ -115,6 +115,7 @@ export const fetchUsers = async (fetchLimit: number = 100): Promise<UserProfile[
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ ...(doc.data() as UserProfile), id: doc.id }));
   } catch (err) {
+    console.error('fetchUsers failed:', err);
     return [];
   }
 };

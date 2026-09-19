@@ -27,7 +27,8 @@ import ActionBadge from '../../components/ui/ActionBadge';
 import ElasticButton from '../../components/ui/ElasticButton';
 import LoadingNode from '../../components/ui/LoadingNode';
 import EmptyBuffer from '../../components/ui/EmptyBuffer';
-
+import toast from 'react-hot-toast';
+import { updateUserStatus, deleteUserDirect } from '../../services/adminApi';
 import { useAdmin } from '../../context/AdminContext';
 
 const UsersPage = () => {
@@ -38,7 +39,6 @@ const UsersPage = () => {
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Suspended'>('All');
   const [sortBy, setSortBy] = useState<'engagement' | 'newest'>('engagement');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
@@ -64,18 +64,19 @@ const UsersPage = () => {
     }
   };
 
-  const filteredUsers = users
-    .filter(user =>
-        !adminIds.has(user.id) &&
-        user.profile.email && // Exclude guest users (no email)
-        (user.profile.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         user.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         user.profile.displayName?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (statusFilter === 'All' || user.account.status === statusFilter.toUpperCase())
-    )
+    const filteredUsers = users
+    .filter(user => {
+      const email = user.profile?.email || (user as any).email || '';
+      const name = user.profile?.displayName || (user as any).displayName || '';
+      
+      return !adminIds.has(user.id) &&
+      (email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        name.toLowerCase().includes(searchTerm.toLowerCase()));
+    })
     .sort((a, b) => {
-        if (sortBy === 'engagement') return b.stats.factsReadCount - a.stats.factsReadCount;
-        return b.account.createdAt - a.account.createdAt;
+      if (sortBy === 'engagement') return (b.stats?.factsReadCount || 0) - (a.stats?.factsReadCount || 0);
+      return (b.account?.createdAt || 0) - (a.account?.createdAt || 0);
     });
 
   return (
@@ -93,24 +94,14 @@ const UsersPage = () => {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-3">
-            <select
-                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all"
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
-            >
-                <option value="engagement">Top Engagement</option>
-                <option value="newest">Newest</option>
-            </select>
-
-            <select
-                className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as any)}
-            >
-                <option value="All">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Suspended">Suspended</option>
-            </select>
+          <select
+            className="bg-brand-bg/5 dark:bg-brand-bg/50 border border-brand-sage/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer hover:border-brand-primary/30 transition-all"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+          >
+            <option value="engagement">Top Engagement</option>
+            <option value="newest">Newest</option>
+          </select>
         </div>
       </div>
 
@@ -122,7 +113,6 @@ const UsersPage = () => {
               <tr className="bg-brand-primary/5 border-b border-brand-sage/10 text-[9px] font-bold text-sub uppercase tracking-widest">
                 <th className="p-4">User</th>
                 <th className="p-4">Email</th>
-                <th className="p-4">Status</th>
                 <th className="p-4">Mastery</th>
                 <th className="p-4">Created</th>
                 <th className="p-4 text-right">Actions</th>
@@ -133,7 +123,7 @@ const UsersPage = () => {
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td colSpan={5} className="p-4">
-                       <div className="h-10 bg-brand-primary/5 rounded-xl w-full" />
+                      <div className="h-10 bg-brand-primary/5 rounded-xl w-full" />
                     </td>
                   </tr>
                 ))
@@ -162,47 +152,28 @@ const UsersPage = () => {
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-brand-bg/5 dark:bg-brand-bg/80 border border-brand-sage/10 flex items-center justify-center text-brand-primary font-black text-sm shadow-sm overflow-hidden">
                             {(() => {
-                              const avatarUrl = getAvatarUrl(user.profile.photoUrl);
+                              const rawPhotoUrl = user.profile?.photoUrl || (user as any).photoUrl || (user as any).picture;
+                              const avatarUrl = getAvatarUrl(rawPhotoUrl);
+                              const displayName = user.profile?.displayName || (user as any).displayName || 'U';
                               return avatarUrl ? (
                                 <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                user.profile.displayName[0]?.toUpperCase() || 'U'
+                                displayName[0]?.toUpperCase() || 'U'
                               );
                             })()}
                           </div>
                           <div>
-                            <p className="text-sm font-bold">{user.profile.displayName}</p>
+                            <p className="text-sm font-bold">{user.profile?.displayName || (user as any).displayName || 'Anonymous User'}</p>
                             <p className="text-[8px] text-sub font-mono uppercase tracking-tighter opacity-40">UID: {user.id.slice(0, 8)}</p>
                           </div>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="text-[10px] font-mono font-bold text-sub lowercase">{user.profile.email || '—'}</span>
-                      </td>
-                      <td className="p-4">
-                        <div className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest border",
-                          user.account.status === 'ACTIVE' ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary" :
-                          user.account.status === 'DISABLED' ? "bg-red-500/10 border-red-500/20 text-red-500" :
-                          user.account.status === 'PENDING_DELETION' ? "bg-orange-500/10 border-orange-500/20 text-orange-500" :
-                          "bg-brand-bg/5 text-sub border-brand-sage/10"
-                        )}>
-                          <div className={cn(
-                            "w-1 h-1 rounded-full",
-                            user.account.status === 'ACTIVE' ? 'bg-brand-primary' :
-                            user.account.status === 'PENDING_DELETION' ? 'bg-orange-500' : 'bg-red-500'
-                          )} />
-                          {user.account.status === 'PENDING_DELETION' ? (
-                            (() => {
-                                const daysLeft = Math.ceil(((user.account.scheduledDeletionAt || 0) - Date.now()) / (1000 * 60 * 60 * 24));
-                                return `Deleting in ${daysLeft}d`;
-                            })()
-                          ) : user.account.status}
-                        </div>
+                        <span className="text-[10px] font-mono font-bold text-sub lowercase">{user.profile?.email || (user as any).email || '—'}</span>
                       </td>
                       <td className="p-4">
                         {(() => {
-                          const mastery = calculateMastery(user.stats.factsReadCount);
+                          const mastery = calculateMastery(user.stats?.factsReadCount || 0);
                           return (
                             <div className={cn(
                               "inline-flex items-center gap-2 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border w-fit",
@@ -215,38 +186,81 @@ const UsersPage = () => {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col">
-                           <span className="text-xs font-medium">{new Date(user.account.createdAt).toLocaleDateString()}</span>
-                           <span className="text-[9px] text-sub uppercase font-bold tracking-widest opacity-60">Joined</span>
+                          <span className="text-xs font-medium">
+                            {(() => {
+                              const ca = user.account?.createdAt;
+                              if (!ca) return 'Unknown Date';
+                              // Handle Firebase Timestamp (seconds) or standard JS ms timestamp
+                              const date = (ca as any).seconds ? new Date((ca as any).seconds * 1000) : new Date(ca as number);
+                              return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString();
+                            })()}
+                          </span>
+                          <span className="text-[9px] text-sub uppercase font-bold tracking-widest opacity-60">Joined</span>
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                         <div className="flex justify-end gap-2">
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
-                              className="p-2 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white rounded-lg transition-all"
-                              title="Inspect Identity"
-                            >
-                              <TrendingUp size={14} />
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-lg transition-all"
-                              title="Restrict Access"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!isAtLeast('ADMIN')) {
-                                  toast.error('Identity protocol violation: User modification restricted.');
-                                  return;
+                        <div className="flex justify-end gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
+                            className="p-2 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white rounded-lg transition-all"
+                            title="Inspect Identity"
+                          >
+                            <TrendingUp size={14} />
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={cn("p-2 rounded-lg transition-all", user.account?.status === 'ACTIVE' ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-brand-white" : "bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-brand-white")}
+                            title={user.account?.status === 'ACTIVE' ? "Restrict Access" : "Restore Access"}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!isAtLeast('ADMIN')) {
+                                toast.error('Identity protocol violation: User modification restricted.');
+                                return;
+                              }
+                              const newStatus = user.account?.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
+                              if (window.confirm(`${newStatus === 'DISABLED' ? 'Restrict' : 'Restore'} access for ${user.profile?.displayName || 'User'}?`)) {
+                                try {
+                                  await updateUserStatus(user.id, newStatus, 'Manual administrative intervention');
+                                  toast.success(`Identity status updated to ${newStatus}`);
+                                  loadData();
+                                } catch (err: any) {
+                                  toast.error(`Update failed: ${err.message}`);
                                 }
-                                // Add your restriction logic here
-                              }}
-                            >
-                              <ShieldAlert size={14} />
-                            </motion.button>
-                         </div>
+                              }
+                            }}
+                          >
+                            {user.account?.status === 'ACTIVE' ? <ShieldAlert size={14} /> : <UserCheck size={14} />}
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-brand-white rounded-lg transition-all"
+                            title="Delete User"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!isAtLeast('ADMIN')) {
+                                toast.error('Identity protocol violation: User modification restricted.');
+                                return;
+                              }
+                              if (window.confirm(`Permanently delete ${user.profile?.displayName || 'User'}? This action is irreversible.`)) {
+                                try {
+                                  await deleteUserDirect(user.id);
+                                  toast.success('Identity permanently deleted');
+                                  loadData();
+                                } catch (err: any) {
+                                  toast.error(`Deletion failed: ${err.message}`);
+                                }
+                              }
+                            }}
+                          >
+                            <UserX size={14} />
+                          </motion.button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -258,11 +272,11 @@ const UsersPage = () => {
       </div>
 
       <div className="flex justify-between items-center text-sub px-6 font-bold uppercase tracking-widest text-[9px]">
-         <p>Total Users: {filteredUsers.length}</p>
-         <div className="flex gap-2">
-            <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronLeft size={16} /></button>
-            <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronRight size={16} /></button>
-         </div>
+        <p>Total Users: {filteredUsers.length}</p>
+        <div className="flex gap-2">
+          <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronLeft size={16} /></button>
+          <button className="p-2 rounded-xl glass hover:text-brand-primary transition-all"><ChevronRight size={16} /></button>
+        </div>
       </div>
 
       {selectedUser && (

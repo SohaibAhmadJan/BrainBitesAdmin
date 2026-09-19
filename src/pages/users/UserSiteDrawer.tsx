@@ -112,8 +112,8 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
   };
 
   const handleToggleLock = async () => {
-    const newStatus = user.account.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-    if (!window.confirm(`${newStatus === 'DISABLED' ? 'Terminate' : 'Restore'} access for ${user.profile.displayName}?`)) return;
+    const newStatus = user.account?.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
+    if (!window.confirm(`${newStatus === 'DISABLED' ? 'Terminate' : 'Restore'} access for ${user.profile?.displayName || 'User'}?`)) return;
     try {
         await updateUserStatus(user.id, newStatus, 'Manual administrative intervention');
         toast.success(`Identity status updated to ${newStatus}`);
@@ -165,10 +165,10 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
            </div>
 
            <div className="flex items-center gap-4">
-              {user.account.status === 'PENDING_DELETION' && (
+              {user.account?.status === 'PENDING_DELETION' && (
                 <ElasticButton
                   onClick={async () => {
-                    if (!window.confirm(`Cancel deletion request and restore access for ${user.profile.displayName}?`)) return;
+                    if (!window.confirm(`Cancel deletion request and restore access for ${user.profile?.displayName || 'User'}?`)) return;
                     try {
                         await updateUserStatus(user.id, 'ACTIVE', 'Manual administrative restoration');
                         toast.success('Identity restored to ACTIVE status');
@@ -185,10 +185,10 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
               )}
               <ElasticButton
                 onClick={handleToggleLock}
-                variant={user.account.status === 'ACTIVE' ? 'danger' : 'success'}
+                variant={user.account?.status === 'ACTIVE' ? 'danger' : 'success'}
                 className="px-8 py-2.5 rounded-xl text-xs shadow-lg"
               >
-                {user.account.status === 'ACTIVE' ? 'Lock Identity' : 'Unlock Identity'}
+                {user.account?.status === 'ACTIVE' ? 'Lock Identity' : 'Unlock Identity'}
               </ElasticButton>
            </div>
         </div>
@@ -218,22 +218,22 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                                 return avatarUrl ? (
                                   <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                  user.profile.displayName[0]?.toUpperCase() || 'U'
+                                  user.profile.displayName?.[0]?.toUpperCase() || 'U'
                                 );
                               })()}
                               <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand-primary rounded-lg border-2 border-inherit flex items-center justify-center shadow-md z-10">
                                  <ShieldCheck size={12} className="text-white" />
                               </div>
                             </div>
-                            <div className="space-y-1">
-                               <h2 className={cn("text-2xl font-bold tracking-tight uppercase", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user.profile.displayName}</h2>
+                             <div className="space-y-1">
+                               <h2 className={cn("text-2xl font-bold tracking-tight uppercase", theme === 'dark' ? "text-brand-white" : "text-brand-surface")}>{user.profile?.displayName || (user as any).displayName || 'Anonymous'}</h2>
                                <p className="text-brand-primary font-bold text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2">
-                                  <Mail size={10} /> {user.profile.email}
+                                  <Mail size={10} /> {user.profile?.email || (user as any).email || 'No Email'}
                                </p>
                                <div className="flex gap-2 mt-2">
-                                  <ActionBadge variant={user.account.status === 'ACTIVE' ? 'success' : 'error'}>{user.account.status}</ActionBadge>
+                                  <ActionBadge variant={user.account?.status === 'ACTIVE' ? 'success' : 'error'}>{user.account?.status || 'UNKNOWN'}</ActionBadge>
                                   {(() => {
-                                    const mastery = calculateMastery(user.stats.factsReadCount);
+                                    const mastery = calculateMastery(user.stats?.factsReadCount || 0);
                                     return (
                                       <ActionBadge variant="info">LV. {mastery.level} • {mastery.title.toUpperCase()}</ActionBadge>
                                     );
@@ -241,21 +241,21 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                                </div>
                             </div>
                          </div>
-
+                         
                          {/* Bio Section */}
                          <div className="space-y-3">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-sub opacity-40 flex items-center gap-2"><Fingerprint size={14} /> Narrative Bio</h3>
                             <div className="glass p-8 rounded-[2.5rem] italic font-medium text-lg leading-relaxed border-brand-sage/5 shadow-inner">
-                               "{user.profile.bio || 'Identity narrative pending initialization...'}"
+                               "{user.profile?.bio || 'Identity narrative pending initialization...'}"
                             </div>
                          </div>
 
                          {/* Stats Grid */}
                          <div className="grid grid-cols-3 gap-6">
                             {[
-                                { label: 'Streak', val: user.stats.streakCount, icon: Flame, color: 'text-orange-500' },
-                                { label: 'Favorites', val: user.stats.favoritesCount, icon: Target, color: 'text-brand-gold' },
-                                { label: 'Read Nodes', val: user.stats.factsReadCount, icon: BookOpen, color: 'text-brand-primary' },
+                                { label: 'Streak', val: user.stats?.streakCount || 0, icon: Flame, color: 'text-orange-500' },
+                                { label: 'Favorites', val: user.stats?.favoritesCount || 0, icon: Target, color: 'text-brand-gold' },
+                                { label: 'Read Nodes', val: user.stats?.factsReadCount || 0, icon: BookOpen, color: 'text-brand-primary' },
                             ].map((item, i) => (
                                 <div key={i} className="glass p-6 rounded-xl text-center space-y-2 border-brand-sage/5 hover:border-brand-primary/20 transition-all group">
                                     <item.icon className={cn("mx-auto mb-1 group-hover:scale-110 transition-transform", item.color)} size={28} />
@@ -271,11 +271,11 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                             <div className="grid grid-cols-2 gap-4">
                                  <div className="glass p-6 rounded-3xl border-brand-sage/5">
                                      <p className="text-[9px] font-black uppercase text-sub opacity-40 mb-1.5">Initialized On</p>
-                                     <p className="text-sm font-bold">{new Date(user.account.createdAt).toLocaleString()}</p>
+                                     <p className="text-sm font-bold">{user.account?.createdAt ? new Date(user.account.createdAt).toLocaleString() : 'Unknown'}</p>
                                  </div>
                                  <div className="glass p-6 rounded-3xl border-brand-sage/5">
                                      <p className="text-[9px] font-black uppercase text-sub opacity-40 mb-1.5">Last Login</p>
-                                     <p className="text-sm font-bold">{new Date(user.account.lastLoginAt).toLocaleString()}</p>
+                                     <p className="text-sm font-bold">{user.account?.lastLoginAt ? new Date(user.account.lastLoginAt).toLocaleString() : 'Unknown'}</p>
                                  </div>
                             </div>
                          </div>
@@ -332,7 +332,7 @@ const UserSiteDrawer: React.FC<UserSiteDrawerProps> = ({ user, onClose }) => {
                                                         <div key={h.id} className="glass p-6 rounded-3xl flex items-center justify-between border-brand-sage/5 group hover:border-brand-primary/20 transition-all">
                                                             <div className="flex items-center gap-4">
                                                                 <div className="p-3 bg-brand-primary/10 rounded-xl text-brand-primary"><BookOpen size={16} /></div>
-                                                                <p className="text-sm font-bold uppercase tracking-tight">Sequence #{h.factId.slice(0, 8)}</p>
+                                                                <p className="text-sm font-bold uppercase tracking-tight">Sequence #{(h.factId || h.id || '').slice(0, 8)}</p>
                                                             </div>
                                                             <p className="text-[10px] font-mono opacity-40">{new Date(h.timestamp || h.readAt).toLocaleString()}</p>
                                                         </div>

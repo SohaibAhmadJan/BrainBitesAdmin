@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseApp, db, auth } from './firebaseService';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection, deleteDoc, getDocs } from 'firebase/firestore';
 import { BiteItem, Category, AppSettings, AdminUser, AppNotification, CollectionSet, Achievement, QuoteItem } from '../types';
 import { dispatchNotificationDirectly } from './firestoreService';
 
@@ -168,11 +168,68 @@ export const deleteNotification = async (id: string, reason: string) => {
     return fn({ id, reason });
 };
 
-export const updateUserStatus = async (uid: string, status: 'ACTIVE' | 'DISABLED', reason: string) => {
-    const functions = getFunctionsInstance();
-    if (!functions) throw new Error('Cloud Connectivity Not Initialized');
-    const fn = httpsCallable(functions, 'updateUserStatusAtomic');
-    return fn({ uid, status, reason });
+export const updateUserStatus = async (uid: string, status: string, reason: string) => {
+    if (!db || !auth?.currentUser) throw new Error('Administrative clearance required.');
+    
+    try {
+        const userRef = doc(db, 'users', uid);
+        await setDoc(userRef, {
+            account: {
+                status: status,
+                statusUpdatedAt: Date.now(),
+                statusUpdatedBy: auth.currentUser.uid,
+                statusReason: reason
+            }
+        }, { merge: true });
+
+        const auditRef = collection(db, 'audit_logs');
+        await addDoc(auditRef, {
+            adminUid: auth.currentUser.uid,
+            action: 'UPDATE_USER_STATUS_DIRECT',
+            targetType: 'USER',
+            targetId: uid,
+            after: { status, reason },
+            reason: reason,
+            createdAt: Date.now()
+        });
+
+        return { status: "success" };
+    } catch (err) {
+        console.error('Direct User Status Sync ERROR:', err);
+        throw err;
+    }
+};
+
+export const deleteUserDirect = async (uid: string) => {
+    if (!db || !auth?.currentUser) throw new Error('Administrative clearance required.');
+    
+    try {
+        const subcollections = ['history', 'quizResults', 'achievements', 'devices'];
+        
+        for (const sub of subcollections) {
+            const subRef = collection(db, 'users', uid, sub);
+            const snapshot = await getDocs(subRef);
+            const deletePromises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+            await Promise.all(deletePromises);
+        }
+
+        await deleteDoc(doc(db, 'users', uid));
+
+        const auditRef = collection(db, 'audit_logs');
+        await addDoc(auditRef, {
+            adminUid: auth.currentUser.uid,
+            action: 'DELETE_USER_DIRECT_DEEP',
+            targetType: 'USER',
+            targetId: uid,
+            reason: 'Deep hard deletion (including subcollections) from admin panel',
+            createdAt: Date.now()
+        });
+
+        return { status: "success" };
+    } catch (err) {
+        console.error('Direct User Deletion ERROR:', err);
+        throw err;
+    }
 };
 
 export const pingApi = async () => {

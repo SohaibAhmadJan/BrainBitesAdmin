@@ -281,7 +281,7 @@ const AdminsPage = () => {
                       <td className="p-6">
                         <div className="flex items-center gap-4">
                           <div className={cn("w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border border-brand-sage/20 relative overflow-hidden", theme === 'dark' ? "bg-brand-bg/80 text-brand-primary" : "bg-brand-primary text-white")}>
-                            {admin.displayName[0]?.toUpperCase() || 'A'}
+                            {admin.displayName?.[0]?.toUpperCase() || 'A'}
                           </div>
                           <p className="text-sm font-bold text-brand-white">{admin.displayName}</p>
                         </div>
