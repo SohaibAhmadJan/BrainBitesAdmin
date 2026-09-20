@@ -213,6 +213,31 @@ export const deleteUserDirect = async (uid: string) => {
             await Promise.all(deletePromises);
         }
 
+        // 1. First, call the Vercel backend to delete the user from Firebase Auth
+        const VERCEL_BACKEND_URL = 'https://vercel-backend-orpin-ten.vercel.app/api/deleteUser';
+        
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const response = await fetch(VERCEL_BACKEND_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ targetUid: uid })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Failed to delete Auth account via Vercel:', errorData);
+                throw new Error(errorData.error || 'Failed to delete Auth account');
+            }
+        } catch (authError) {
+            console.error('Vercel Auth Deletion Error:', authError);
+            throw authError; // Throw here so we DON'T delete the Firestore doc if Auth deletion failed!
+        }
+
+        // 2. If Auth deletion succeeds, delete Firestore records
         await deleteDoc(doc(db, 'users', uid));
 
         const auditRef = collection(db, 'audit_logs');
