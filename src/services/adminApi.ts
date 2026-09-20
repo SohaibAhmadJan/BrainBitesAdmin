@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseApp, db, auth } from './firebaseService';
-import { doc, setDoc, addDoc, collection, deleteDoc, getDocs } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { BiteItem, Category, AppSettings, AdminUser, AppNotification, CollectionSet, Achievement, QuoteItem } from '../types';
 import { dispatchNotificationDirectly } from './firestoreService';
 
@@ -237,8 +237,22 @@ export const deleteUserDirect = async (uid: string) => {
             throw authError; // Throw here so we DON'T delete the Firestore doc if Auth deletion failed!
         }
 
-        // 2. If Auth deletion succeeds, delete Firestore records
-        await deleteDoc(doc(db, 'users', uid));
+        // 2. If Auth deletion succeeds, fetch user to get their handle, then delete Firestore records
+        const userDocRef = doc(db, 'users', uid);
+        const userDocSnap = await getDoc(userDocRef);
+        let userHandle = null;
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            userHandle = userData.profile?.handle;
+        }
+
+        await deleteDoc(userDocRef);
+
+        // 3. Free up their username handle if they had one
+        if (userHandle) {
+            const handleDocRef = doc(db, 'handles', userHandle);
+            await deleteDoc(handleDocRef);
+        }
 
         const auditRef = collection(db, 'audit_logs');
         await addDoc(auditRef, {
