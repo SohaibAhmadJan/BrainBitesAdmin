@@ -25,7 +25,7 @@ const setCorsHeaders = (req, res) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.SMTP_EMAIL || 'ahmedjansohaib8@gmail.com',
+        user: process.env.SMTP_EMAIL || 'optimusprimecodename47@gmail.com',
         pass: process.env.SMTP_PASSWORD || 'your_app_password_here'
     }
 });
@@ -73,7 +73,7 @@ module.exports = async (req, res) => {
 
     // 4. Send Email
     const mailOptions = {
-        from: `"BrainBites" <${process.env.SMTP_EMAIL || 'ahmedjansohaib8@gmail.com'}>`,
+        from: `"BrainBites" <${process.env.SMTP_EMAIL || 'optimusprimecodename47@gmail.com'}>`,
         to: email,
         subject: 'Your BrainBites Verification Code',
         text: `Welcome to BrainBites!\n\nYour 6-digit verification code is: ${otp}\n\nThis code will expire in 15 minutes.`,
