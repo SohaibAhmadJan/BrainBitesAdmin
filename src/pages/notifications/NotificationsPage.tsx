@@ -31,6 +31,7 @@ const NotificationsPage = () => {
   const [facts, setFacts] = useState<BiteItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -112,6 +113,38 @@ const NotificationsPage = () => {
       toast.success(form.isScheduled ? 'Transmission Scheduled (Local Alarm)' : 'Broadcast Dispatched Successfully');
     } catch (err: any) {
       toast.error(`Transmission Failure: ${err.message}`);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!isAtLeast('ADMIN')) {
+      toast.error('Identity protocol violation: Restricted clearance.');
+      return;
+    }
+    if (notifications.length === 0) return;
+    if (!window.confirm(`Are you sure you want to retract ALL ${notifications.length} broadcasts? This cannot be undone.`)) return;
+
+    setIsClearing(true);
+    let successCount = 0;
+    try {
+      const promises = notifications.map(n => deleteNotification(n.id, 'Mass history purge'));
+      const results = await Promise.allSettled(promises);
+
+      results.forEach(res => {
+        if (res.status === 'fulfilled') successCount++;
+      });
+
+      if (successCount === notifications.length) {
+        toast.success('Broadcast history cleared successfully.');
+        setNotifications([]);
+      } else {
+        toast.error(`Purged ${successCount}/${notifications.length} items.`);
+        loadData();
+      }
+    } catch (err: any) {
+      toast.error(`Mass Purge Error: ${err.message}`);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -382,7 +415,7 @@ const NotificationsPage = () => {
                                 try {
                                     await deleteNotification(n.id, 'Manual retraction');
                                     toast.success('Retracted');
-                                    loadData();
+                                    setNotifications(notifications.filter(notif => notif.id !== n.id));
                                 } catch (err: any) {
                                     toast.error(`Failed: ${err.message}`);
                                 }
@@ -396,6 +429,25 @@ const NotificationsPage = () => {
                  </motion.div>
                ))}
             </div>
+
+            {/* Clear All Footer */}
+            {notifications.length > 0 && (
+               <div className="mt-4 pt-3 border-t border-brand-sage/10 flex justify-end shrink-0">
+                 <button
+                   onClick={handleClearAll}
+                   disabled={isClearing}
+                   className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                 >
+                   {isClearing ? (
+                     <span className="animate-pulse">Purging...</span>
+                   ) : (
+                     <>
+                       <Trash2 size={12} /> Clear History
+                     </>
+                   )}
+                 </button>
+               </div>
+            )}
          </div>
       </div>
 

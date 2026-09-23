@@ -1,6 +1,6 @@
 {
   "name": "brainbites-admin-backend",
-  "version": "1.0.0",
+  "version": "5.0.6",
   "description": "Vercel backend for Firebase Admin tasks",
   "main": "api/deleteUser.js",
   "dependencies": {
