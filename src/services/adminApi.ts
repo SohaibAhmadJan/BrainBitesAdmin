@@ -162,10 +162,32 @@ export const sendGlobalNotification = async (data: Partial<AppNotification>, rea
 };
 
 export const deleteNotification = async (id: string, reason: string) => {
-    const functions = getFunctionsInstance();
-    if (!functions) throw new Error('Cloud Connectivity Not Initialized');
-    const fn = httpsCallable(functions, 'deleteNotificationAtomic');
-    return fn({ id, reason });
+    if (!db || !auth?.currentUser) throw new Error('Administrative clearance required.');
+    try {
+        const notifRef = doc(db, 'notifications', id);
+        const snapshot = await getDoc(notifRef);
+
+        if (snapshot.exists()) {
+            // Save audit log
+            await addDoc(collection(db, 'audit_logs'), {
+                adminUid: auth.currentUser.uid,
+                action: 'DELETE_NOTIFICATION',
+                targetType: 'NOTIFICATION',
+                targetId: id,
+                before: snapshot.data(),
+                reason: reason || 'Manual broadcast removal',
+                createdAt: Date.now()
+            });
+
+            // Delete the notification
+            await deleteDoc(notifRef);
+        }
+
+        return { status: "success" };
+    } catch (err) {
+        console.error('deleteNotification ERROR:', err);
+        throw err;
+    }
 };
 
 export const updateUserStatus = async (uid: string, status: string, reason: string) => {
