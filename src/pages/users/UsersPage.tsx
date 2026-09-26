@@ -54,7 +54,28 @@ const UsersPage = () => {
         fetchAchievements(),
         fetchAdmins()
       ]);
-      setUsers(userData);
+
+      // Auto-Purge Pipeline Check
+      const now = Date.now();
+      const validUsers: UserProfile[] = [];
+
+      for (const user of userData) {
+        if (user.account?.status === 'PENDING_DELETION' && user.account?.scheduledDeletionAt) {
+          if (now > user.account.scheduledDeletionAt) {
+            // The 30-day grace period has expired, perform automated purge
+            try {
+              console.log(`Executing auto-purge for ${user.id}`);
+              await deleteUserDirect(user.id);
+            } catch (e) {
+              console.error(`Failed to auto-purge user ${user.id}`, e);
+            }
+            continue; // Do not add to validUsers array
+          }
+        }
+        validUsers.push(user);
+      }
+
+      setUsers(validUsers);
       setAchievements(achData);
       setAdminIds(new Set(adminData.map(a => a.uid)));
     } catch (err) {
@@ -165,6 +186,11 @@ const UsersPage = () => {
                           <div>
                             <p className="text-sm font-bold">{user.profile?.displayName || (user as any).displayName || 'Anonymous User'}</p>
                             <p className="text-[8px] text-sub font-mono uppercase tracking-tighter opacity-40">UID: {user.id.slice(0, 8)}</p>
+                            {user.account?.status === 'PENDING_DELETION' && user.account?.scheduledDeletionAt && (
+                                <span className="mt-1 inline-block text-[8px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                  Purge in {Math.ceil((user.account.scheduledDeletionAt - Date.now()) / (1000 * 60 * 60 * 24))} days
+                                </span>
+                            )}
                           </div>
                         </div>
                       </td>
